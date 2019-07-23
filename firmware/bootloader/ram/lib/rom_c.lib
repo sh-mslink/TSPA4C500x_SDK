@@ -1,0 +1,20 @@
+#<SYMDEFS># ARM Linker, 5060300: Last Updated: Fri Oct 26 10:26:14 2018
+0x00008001 T memcmp
+0x00008059 T strcpy
+0x000080a1 T strrchr
+0x000080b7 T strlen
+0x000080f5 T __aeabi_memcpy
+0x000080f5 T __rt_memcpy
+0x0000815b T _memcpy_lastbytes
+0x0000817f T __aeabi_memcpy4
+0x0000817f T __aeabi_memcpy8
+0x0000817f T __rt_memcpy_w
+0x000081c7 T _memcpy_lastbytes_aligned
+0x000081e3 T __aeabi_memset
+0x000081f3 T __aeabi_memclr
+0x000081f3 T __rt_memclr
+0x000081f7 T _memset
+0x00008237 T __aeabi_memclr4
+0x00008237 T __aeabi_memclr8
+0x00008237 T __rt_memclr_w
+0x0000823b T _memset_w

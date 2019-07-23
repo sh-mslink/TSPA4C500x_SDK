@@ -1,0 +1,23 @@
+#! armcc -E
+
+; the path is from the scatter file location
+#include "..\..\..\..\inc\in_config.h"
+#include "..\..\..\..\inc\in_mmap.h"
+
+LR_IROM1 FLASH_BASE FLASH_SIZE  {    ; load region size_region
+
+	ER_IROM1 FLASH_BASE FLASH_SIZE  {  ; load address = execution address
+   		*.o (RESET, +First)
+   		*(InRoot$$Sections)
+   		.ANY (+RO)
+	}
+  
+  ER_IRAM1 RAM_BASE RAM_SIZE {  ; RW data
+   .ANY (+RW +ZI)
+  }
+
+ ER_IRAM4 0x0020f800 UNINIT 0x00000800  {  ; RW data
+  segger_rtt.o (segger_rtt)
+ }
+   
+}

@@ -170,5 +170,10 @@
 #define BLE_LECB						0
 #endif //(BLE_CENTRAL || BLE_PERIPHERAL)
 
+#if CFG_HCI
+void hci_enable(void);
+bool isHciEnable(void);
+#endif
+
 #endif	/* INB_CONFIG_H */
 

@@ -75,6 +75,9 @@ static uint32_t inb_rand(void)
 static void *inb_uart_init(void)
 {
 #if CFG_HCI
+    if(!isHciEnable())
+        return NULL;
+    
 	//int id = CFG_HCI_UART_ID;
 	void *h_uart;
 

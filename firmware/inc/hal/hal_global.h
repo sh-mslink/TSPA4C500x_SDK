@@ -76,6 +76,7 @@ void hal_global_suspend(void);
  */
 void hal_global_resume(void);
 
+void hal_global_debug_uart_init(void);
 /// @} HAL_GLOBAL
 
 #endif 	// HAL_GLOBAL_H

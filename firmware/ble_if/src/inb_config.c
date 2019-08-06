@@ -40,7 +40,9 @@
  * GLOBAL VARIABLES
  ****************************************************************************************
  */
-
+#if CFG_HCI
+static bool hciEnable = false;
+#endif
 /*
  * BLE PARAMETERS
  ****************************************************************************************
@@ -50,6 +52,18 @@
  * FUNCTIONS
  ****************************************************************************************
  */
+#if CFG_HCI
+void hci_enable(void)
+{
+    hciEnable = true;
+}
+
+bool isHciEnable(void)
+{
+    return hciEnable;
+}
+#endif
+
 int get_ble_activity_max(void)
 {
 	return BLE_ACTIVITY_MAX;	
@@ -285,7 +299,10 @@ int get_sdr(void)
 int get_app_main_task(void)
 {
 #if CFG_HCI
-	return 4; /// AHI task number
+    if(isHciEnable())
+        return 4; /// AHI task number
+    else
+        return 3; /// embedded task number
 #else
 	return 3; /// embedded task number
 #endif

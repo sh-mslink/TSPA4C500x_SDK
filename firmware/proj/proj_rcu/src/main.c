@@ -6,6 +6,7 @@
 
 #include "in_arm.h"
 #include "in_debug.h"
+#include "inb_config.h"
 #include "hal_uart.h"
 #include "hal_gpio.h"
 #include "hal_power.h"
@@ -139,29 +140,29 @@ static void user_rcu_rf_test(void)
     hal_gpio_output(1, 7, 0, 1);
         
     if(!hal_gpio_input(3, 2))
-    {
-        PRINTD(DBG_TRACE, "test mode\r\n");
         testMode = true;
-    }
     
     if(testMode)
     {        
-        inb_test_mode_t tMode = {0}; 
-        uint16_t rxPacketNb = 0;       
+#if 1 //HCI mode
+#if CFG_HCI        
+        hci_enable();
+        ble_stack_init();//wait for HCI communication
+#endif
+#else //inb_test mode
+        inb_test_mode_t tMode = {0};
+        uint16_t rxPacketNb = 0;
         
         tMode.test_mode = TEST_MODE_TX;
         tMode.channel = 19;//2440MHz
         tMode.tx_data_length = 20;
         tMode.tx_pkt_payload = PKT_PLD_PRBS15;
         tMode.phy = TEST_PHY_1MBPS;
-        tMode.modulation_idx = MODULATION_STANDARD;                
+        tMode.modulation_idx = MODULATION_STANDARD;
         inb_test(&tMode, &rxPacketNb);//test start
-                        
-        //while(1);//continue to test forever until chip reset
-        osDelay(5000);//continue to test for 5 seconds
+#endif
         
-        tMode.test_mode = TEST_MODE_STOP;
-        inb_test(&tMode, &rxPacketNb);//test stop
+        while(1);//continue to test forever until chip reset
     }    
 }
 
@@ -1222,9 +1223,9 @@ static msrcuErr_t user_rcu_init(msrcuAppCallback_t *cb)
 }
 
 /*
- * main: This is actually main task. 
- *	Note: The _main_init in the RTX_CM_lib.h is 
- *				main entry routine (OS is initialized 
+ * main: This is actually main task.
+ *	Note: The _main_init in the RTX_CM_lib.h is
+ *				main entry routine (OS is initialized
  *				in there).
  */
 #if 0
@@ -1235,7 +1236,7 @@ int main (void)//for test
 	PRINTD(DBG_TRACE, "----------------\r\n");
 	PRINTD(DBG_TRACE, "main start...\r\n");
     
-    ble_config(0);      
+    ble_config(0);
     
     user_rcu_ble_adv_start();
     
@@ -1249,18 +1250,21 @@ int main (void)
 {
 	//Initialize platform.
 	hal_global_post_init();
-	
-	//MessageQ for main thread.
-	msg_init();
+    
+	//RF test mode for RCU production
+	user_rcu_rf_test();	
+    
+	//Debug UART port init
+    hal_global_debug_uart_init();
 	
 	PRINTD(DBG_TRACE, "----------------\r\n");
 	PRINTD(DBG_TRACE, "main start...\r\n");  
 	
+	//MessageQ for main thread.
+	msg_init();
+    
 	//BLE init
-	ble_config(0);
-	
-	//rf test mode for rcu production
-	user_rcu_rf_test();
+	ble_config(0);	
 	
 	//RCU init
 	msrcuErr_t err = user_rcu_init(&userAppCb);
@@ -1272,7 +1276,7 @@ int main (void)
 	else
 		MSPRINT("RCU init success.\r\n");
 	
-	//wait for msg
+	//Wait for MSG
 	while(1)
 	{
 		msg_t *p_msg;

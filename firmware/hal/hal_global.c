@@ -249,17 +249,24 @@ void hal_global_pre_init(void)
 	hal_smem_init();
 }
 
+void hal_global_debug_uart_init(void)
+{
+#if CFG_DBG_EN
+#if CFG_DBG_IF_UART	
+	uart_hdl = hal_uart_open(CFG_DBG_IF_UART_PORT, CFG_DBG_IF_UART_BAUD, 8, 1, 0, 0, 0, 0, 0, 1);
+#endif	// CFG_DBG_IF_UART
+#endif	// CFG_DBG_EN
+}
+
 void hal_global_post_init(void)
 {
 	/// **** RTC ****
 	/// Note: There is a 1 second wait before RTC settle down.
 	hal_clk_rtc_en(CFG_RTC_EN);
 
-#if CFG_DBG_EN
-#if CFG_DBG_IF_UART	
-	uart_hdl = hal_uart_open(CFG_DBG_IF_UART_PORT, CFG_DBG_IF_UART_BAUD, 8, 1, 0, 0, 0, 0, 0, 1);
-#endif	// CFG_DBG_IF_UART
-#endif	// CFG_DBG_EN
+//#if !CFG_HCI
+//    hal_global_debug_uart_init();
+//#endif
 
 #if CFG_PM_EN
 	uint32_t dm_retn = 0;

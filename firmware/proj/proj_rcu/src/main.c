@@ -543,27 +543,27 @@ static msrcuErr_t user_rcu_ble_bond_data_clear(msrcuBleBondData_t* data)
 }
 
 static msrcuErr_t user_rcu_ble_adv_start(void)
-{    
+{
     msrcuErr_t err = ERR_NO_ERROR;
     uint8_t advData[] = 
     {
         0x06,//AD Element Length
         0x08,//AD Type: Shortened local name
         'M','S','R','C','U'//AD Data Bytes:"MSRCU"
-    };    
+    };
     uint8_t scanRspData[] = 
     {
         0x03,//AD Element Length
         0x03,//AD Type: Complete list of 16-bit UUIDs
         0x12, 0x18//AD Data UUID: Human Interface Device
-    };        
+    };
     msrcuBleAdv_t* adv;
     
     adv = malloc(sizeof(msrcuBleAdv_t));
     if(adv == NULL)
         return ERR_NO_MEMORY;
 
-#if MSRCU_BLE_DIRECT_ADV_ENABLE    
+#if MSRCU_BLE_DIRECT_ADV_ENABLE
     if(msrcuBondData.status)
     {
         adv->pduType = ADV_DIRECT_IND;
@@ -1241,30 +1241,30 @@ int main (void)//for test
     user_rcu_ble_adv_start();
     
 	while(1)
-    {        
+    {
 		osDelay(1000);
-	}	
+	}
 }
 #else
-int main (void) 
+int main (void)
 {
 	//Initialize platform.
 	hal_global_post_init();
     
 	//RF test mode for RCU production
-	user_rcu_rf_test();	
+	user_rcu_rf_test();
     
 	//Debug UART port init
     hal_global_debug_uart_init();
 	
 	PRINTD(DBG_TRACE, "----------------\r\n");
-	PRINTD(DBG_TRACE, "main start...\r\n");  
+	PRINTD(DBG_TRACE, "main start...\r\n");
 	
 	//MessageQ for main thread.
 	msg_init();
     
 	//BLE init
-	ble_config(0);	
+	ble_config(0);
 	
 	//RCU init
 	msrcuErr_t err = user_rcu_init(&userAppCb);
@@ -1276,7 +1276,7 @@ int main (void)
 	else
 		MSPRINT("RCU init success.\r\n");
 	
-	//Wait for MSG
+	//Wait for message
 	while(1)
 	{
 		msg_t *p_msg;

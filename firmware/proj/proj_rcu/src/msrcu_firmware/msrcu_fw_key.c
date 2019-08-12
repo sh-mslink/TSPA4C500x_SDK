@@ -48,11 +48,8 @@ msrcuErr_t msrcu_fw_key_state_get(uint8_t keyCode, msrcuKeySt *st)
 static msrcuErr_t msrcu_fw_key_matrix_init(uint8_t row, uint8_t col, void (*cb)(msrcuEvtKey_t *evt))
 {
     msrcuErr_t err = ERR_DEVICE;
-    
-    if(!cb)
-        return ERR_VALID_INPUT;  
-    
-    if(!(row & col)) 
+        
+    if(row == 0 || col == 0 || cb == NULL) 
         return ERR_VALID_INPUT;
     
 #if MSRCU_DEV == MSRCU_DEV_TSPA4C500A
@@ -63,20 +60,8 @@ static msrcuErr_t msrcu_fw_key_matrix_init(uint8_t row, uint8_t col, void (*cb)(
 }
 
 msrcuErr_t msrcu_fw_key_init(void (*cb)(msrcuEvtKey_t *evt))
-{
-    msrcuErr_t err = ERR_NO_ERROR;
-        
-    if(!((MSRCU_KEY_MATRIX_ROW_NB & MSRCU_KEY_MATRIX_COL_NB)))
-        return ERR_VALID_INPUT;
-    
-    if(MSRCU_KEY_MATRIX_ROW_NB & MSRCU_KEY_MATRIX_COL_NB)
-    {
-        err = msrcu_fw_key_matrix_init(MSRCU_KEY_MATRIX_ROW_NB, MSRCU_KEY_MATRIX_COL_NB, cb);
-        if(err)
-            return err;
-    }
-        
-    return err;
+{    
+    return msrcu_fw_key_matrix_init(MSRCU_KEY_MATRIX_ROW_NB, MSRCU_KEY_MATRIX_COL_NB, cb);
 }
 
 msrcuErr_t msrcu_fw_key_hid_send(uint8_t conIndex, hidKeycode_t code)

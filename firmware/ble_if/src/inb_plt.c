@@ -39,6 +39,14 @@
 static struct pm_module g_ble_pm;
 #endif
 
+#ifdef ASSERT_DISPLAY
+uint8_t assert_display_flag=0;
+ char assert_file[16]={0}; 
+int assert_line=0;
+int assert_param0=0;
+int assert_param1=0;
+#endif
+
 /**********************************************************************
 *
 *
@@ -517,21 +525,55 @@ static void inb_plt_init(uint32_t *sz)
 	memset((void *)(SMEM_BASE + offset), 0, *sz);
 }
 
-static void inb_assert_error(const char *file, int line)
+
+void inb_assert_error(const char *file, int line)
 {
 	PRINTD(DBG_ERR, "Assert Error, file = %s, line = %d\r\n", file, line);
+	
 	// TODO
+	#ifdef ASSERT_DISPLAY
+	if(assert_display_flag == 0)
+	{
+		strncpy(assert_file,file,16);
+		assert_line=line;
+		assert_param0=0xffff;
+		assert_param1=0xffff;
+		assert_display_flag=1;
+		
+	}
+	#endif
 }
 
 static void inb_assert_param(const char *file, int line, int param0, int param1)
 {
 	PRINTD(DBG_ERR, "Assert Param, file = %s, line = %d, param0 = %d, param1 = %d\r\n", file, line, param0, param1);
 	// TODO
+	#ifdef ASSERT_DISPLAY
+	if(assert_display_flag == 0)
+	{
+		strncpy(assert_file,file,16);
+		assert_line=line;
+		assert_param0=param0;
+		assert_param1=param1;
+		assert_display_flag=1;
+	}
+	#endif
 }
 
 static void inb_assert_warn(const char *file, int line, int param0, int param1)
 {
 	PRINTD(DBG_ERR, "Assert Warn, file = %s, line = %d, param0 = %d, param1 = %d\r\n", file, line, param0, param1);
+
+	#ifdef ASSERT_DISPLAY
+	if(assert_display_flag == 0)
+	{
+		strncpy(assert_file,file,16);
+		assert_line=line;
+		assert_param0=param0;
+		assert_param1=param1;
+		assert_display_flag=1;
+	}
+	#endif
 	// TODO
 }
 

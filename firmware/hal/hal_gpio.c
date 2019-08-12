@@ -459,6 +459,21 @@ void hal_gpio_aon_out(int port, int pin)
 	aon_write(addr, reg);
 }
 
+void hal_gpio_ext_int_clear(int port, int pin)
+{
+	if (port == GPIO_PORT_0) {
+		gpio_port_0_int_clear(pin);
+	} else if (port == GPIO_PORT_1) {
+		gpio_port_1_int_clear(pin);
+	} else if (port == GPIO_PORT_2) {
+		gpio_port_2_int_clear(pin);
+	} else if (port == GPIO_PORT_3) {
+		gpio_port_3_int_clear(pin);
+	} else if (port == GPIO_PORT_4) {
+		gpio_port_4_int_clear(pin);
+	}
+}
+
 void hal_gpio_ext_int_en(int port, int pin, int pol, void *arg, void (*callback)(void *))
 {
 	/// Turn on gpio intr ctrl clock
@@ -483,7 +498,7 @@ void hal_gpio_ext_int_en(int port, int pin, int pol, void *arg, void (*callback)
 
 		/// polarity
 		gpio_port_0_int_polarity(pin, pol);
-
+		gpio_port_0_int_clear(pin);
 		gpio_port_0_int_unmask(pin);
         NVIC_SetPriority(Gpio0_IRQn, IRQ_PRI_Normal);
 		NVIC_EnableIRQ(Gpio0_IRQn);
@@ -506,7 +521,7 @@ void hal_gpio_ext_int_en(int port, int pin, int pol, void *arg, void (*callback)
 
 		/// polarity
 		gpio_port_1_int_polarity(pin, pol);
-
+		gpio_port_1_int_clear(pin);
 		gpio_port_1_int_unmask(pin);
         NVIC_SetPriority(Gpio1_IRQn, IRQ_PRI_Normal);
 		NVIC_EnableIRQ(Gpio1_IRQn);
@@ -529,7 +544,7 @@ void hal_gpio_ext_int_en(int port, int pin, int pol, void *arg, void (*callback)
 
 		/// polarity
 		gpio_port_2_int_polarity(pin, pol);
-
+		gpio_port_2_int_clear(pin);
 		gpio_port_2_int_unmask(pin);
         NVIC_SetPriority(Gpio2_IRQn, IRQ_PRI_Normal);
 		NVIC_EnableIRQ(Gpio2_IRQn);
@@ -552,7 +567,7 @@ void hal_gpio_ext_int_en(int port, int pin, int pol, void *arg, void (*callback)
 
 		/// polarity
 		gpio_port_3_int_polarity(pin, pol);
-
+		gpio_port_3_int_clear(pin);
 		gpio_port_3_int_unmask(pin);
         NVIC_SetPriority(Gpio3_IRQn, IRQ_PRI_Normal);
 		NVIC_EnableIRQ(Gpio3_IRQn);
@@ -575,7 +590,7 @@ void hal_gpio_ext_int_en(int port, int pin, int pol, void *arg, void (*callback)
 
 		/// polarity
 		gpio_port_4_int_polarity(pin, pol);
-
+		gpio_port_4_int_clear(pin);
 		gpio_port_4_int_unmask(pin);
         NVIC_SetPriority(Gpio4_IRQn, IRQ_PRI_Normal);
 		NVIC_EnableIRQ(Gpio4_IRQn);

@@ -174,59 +174,9 @@ __irq void Global_Irq_Handler(void)
  * Initialization APIs
  ****************************************************************************************
  */
-
-#if 0
-#define XO_CAP_VALUE 0x66
-#define PMU_SETTINGS_FOR_TRX
-static void aon_reg_opt()
-{
-	// optimize warmup boot setting
-	aon_write(0x70cc,0x7);
-	aon_write(0x70c0,0x8);
-	aon_write(0x70DC,0x0205);
-#if 0
-	aon_write(0x70C8,0xe07); // dcdc takes ~400 us at 1.7 v
-	aon_write(0x7090,0x22);
-	aon_write(0x7094,0x1812001c);
-#else
-	aon_write(0x70C8,0x607); // dcdc takes <200 us at 3 v
-	aon_write(0x7090,0x24);
-	aon_write(0x7094,0x14120017);	
-#endif
-
-	/// Review: read from efuse...
-	uint32_t cust_edata = efuse_read_word(EFUSE0_ID, 0, 0);
-	if ((cust_edata >> 17) & 1) {
-		uint32_t xo_cap = (cust_edata >> 18) & 0xFF;
-		aon_write(0x1250,(0x22240c00 | xo_cap));
-
-	} else {
-		aon_write(0x1250,0x22240c00 | (XO_CAP_VALUE));
-	}
-	aon_write(0x1240,0x22251f00 | (XO_CAP_VALUE*0));
-	aon_write(0x1254,0xa);
-	aon_write(0x1090,0x55941152);
-	aon_write(0x1094,0x1f1034);
-	aon_write(0x10c0,aon_read(0x10c0)|(1<<5));
-
-	// sleep current optimization
-	aon_write(0x7100,aon_read(0x7100)&(~3));
-
-#ifdef PMU_SETTINGS_FOR_TRX
-	aon_write(0x1150,1);
-#endif
-
-#ifdef TEST_XO_STABILITY
-	// enable peak detector and also adjust the threshold
-	aon_write(0x1250,aon_read(0x1250)|(1<<24) |(1<<20));
-	//aon_write(0x1240,aon_read(0x1250) |(1<<12));
-#endif
-}
-#endif
-
 void hal_global_pre_init(void)
 {
-
+#if !CFG_FPGA
 	rf_int_aon_reg_opt();
 
 	/// **** Configure clock ****
@@ -247,6 +197,8 @@ void hal_global_pre_init(void)
 
 	/// **** Configure shared memory ****
 	hal_smem_init();
+#endif	// !CFG_FPGA
+
 }
 
 void hal_global_debug_uart_init(void)
@@ -262,11 +214,13 @@ void hal_global_post_init(void)
 {
 	/// **** RTC ****
 	/// Note: There is a 1 second wait before RTC settle down.
+#if !CFG_FPGA
 	hal_clk_rtc_en(CFG_RTC_EN);
+#endif
 
-//#if !CFG_HCI
-//    hal_global_debug_uart_init();
-//#endif
+#if !CFG_HCI
+    hal_global_debug_uart_init();
+#endif
 
 #if CFG_PM_EN
 	uint32_t dm_retn = 0;
@@ -342,7 +296,7 @@ void hal_global_resume(void)
 
 
 	// DC-DC clock using XO 
-	aon_write(0x1080,value_for_0x1080 |(1<<31));
+	aon_write(0x1080,value_for_0x1080 |(1UL<<31));
 	// Gate RC 32MHz
 	aon_write(0x7100, (aon_read(0x7100)&(0xfffff3ff))|(0x2<<10));
 

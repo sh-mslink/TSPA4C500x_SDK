@@ -353,3 +353,20 @@ uint32_t get_ble_max_sleep_duration(void)
 	return CFG_BLE_PARAM_MAX_SLEEP_DURATION_TIME;
 }
 
+uint32_t get_ble_adv_frag_size_tx(void)
+{
+	return BLE_ADV_FRAG_SIZE_TX;	
+}
+
+uint32_t get_ble_adv_frag_nb_tx(void)
+{
+	return BLE_ADV_FRAG_NB_TX;	
+}
+
+uint32_t get_em_ble_advdatatxbuf_size(void)
+{
+
+	return (BLE_ADV_FRAG_NB_TX*BLE_ADV_FRAG_SIZE_TX);
+
+}
+

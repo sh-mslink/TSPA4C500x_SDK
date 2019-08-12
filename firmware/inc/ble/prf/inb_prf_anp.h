@@ -268,9 +268,11 @@ typedef union
  ****************************************************************************************
  */
 //int inb_anpc_add(inb_add_prf_t *p_prf);
+int inb_anpc_add(enum inb_att_svc_perm_mask secure_level);
 
-
-
+int inb_anps_add(	enum inb_att_svc_perm_mask 		secure_level, 
+					enum inb_anp_ntf_category_id_bits 	supp_new_alert_cat, 
+					enum inb_anp_ntf_category_id_bits 	supp_unread_alert_cat);
 	
 
 /// @} INB_PRF_BAS

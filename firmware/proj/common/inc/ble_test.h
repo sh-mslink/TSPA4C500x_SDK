@@ -32,9 +32,6 @@
 #define BLE_MEM_NON_RTN		    (2 * 1024)
 #endif
 
-static const uint8_t bd_address[6] = {0x14, 0x11, 0x11, 0x11, 0x11, 0x11};
-static const uint8_t peer_address[6] = {0xE0,0xE3,0x08,0xDC,0x1B,0x00};
-
 /*
  * Global Variables
  ****************************************************************************************
@@ -81,10 +78,11 @@ void ble_mem_usage_tmr_callback(void const *arg);
 
 int start_adv(void);
 int stop_adv(void);
-int create_init(int *pActv_idx);
-int start_init(int actv_idx);
+int start_connect(inb_bdaddr_t* addr);
 int create_scan(void);
 int start_scan(void);
+int stop_scan(void);
+int discovery_service(int conIdx);
 
 void ble_event_callback(inb_evt_t *evt);
 

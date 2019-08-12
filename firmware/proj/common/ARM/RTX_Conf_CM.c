@@ -199,7 +199,7 @@
 //   <i> when they are called from the interrupt handler.
 //   <i> Default: 16 entries
 #ifndef OS_FIFOSZ
- #define OS_FIFOSZ      16
+ #define OS_FIFOSZ      32
 #endif
  
 // </h>
@@ -299,7 +299,7 @@ extern osThreadId svcThreadGetId (void);
 /// \param[in]   error_code   actual error code that has been detected
 void os_error (uint32_t error_code) {
 
-PRINTD(DBG_ERR, "os error code = %d\r\n", error_code);	 
+PRINTD(DBG_ERR, "os thread %d error code = %d\r\n", svcThreadGetId(), error_code);	 
 
   /* HERE: include optional code to be executed on runtime error. */
   switch (error_code) {

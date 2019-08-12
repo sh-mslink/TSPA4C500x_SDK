@@ -274,7 +274,7 @@ int hal_hwacc_close(void);
  * @return HWACC_ERR_OK if successful, error otherwise. @see enum hwacc_status_t.
  ****************************************************************************************
  */
-int hal_hwacc_write_matrix(hwacc_matrix_desc_t *matrix, float *head);
+int hal_hwacc_write_matrix(hwacc_matrix_desc_t *matrix, const float *head);
 
 /**
  ****************************************************************************************

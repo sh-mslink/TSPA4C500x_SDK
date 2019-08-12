@@ -87,7 +87,7 @@ typedef struct {
 	uint32_t sd0_pin;
 	uint32_t sd1_pin;
 
-	uint8_t mu[16];
+	uint32_t mu[4];
 	osMutexId h_mu;
 
 	i2s_ch_t ch[2];	

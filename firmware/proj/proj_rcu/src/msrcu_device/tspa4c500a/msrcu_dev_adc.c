@@ -55,7 +55,7 @@ msrcuErr_t msrcu_dev_adc_bat_voltage_get(uint16_t *mV)
     for(int i = 0; i < ADC_BAT_SAMPLE_NUMBER; i++)
         avg += batAdcBuf[i];
     avg /= ADC_BAT_SAMPLE_NUMBER;
-    avg = avg * 7 / 3;
+    avg = avg * 29 / 12;
     
     memset(batAdcBuf, 0, sizeof(batAdcBuf));
     

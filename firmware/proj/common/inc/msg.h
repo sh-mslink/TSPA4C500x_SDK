@@ -9,6 +9,7 @@
  */
 enum {
 	MSG_ACTV_STOP,
+	//MSG_START_CONNECT,
 	MSG_DISC,	
 	MSG_CONNECTED,
     MSG_CON_PARAM_UPD_REQ,
@@ -27,6 +28,11 @@ typedef struct {
 	int msg_id;
 } msg_t;
 
+//typedef struct {
+//	int msg_id;
+//	inb_bdaddr_t addr;
+//} msg_start_connect_t;
+
 typedef struct {
 	int msg_id;
 	uint8_t actv_idx;
@@ -38,6 +44,7 @@ typedef struct {
 typedef struct {
 	int msg_id;
 	int conidx;
+    uint8_t reason;
 } msg_disc_t;
 
 typedef struct {
@@ -97,6 +104,7 @@ msg_hogpd_ntf_t;
 typedef struct
 {
 	int msg_id;
+    uint8_t conIndex;
     uint8_t length;
     uint8_t data[20];
 }

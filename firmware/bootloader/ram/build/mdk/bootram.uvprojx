@@ -335,7 +335,7 @@
               <MiscControls></MiscControls>
               <Define>CFG_SIMU=0</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\..\..\spi_flash\inc;..\..\..\inc;..\..\..\..\inc;..\..\inc</IncludePath>
+              <IncludePath>..\..\..\..\spi_flash\inc;..\..\..\inc;..\..\..\..\inc;..\..\inc;..\..\..\..\proj\common\ARM\CMSIS\Include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -391,9 +391,6 @@
               <FilePath>..\..\..\..\spi_flash\src\spi_flash.c</FilePath>
             </File>
           </Files>
-        </Group>
-        <Group>
-          <GroupName>::CMSIS</GroupName>
         </Group>
       </Groups>
     </Target>
@@ -782,24 +779,13 @@
             </File>
           </Files>
         </Group>
-        <Group>
-          <GroupName>::CMSIS</GroupName>
-        </Group>
       </Groups>
     </Target>
   </Targets>
 
   <RTE>
     <apis/>
-    <components>
-      <component Cclass="CMSIS" Cgroup="CORE" Cvendor="ARM" Cversion="4.3.0" condition="Cortex-M Device">
-        <package name="CMSIS" schemaVersion="1.3" url="http://www.keil.com/pack/" vendor="ARM" version="4.5.0"/>
-        <targetInfos>
-          <targetInfo name="bootram"/>
-          <targetInfo name="bootram_no_ext_flash"/>
-        </targetInfos>
-      </component>
-    </components>
+    <components/>
     <files/>
   </RTE>
 

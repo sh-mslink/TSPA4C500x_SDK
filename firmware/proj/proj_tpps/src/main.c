@@ -24,9 +24,6 @@
 
 #include "prf_tpps.h"
 
-#ifdef CFG_PROJ_TPPS
-#define ROLE    0  
-#endif
 
 //Timer for tpps notification
 void tpps_ntf_tmr_callback(void const *arg);
@@ -39,33 +36,27 @@ void tpps_ntf_tmr_callback(void const *arg)
     static uint8_t i = 0;
     msg_tpps_ntf_t *msg;
     
+    if(!tppsIsConnected)
+    {
+        osTimerStop(tppsNtfTimerId);
+        return;
+    }
+    
     msg = malloc(sizeof(msg_tpps_ntf_t));
     if(!msg)
+    {
         PRINTD(DBG_TRACE, "%s no memory.\r\n", __func__);
+        return;
+    }
     
     testData[0] = i++;
     msg->msg_id = MSG_TPPS_NTF;
+    msg->conIndex = 0;
     msg->length = 20;
     memcpy(msg->data, testData, msg->length);
     
-    msg_put(msg);    
+    msg_put(msg);
 }
-
-#if (CFG_MEMORY_TRACK==1)
-//Timer for memory track, optional
-osTimerDef(bmem, ble_mem_usage_tmr_callback);
-
-void ble_mem_usage_tmr_callback(void const *arg)
-{
-	int max;
-	inb_mem_usage_t muse;
-
-	inb_get_mem_usage(&muse);
-	max = inb_get_max_mem_usage();
-
-	PRINTD(DBG_TRACE, "--- mem: %d,%d,%d,%d,%d ---\r\n", muse.retn_mem_env_mem_usage, muse.retn_mem_db_mem_usage, muse.retn_mem_msg_mem_usage, muse.non_retn_mem_usage, max);
-}
-#endif
 
 int handle_msg(msg_t *p_msg)
 {
@@ -98,6 +89,7 @@ int main (void)
 	//MessageQ for main thread.
 	msg_init();
 
+    //Timer for send notification
 	tppsNtfTimerId = osTimerCreate(osTimer(tppsNtfTimer), osTimerPeriodic, NULL);
 	if(tppsNtfTimerId == NULL)
     {
@@ -106,16 +98,13 @@ int main (void)
 	}
     
     //BLE init
-    ble_config(ROLE);
+    ble_config(0);
     
-    if(!ROLE)
-    {
-		if(start_adv())
-			return 0;
-	} 
-    else
+    //Start advertisng
+    if(start_adv())
         return 0;
-                    
+    
+    //Wait for message
 	while(1)
     {        
 		msg_t *p_msg;

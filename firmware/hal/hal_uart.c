@@ -55,16 +55,16 @@ typedef struct {
 	uint32_t rx_pin;
 
 	/// OS 
-	uint8_t tx_mu[16];
+	uint32_t tx_mu[4];
 	osMutexId h_tx_mu;
-	uint8_t rx_mu[16];
+	uint32_t rx_mu[4];
 	osMutexId h_rx_mu;
 
-	uint8_t tx_sma[8];
+	uint32_t tx_sma[2];
 	osSemaphoreId h_tx_sma; 
-	uint8_t rx_sma[8];
+	uint32_t rx_sma[2];
 	osSemaphoreId h_rx_sma;
-	uint8_t bk_sma[8];
+	uint32_t bk_sma[2];
 	osSemaphoreId h_bk_sma;
 
 	/// Uart configure paramters
@@ -300,7 +300,7 @@ static void uart_power_up(void *arg)
 	
 	
 	/// Pin mux
-	///uart_pin_mux_en(pd, 1);
+	//uart_pin_mux_en(pd, 1);
 
 	/// Restore interrupt
 	if (!pd->no_intr) {
@@ -623,7 +623,10 @@ fail:
 		osSemaphoreDelete(pd->h_rx_sma);
 		pd->h_rx_sma = NULL;
 	}
-
+	if (pd->h_bk_sma) {
+		osSemaphoreDelete(pd->h_bk_sma);
+		pd->h_bk_sma = NULL;
+	}
 	return NULL;
 }
 
@@ -672,7 +675,10 @@ void hal_uart_close(void *hdl)
 		osSemaphoreDelete(pd->h_rx_sma);
 		pd->h_rx_sma = NULL;
 	}
-
+	if (pd->h_bk_sma) {
+		osSemaphoreDelete(pd->h_bk_sma);
+		pd->h_bk_sma = NULL;
+	}
 #if CFG_PM_EN
 	hal_pm_unreg_mod(&pd->pm);
 #endif

@@ -113,7 +113,9 @@
 #define BLE_NB_TX_DESC_PER_CON          2
 
 /// Number of advertising or scan response data fragments in extended advertising PDU chain
-#define BLE_ADV_FRAG_NB_TX           		(5)
+#define BLE_ADV_FRAG_NB_TX           (CFG_BLE_ADV_FRAG_NB_TX) //(5)
+/// Size of advertising or scan response data fragments in extended advertising PDU chain
+#define BLE_ADV_FRAG_SIZE_TX        (CFG_BLE_ADV_FRAG_SIZE_TX)// (254)
 
 /// Number of TX descriptors per advertising set
 #define BLE_NB_TX_DESC_PER_ADV          (2+BLE_ADV_FRAG_NB_TX)
@@ -129,7 +131,7 @@
 #define BLE_LLCPTXBUF_NB        				(2*BLE_ACTIVITY_MAX)
 
 /// Number of advertising data buffers
-#define BLE_ADV_BUF_NB_TX            			(BLE_ACTIVITY_MAX)
+#define BLE_ADV_BUF_NB_TX            			(CFG_BLE_ADV_BUF_NB_TX)//(BLE_ACTIVITY_MAX)
 
 /// Number of RX data buffers (common for all activities)
 #define BLE_DATA_BUF_NB_RX           		(BLE_RX_DESC_NB + 3)

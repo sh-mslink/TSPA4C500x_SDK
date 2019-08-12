@@ -58,9 +58,9 @@ typedef struct {
 	uint32_t base;
 	IRQn_Type irq;
 	
-	uint8_t mu[16];
+	uint32_t mu[4];
 	osMutexId h_mu;
-	uint8_t sma[8];
+	uint32_t sma[2];
 	osSemaphoreId h_sma; 
 
 	int error;

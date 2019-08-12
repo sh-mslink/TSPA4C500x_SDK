@@ -5,6 +5,9 @@
 #include "gap_test.h"
 #include "msg.h"
 #include "..\inc\test_svc.h"
+#ifdef CFG_PROJ_TPPC
+#include "prf_tppc.h"
+#endif
 #ifdef CFG_PROJ_TPPS
 #include "prf_tpps.h"
 #endif
@@ -40,10 +43,10 @@ extern int handle_default_hogp_evt(uint16_t eid, void *pv);
 extern int handle_default_pasp_evt(uint16_t eid, void *pv);
 #endif
 
-static uint8_t ble_mem_env[BLE_MEM_ENV];
-static uint8_t ble_mem_db[BLE_MEM_DB];
-static uint8_t ble_mem_msg[BLE_MEM_MSG];
-static uint8_t ble_mem_non_rtn[BLE_MEM_NON_RTN];
+static uint8_t ble_mem_env[CFG_BLE_STK_ENV_MEM_SIZE];
+static uint8_t ble_mem_db[CFG_BLE_STK_DB_MEM_SIZE];
+static uint8_t ble_mem_msg[CFG_BLE_STK_MSG_MEM_SIZE];
+static uint8_t ble_mem_non_rtn[CFG_BLE_STK_NON_RETN_MEM_SIZE];
 volatile static int g_conidx = -1;
 
 uint8_t gSvcChangeCfg = 0;
@@ -55,7 +58,9 @@ inb_set_dev_config_t g_BleCfg = {0};
 
 struct _l2cc_test_env_ g_L2ccTestEnv;
 
-static int actv_idx = 0;
+static int advActvIdx = 0;
+static int scanActvIdx = 0;
+static int connectActvIdx = 0;
 
 int start_adv(void)
 {
@@ -92,17 +97,17 @@ int start_adv(void)
 	adv.adv_param.prim_cfg.chnl_map = CHANNEL_37|CHANNEL_38|CHANNEL_39;
 	adv.adv_param.prim_cfg.phy = PHY_LE_1MBPS;
 
-	res = inb_actv_create(&adv, &actv_idx);
+	res = inb_actv_create(&adv, &advActvIdx);
     if(res)
 		return res;
 
 	/// Set advertising data
-	res = inb_actv_data(actv_idx, 0, advData, sizeof(advData));
+	res = inb_actv_data(advActvIdx, 0, advData, sizeof(advData));
     if(res)
 		return res;
 
 	/// Set scan response data
-	res = inb_actv_data(actv_idx, 1, scanRspData, sizeof(scanRspData));
+	res = inb_actv_data(advActvIdx, 1, scanRspData, sizeof(scanRspData));
     if(res)
 		return res;
 
@@ -111,7 +116,7 @@ int start_adv(void)
 	adv_start.option = 0;
 	adv_start.u.adv_param.duration = 0;
 	adv_start.u.adv_param.max_adv_evt = 0;
-	res = inb_actv_start(actv_idx, &adv_start);
+	res = inb_actv_start(advActvIdx, &adv_start);
     if(res)
         PRINTD(DBG_ERR, "Failed to start advertisement activity...0x%x\r\n", res);
     else
@@ -124,7 +129,7 @@ int stop_adv(void)
 {
     int res = 0;
     
-	res = inb_actv_stop(actv_idx);
+	res = inb_actv_stop(advActvIdx);
     if(res)
         PRINTD(DBG_ERR, "Failed to stop advertisement activity...0x%x\r\n", res);
     else
@@ -133,11 +138,10 @@ int stop_adv(void)
     return res;
 }
 
-int create_init(int *pActv_idx)
+static int create_conncet(void)
 {
-	int res = 0;
+	int res = 0;    
 
-	/* create adv activity */
 	inb_actv_create_t cparam;
 
 	memset(&cparam, 0, sizeof(inb_actv_create_t));
@@ -145,71 +149,72 @@ int create_init(int *pActv_idx)
 	cparam.option = 2;
 	cparam.own_addr_type =0;
 
-	res = inb_actv_create(&cparam, pActv_idx);
-	if (res != 0) {
+	res = inb_actv_create(&cparam, &connectActvIdx);
+	if (res) {
 		PRINTD(DBG_ERR, "Failed to create init activity...0x%x\r\n", res);
-	} 
- 
+	}
+    
 	return res; 
 }
 
-int start_init(int actv_idx)
+int start_connect(inb_bdaddr_t* addr)
 {
 	int res = 0;
+    
+    res = create_conncet();
+    if(res)
+        return res;
+    
 	/* start activity */
 	inb_actv_start_t sparam;
-	
 
 	memset(&sparam, 0, sizeof(inb_actv_start_t));
 	sparam.option = 2;
-	sparam.u.init_param.type = INIT_TYPE_DIRECT_CONN_EST;//INIT_TYPE_AUTO_CONN_EST
+	sparam.u.init_param.type = INIT_TYPE_DIRECT_CONN_EST;
 	sparam.u.init_param.prop = INIT_PROP_1M;
-	sparam.u.init_param.conn_tmo= 0;
-	sparam.u.init_param.conn_param_1m.conn_intv_min = 80;
-	sparam.u.init_param.conn_param_1m.conn_intv_max = 80;
+	sparam.u.init_param.conn_tmo = 0;
+    
+    sparam.u.init_param.scan_param_1m.scan_intv = 16;
+	sparam.u.init_param.scan_param_1m.scan_wd = 8;
+	sparam.u.init_param.conn_param_1m.conn_intv_min = 6;
+	sparam.u.init_param.conn_param_1m.conn_intv_max = 6;
 	sparam.u.init_param.conn_param_1m.conn_latency = 0;
-	sparam.u.init_param.conn_param_1m.supervision_to = 1000;
-	sparam.u.init_param.conn_param_1m.ce_len_min = 0;
-	sparam.u.init_param.conn_param_1m.ce_len_max = 512;
- 
-	sparam.u.init_param.conn_param_2m.conn_intv_min = 80;
-	sparam.u.init_param.conn_param_2m.conn_intv_max = 80;
-	sparam.u.init_param.conn_param_2m.conn_latency = 0;
-	sparam.u.init_param.conn_param_2m.supervision_to = 1000;
-	sparam.u.init_param.conn_param_2m.ce_len_min = 0;
- 	sparam.u.init_param.conn_param_2m.ce_len_max = 512;
-
-
-	 sparam.u.init_param.conn_param_coded.conn_intv_min = 80;
-	 sparam.u.init_param.conn_param_coded.conn_intv_max = 80;
-	 sparam.u.init_param.conn_param_coded.conn_latency = 0;
-	 sparam.u.init_param.conn_param_coded.supervision_to = 1000;
-	 sparam.u.init_param.conn_param_coded.ce_len_min = 0;
-	 sparam.u.init_param.conn_param_coded.ce_len_max = 512;
- 
-	 sparam.u.init_param.peer_addr.addr_type =0;
-
-	 sparam.u.init_param.scan_param_1m.scan_intv = 160;
-	 sparam.u.init_param.scan_param_1m.scan_wd = 8;
-	 sparam.u.init_param.scan_param_coded.scan_intv = 160;
-	 sparam.u.init_param.scan_param_coded.scan_wd = 8;
-	 //sparam.u.init_param.scan_param_coded.scan_intv = 160;
-	 //sparam.u.init_param.scan_param_coded.scan_wd = 8;
- 
-	 //sparam.u.init_param.dup_filt_pol = DUPLIC_EN;
-	 memcpy(sparam.u.init_param.peer_addr.addr.addr,peer_address , 6);
-	 res = inb_actv_start(actv_idx, &sparam);
-	 if (res != 0) {
-		  PRINTD(DBG_ERR, "Failed to start activity...0x%x\r\n", res);
+	sparam.u.init_param.conn_param_1m.supervision_to = 100;
+	sparam.u.init_param.conn_param_1m.ce_len_min = 0x0000;
+	sparam.u.init_param.conn_param_1m.ce_len_max = 0xffff;
+    
+//	sparam.u.init_param.scan_param_coded.scan_intv = 16;
+//	sparam.u.init_param.scan_param_coded.scan_wd = 8;
+//	sparam.u.init_param.conn_param_2m.conn_intv_min = 80;
+//	sparam.u.init_param.conn_param_2m.conn_intv_max = 80;
+//	sparam.u.init_param.conn_param_2m.conn_latency = 0;
+//	sparam.u.init_param.conn_param_2m.supervision_to = 1000;
+//	sparam.u.init_param.conn_param_2m.ce_len_min = 0;
+// 	sparam.u.init_param.conn_param_2m.ce_len_max = 512;
+    
+//	sparam.u.init_param.scan_param_coded.scan_intv = 16;
+//	sparam.u.init_param.scan_param_coded.scan_wd = 8;
+//	sparam.u.init_param.conn_param_coded.conn_intv_min = 80;
+//	sparam.u.init_param.conn_param_coded.conn_intv_max = 80;
+//	sparam.u.init_param.conn_param_coded.conn_latency = 0;
+//	sparam.u.init_param.conn_param_coded.supervision_to = 1000;
+//	sparam.u.init_param.conn_param_coded.ce_len_min = 0;
+//	sparam.u.init_param.conn_param_coded.ce_len_max = 512;
+    
+	memcpy(&sparam.u.init_param.peer_addr, addr, sizeof(inb_bdaddr_t));
+    
+	res = inb_actv_start(connectActvIdx, &sparam);
+	if (res != 0) {
+		 PRINTD(DBG_ERR, "Failed to start conncet activity...0x%x\r\n", res);
   
  	} else {
- 		 PRINTD(DBG_ERR, "start init...%d\r\n", actv_idx);
+ 		 PRINTD(DBG_ERR, "Connect start.\r\n");
  	}
- 
+    
 	return res;
 }
 
-int create_scan()
+static int create_scan(void)
 {
 	int res = 0;
 	/* create adv activity */
@@ -221,45 +226,80 @@ int create_scan()
 	cparam.own_addr_type = 0;
 
 	int actv_idx;
-	res = inb_actv_create(&cparam, &actv_idx);
+	res = inb_actv_create(&cparam, &scanActvIdx);
 	if (res != 0) {
 		PRINTD(DBG_ERR, "Failed to create scan activity...0x%x\r\n", res);
 		
 	} else {
-		PRINTD(DBG_ERR, "create scan activity.\r\n");
+		;//PRINTD(DBG_ERR, "create scan activity.\r\n");
 	}
 	return res;
 }
 
-int start_scan()
+int start_scan(void)
 {
 	int res = 0;
-	int actv_idx;
-
+    
+    res = create_scan();
+    if(res)
+        return res;
+    
 	/* start activity */
 
 	inb_actv_start_t sparam;
 	memset(&sparam, 0, sizeof(inb_actv_start_t));
 	sparam.option= 1;
-	sparam.u.scan_param.type = OBSERVER;//GAP_SCAN_TYPE_GEN_DISC;
-	sparam.u.scan_param.prop = SCAN_PROP_PHY_1M|SCAN_PROP_ACTIVE_1M;
+	sparam.u.scan_param.type = CONN_DISC;
+	sparam.u.scan_param.prop = SCAN_PROP_PHY_1M | SCAN_PROP_ACTIVE_1M;
 	sparam.u.scan_param.scan_param_1m.scan_intv = 16;
 	sparam.u.scan_param.scan_param_1m.scan_wd = 8;
-	sparam.u.scan_param.scan_param_coded.scan_intv = 16;
-	sparam.u.scan_param.scan_param_coded.scan_wd = 8;
-	sparam.u.scan_param.dup_filt_pol = DUPLIC_DIS;      //DUPLIC_EN;
-
-	//PRINTD(DBG_ERR, "dru %x\r\n",sparam->u.scan_param.duration);
+	sparam.u.scan_param.dup_filt_pol = DUPLIC_DIS;
 	
-	
-	res = inb_actv_start(actv_idx, &sparam);
+	res = inb_actv_start(scanActvIdx, &sparam);
 	if (res != 0) {
 		PRINTD(DBG_ERR, "Failed to start scan activity...0x%x\r\n", res);
 		
 	} else {
-		PRINTD(DBG_ERR, "start scan...%d\r\n", actv_idx);
+		PRINTD(DBG_ERR, "Scanning start.\r\n");
 	}
 	return res;
+}
+
+int stop_scan(void)
+{
+    int res = 0;
+    
+	res = inb_actv_stop(scanActvIdx);
+    if(res)
+        PRINTD(DBG_ERR, "Failed to stop scan activity...0x%x\r\n", res);
+    else
+        PRINTD(DBG_ERR, "Scanning stop.\r\n");
+    
+    return res;
+}
+
+int discovery_service(int conIdx)
+{
+    int res = 0;
+
+    inb_gatt_disc_t *p_read = (inb_gatt_disc_t*)malloc(sizeof(inb_gatt_disc_t));
+    
+    if(p_read)
+    {
+        memset(p_read, 0, sizeof(inb_gatt_disc_t));
+
+        p_read->start_hdl = 0x0001;
+        p_read->end_hdl = 0xffff;
+
+        res = inb_gatt_discovery(conIdx, GATT_DISC_ALL_SVC, p_read);
+        if(res)
+            PRINTD(DBG_ERR, "Discovery service error:0x%02X.\r\n", res);
+        
+        if(p_read)
+            free(p_read);
+    }
+    
+    return res;
 }
 
 int prof_init(void)
@@ -526,34 +566,43 @@ void ble_event_callback(inb_evt_t *evt)
 
 int ble_stack_init()
 {
-	inb_param_t b_cfg;
-	inb_mem_t m_cfg;
+    int res = 0;
+    
+	if (!CFG_BLE_STK_MEM_EN)
+		return INB_PLT_ERR_INVALID_CONFIG;
 
-	memset(&b_cfg, 0, sizeof(inb_param_t));
-	memcpy(b_cfg.bd_addr, bd_address, 6);
-	b_cfg.sleep_algo_dur = CFG_BLE_PARAM_SLP_ALGO_DUR;
-	b_cfg.lpc_drift = CFG_BLE_PARAM_LPC_DRIFT;
-	b_cfg.radio_wakeup_time = CFG_BLE_PARAM_RADIO_WUP_TIME;
-	b_cfg.osc_wakeup_time = CFG_BLE_PARAM_OSC_WUP_TIME;
-	b_cfg.ext_wakeup_time = 0;
-	b_cfg.coded_phy_500_en = CFG_BLE_PARAM_CODED_PHY_500_EN;
-	b_cfg.sleep_en = CFG_BLE_PARAM_SLEEP_EN;
-	b_cfg.ext_wakeup_en = 0;
-	b_cfg.pub_key_valid = 0;
-	b_cfg.priv_key_valid = 0;
-	b_cfg.trace_flag = 0;
-
-	m_cfg.retn_mem_env_start_addr = (uint32_t)ble_mem_env;
-	m_cfg.retn_mem_env_size = BLE_MEM_ENV;
-	m_cfg.retn_mem_db_start_addr = (uint32_t)ble_mem_db;
-	m_cfg.retn_mem_db_size = BLE_MEM_DB;
-	m_cfg.retn_mem_msg_start_addr = (uint32_t)ble_mem_msg;
-	m_cfg.retn_mem_msg_size = BLE_MEM_MSG;
-	m_cfg.non_retn_mem_start_addr = (uint32_t)ble_mem_non_rtn;
-	m_cfg.non_retn_mem_size = BLE_MEM_NON_RTN;	
+	/// Stack
+	inb_param_t b_cfg = {
+		.bd_addr = {CFG_BLE_PARAM_BD_ADDR},
+		.sleep_algo_dur = CFG_BLE_PARAM_SLP_ALGO_DUR,
+		.lpc_drift = CFG_BLE_PARAM_LPC_DRIFT,
+		.radio_wakeup_time = CFG_BLE_PARAM_RADIO_WUP_TIME,
+		.osc_wakeup_time = CFG_BLE_PARAM_OSC_WUP_TIME,
+		.ext_wakeup_time = 0,
+		.coded_phy_500_en = CFG_BLE_PARAM_CODED_PHY_500_EN,
+		.sleep_en = CFG_BLE_PARAM_SLEEP_EN,
+		.ext_wakeup_en = 0,
+		.pub_key_valid = CFG_BLE_PARAM_P256_PUB_KEY_VALID,
+		.pub_key = {CFG_BLE_PARAM_P256_PUB_KEY},
+		.priv_key_valid = CFG_BLE_PARAM_P256_PRIV_KEY_VALID,
+		.priv_key = {CFG_BLE_PARAM_P256_PRIV_KEY},
+		.trace_flag = CFG_BLE_PARAM_TRACE_FLAG
+	};
+	inb_mem_t m_cfg = {
+		.retn_mem_env_start_addr = (uint32_t)ble_mem_env,
+		.retn_mem_env_size = CFG_BLE_STK_ENV_MEM_SIZE,
+		.retn_mem_db_start_addr = (uint32_t)ble_mem_db,
+		.retn_mem_db_size = CFG_BLE_STK_DB_MEM_SIZE,
+		.retn_mem_msg_start_addr = (uint32_t)ble_mem_msg,
+		.retn_mem_msg_size = CFG_BLE_STK_MSG_MEM_SIZE,
+		.non_retn_mem_start_addr = (uint32_t)ble_mem_non_rtn,
+		.non_retn_mem_size = CFG_BLE_STK_NON_RETN_MEM_SIZE,
+	};
 
 	/// Initialize BLE stack
-    return inb_init(&b_cfg, &m_cfg);
+    res = inb_init(&b_cfg, &m_cfg);
+    
+    return res;
 }
 
 int ble_config(int role)
@@ -583,6 +632,7 @@ int ble_config(int role)
         g_BleCfg.role = ROLE_CENTRAL;
     else
         g_BleCfg.role = ROLE_PERIPHERAL;
+	g_BleCfg.renew_dur = CFG_BLE_DEV_RENEW_DURATION;
     g_BleCfg.pairing_mode = PAIRING_LEGACY;
 	g_BleCfg.att_slv_pref_conn_param_present = 1;
 	g_BleCfg.svc_change_feat_present = 1;
@@ -596,7 +646,6 @@ int ble_config(int role)
 	g_BleCfg.att_devname_write_perm = WRITE_NO_AUTH;
 	g_BleCfg.att_apperance_write_perm = WRITE_NO_AUTH;
 	//cfg.privacy_cfg=1 << 2;
-	g_BleCfg.renew_dur = 900;
 	if (inb_set_dev_config(&g_BleCfg) != INB_ERR_NO_ERROR){
 		return 0;
 	}
@@ -622,37 +671,40 @@ void handle_default_msg(msg_t *p_msg)
 		{
             //PRINTD(DBG_TRACE, "msg actv stop.....\r\n");
 			msg_actv_stop_t *p = (msg_actv_stop_t *)p_msg;
-			/// Delete the activity...
+            
 			inb_actv_del(p->actv_idx);
 			actv_del = 1;
 		}
 		break;
         
+//    case MSG_START_CONNECT:
+//        {
+//            //PRINTD(DBG_TRACE, "msg start connect...\r\n");
+//			msg_start_connect_t *p = (msg_start_connect_t *)p_msg;
+//            
+//            start_connect(&p->addr);
+//        }
+//        break;
+        
 	case MSG_DISC:
 		{
             //PRINTD(DBG_TRACE, "msg disc.....\r\n");
-			#if 0
-			if (cfg.role == ROLE_CENTRAL){
-			int actv_idx = 0;
-			if (create_init(&actv_idx))
-			return 0;
-			if (start_init(actv_idx))
-				return 0;
-			}
-			#endif
+			msg_disc_t *p = (msg_disc_t *)p_msg;
 
-			/// Disconnect from the peer
 			g_conidx = -1;
 			if(actv_del)
             {
 				actv_del = 0;
 				conidx = 0;
-#ifdef CFG_PROJ_TPPS		
+#if defined(CFG_PROJ_TPPC)
+                PRINTD(DBG_TRACE, "Disconnected, idx:%d, reason:0x%02X.\r\n", p->conidx, p->reason);
+                if(start_scan())
+                    return;
+#elif defined(CFG_PROJ_TPPS)
+                PRINTD(DBG_TRACE, "Disconnected, idx:%d, reason:0x%02X.\r\n", p->conidx, p->reason);
                 osTimerStop(tppsNtfTimerId); 	
                 if(start_adv())
-                {
-                        /// no good???
-                }
+                    return;
 #endif            
 			}
 		}
@@ -661,16 +713,30 @@ void handle_default_msg(msg_t *p_msg)
 	case MSG_CONNECTED:
 		{
 			//PRINTD(DBG_TRACE, "msg connected...\r\n");
-            
 			msg_connected_t *p = (msg_connected_t *)p_msg;
 					
 			conidx = p->conidx;
 			g_conidx = conidx;
-                                 
-            uint16_t mtu = 2048;
+            
+#ifdef CFG_PROJ_RCU
+            uint16_t mtu = 251;
             uint16_t err = inb_gatt_exc_mtu(p->conidx, &mtu);
             if(err)
                 PRINTD(DBG_TRACE, "inb_gatt_exc_mtu ERROR:0x%X\r\n", err);
+#else
+            PRINTD(DBG_TRACE, "Connected, idx:%d, ", p->conidx);
+            PRINTD(DBG_TRACE, "addr type:%d, ", p->peer_addr_type);
+            PRINTD(DBG_TRACE, "addr:0x %02X %02X %02X %02X %02X %02X, ", 
+                    p->peer_addr.addr[0], p->peer_addr.addr[1], p->peer_addr.addr[2], 
+                    p->peer_addr.addr[3], p->peer_addr.addr[4], p->peer_addr.addr[5]);
+            PRINTD(DBG_TRACE, "interval:%d, ", p->con_interval);
+            PRINTD(DBG_TRACE, "latency:%d, ", p->con_latency);
+            PRINTD(DBG_TRACE, "timeout:%d.\r\n", p->sup_to);
+#endif
+            
+#ifdef CFG_PROJ_TPPC
+            discovery_service(p->conidx);
+#endif
 		}
 		break;
         
@@ -720,7 +786,7 @@ void handle_default_msg(msg_t *p_msg)
             p_upd->ce_len_max = 0xffff;
             
             if(!inb_conn_param_update(conidx, p_upd))
-                ;//PRINTD(DBG_TRACE, "Request to update connection parameters.\r\n");
+                PRINTD(DBG_TRACE, "Request to update connection parameters.\r\n");
             
             if(p_upd)
                 free(p_upd);
@@ -842,7 +908,7 @@ void handle_default_msg(msg_t *p_msg)
     {
         //PRINTD(DBG_TRACE, "msg tpps ntf...\r\n");
         msg_tpps_ntf_t *p = (msg_tpps_ntf_t *)p_msg;
-        tpps_send_notify(p->data, p->length);
+        tpps_send_notify(p->conIndex, p->data, p->length);
     }
     break;
 #endif

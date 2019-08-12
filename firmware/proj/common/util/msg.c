@@ -19,7 +19,7 @@ int msg_put(void* msg)
 	
 	/// Post a message to main task 
 	if (h_msg_q_id != NULL){
-		status = osMessagePut(h_msg_q_id, (uint32_t)msg, 0) ;
+		status = osMessagePut(h_msg_q_id, (uint32_t)msg, 0);
 		if (status != osOK) {
 			PRINTD(DBG_ERR, "line:%d  OS error,%d\r\n", __LINE__, status);
 		}

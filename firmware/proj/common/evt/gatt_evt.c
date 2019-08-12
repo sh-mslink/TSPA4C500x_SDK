@@ -12,8 +12,8 @@
 #include ".\hal\hal_adc.h"
 #include ".\ble\inb_api.h"
 
-#if CFG_PROJ_TPPC
-#include "ble_discovery.h"
+#ifdef CFG_PROJ_TPPC
+#include "prf_tppc.h"
 #endif
 
 #ifdef CFG_PROJ_TPPS
@@ -25,36 +25,36 @@ extern osTimerId tppsNtfTimerId;
 
 int handle_default_gatt_evt(uint16_t eid, void* pv, void* param)
 {
-	if(eid <= GATT_EVT_DISC_CHAR_DESC)
-    {
-#if CFG_CENTRAL
-		if(handle_gatt_discovery_evt(eid,pv) == -1)
-			return -1;
-#endif
-        ;
-    }
-        
 	//PRINTD(DBG_TRACE, "\n%s  id 0x%x\r\n", __func__, eid);
-	switch (eid) 
+	switch (eid)
 	{
-	case GATT_EVT_DISC_SVC:/// GATT service found indication	
+	case GATT_EVT_DISC_SVC:/// GATT service found indication
 		{
-			/// Connection index
-//			inb_evt_disc_svc_ind_t *ind = (inb_evt_disc_svc_ind_t *)pv;
+			inb_evt_disc_svc_ind_t *ind = (inb_evt_disc_svc_ind_t *)pv;
+            
+//			PRINTD(DBG_TRACE, "DISC_SVC conidx:%d, start_hal:0x%X, end_hal:0x%X, uuin_len:%d, uuid1:0x%02X, uuid2:0x%02X\r\n",
+//                    ind->conidx, ind->start_hdl, ind->end_hdl, ind->uuid_len, ind->uuid[0], ind->uuid[1]);
 
-//			PRINTD(DBG_TRACE, "DISC_SVC conidx:%d    start_hal:0x%02X    end_hal:0x%02X   uuin_len: %d  uuid 1 :0x%02X    uuid2:0x%02X \r\n",ind->conidx,ind->start_hdl,ind->end_hdl,ind->uuid_len,ind->uuid[0],ind->uuid[1]);
+#ifdef CFG_PROJ_TPPC
+            if(!memcmp(ind->uuid, &TPP_SERCICE_UUID, TPP_SERCICE_UUID_LEN))
+            {
+                PRINTD(DBG_TRACE, "TPP service found!!!\r\n");
+                tppServiceHandle = ind->start_hdl + 1;
+                tppc_cfg_notify(ind->conidx, true);
+            }
+#endif
 		}
 		break;
 	case GATT_EVT_DISC_INCL_SVC:/// GATT include service found indication
 		{
 //			inb_evt_disc_svc_incl_ind_t *ind = (inb_evt_disc_svc_incl_ind_t *)pv;
 
-//            PRINTD(DBG_TRACE, "DISC_INCLUDED_SVC(hdl=%d) on connection %d: \r\n", ind->attr_hdl, ind->conidx);
-//            PRINTD(DBG_TRACE, "\t[start_hdl,end_hal] = [%d, %d]\r\n", ind->start_hdl, ind->end_hdl);
-//            PRINTD(DBG_TRACE, "\tuuid = 0x%02X%02X \r\n", ind->uuid[1], ind->uuid[0]);
+//          PRINTD(DBG_TRACE, "DISC_INCLUDED_SVC(hdl=%d) on connection %d: \r\n", ind->attr_hdl, ind->conidx);
+//          PRINTD(DBG_TRACE, "\t[start_hdl,end_hal] = [%d, %d]\r\n", ind->start_hdl, ind->end_hdl);
+//          PRINTD(DBG_TRACE, "\tuuid = 0x%02X%02X \r\n", ind->uuid[1], ind->uuid[0]);
 		}
 		break;
-	case GATT_EVT_DISC_CHAR:/// GATT Characteristic found indication	
+	case GATT_EVT_DISC_CHAR:/// GATT Characteristic found indication
 		{
 //			inb_evt_disc_char_ind_t *ind = (inb_evt_disc_char_ind_t *)pv;
 
@@ -70,9 +70,9 @@ int handle_default_gatt_evt(uint16_t eid, void* pv, void* param)
 //			PRINTD(DBG_TRACE, "\tuuid = 0x%02X%02X", ind->uuid[1], ind->uuid[0]);
 		}
 		break;
-	case GATT_EVT_NTF:/// GATT notify indication	
+	case GATT_EVT_NTF:/// GATT notify indication
 		{
-//			inb_evt_ntf_ind_t *ind = (inb_evt_ntf_ind_t *)pv;
+			inb_evt_ntf_ind_t *ind = (inb_evt_ntf_ind_t *)pv;
 
 //			PRINTD(DBG_TRACE, "EVT_NTF on connection %d: \r\n", ind->conidx);
 //			PRINTD(DBG_TRACE, "\thdl = 0x%02X\r\n", ind->handle);
@@ -80,6 +80,11 @@ int handle_default_gatt_evt(uint16_t eid, void* pv, void* param)
 //			for (int i=0;i<ind->length;i++)
 //				PRINTD(DBG_TRACE, "%02X ", ind->value[i]);
 //			PRINTD(DBG_TRACE, "\r\n");
+			
+#ifdef CFG_PROJ_TPPC
+            tppc_receive_notify(ind->conidx, ind->value, ind->length);
+            //tppc_send_write(ind->conidx, ind->value, ind->length);
+#endif
 		}
 		break;
 	case GATT_EVT_IND:/// GATT indication
@@ -134,22 +139,22 @@ int handle_default_gatt_evt(uint16_t eid, void* pv, void* param)
 //				PRINTD(DBG_TRACE, "%02X ", ind->value[i]);
 //			PRINTD(DBG_TRACE, "\r\n");
 #ifdef CFG_PROJ_TPPS    
-            if(ind->handle == g_TppPrimarySvc_shl + 1 + TPPS_IDX_VAL_NTF_CFG)
+            if(ind->handle == g_TppPrimarySvc_shl + 1 + TPP_IDX_NTF_VAL_CFG)
             {
                 if(ind->value[1] == 0x00 && ind->value[0] == 0x01)
                 {
-                    PRINTD(DBG_TRACE, "notify enable\r\n");
-                    osTimerStart(tppsNtfTimerId, 10);//10ms for test 
+                    PRINTD(DBG_TRACE, "Notify enable\r\n");
+                    osTimerStart(tppsNtfTimerId, 100);//100ms for test 
                 }
                 else if(ind->value[1] == 0x00 && ind->value[0] == 0x00)
                 {
-                    PRINTD(DBG_TRACE, "notify disable\r\n");
+                    PRINTD(DBG_TRACE, "Notify disable\r\n");
                     osTimerStop(tppsNtfTimerId); 
                 }
             }          
-            else if(ind->handle == g_TppPrimarySvc_shl + 1 + TPPS_IDX_RX_DATA_VAL)
+            else if(ind->handle == g_TppPrimarySvc_shl + 1 + TPP_IDX_WR_DATA_VAL)
             {
-                tpps_receive_write(ind->value, ind->length);
+                tpps_receive_write(ind->conidx, ind->value, ind->length);
             }
 #endif            
 		}

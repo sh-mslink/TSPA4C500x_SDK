@@ -102,7 +102,11 @@ typedef struct
  ****************************************************************************************
  */
 //int inb_anpc_add(inb_add_prf_t *p_prf);
+int inb_paspc_add(enum inb_att_svc_perm_mask secure_level);
 
+int inb_pasps_add(enum inb_att_svc_perm_mask 	secure_level, 
+					enum inb_pasp_alert_status		alert_status, 
+					enum inb_pasp_ringer_setting	ringer_setting);
 
 #endif	/* INB_PRF_PASP_H */
 

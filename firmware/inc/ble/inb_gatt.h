@@ -129,7 +129,7 @@ typedef struct
     uint8_t  uuid[];
 } inb_gatt_sdp_t;
 
-/// Service Discovery Structure
+/// Attributes Discovery Structure
 typedef struct 
 {
     /// start handle 
@@ -311,35 +311,298 @@ typedef struct
  ****************************************************************************************
  */
 
-
+/**
+ ****************************************************************************************
+ * @brief Exchange MTU request
+ * @note This can only issue by the Client.
+ *
+ * @param[in] conidx				Connection index  
+ * @param[out] p_mtu				Pointer to the server's max MTU size
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
 int inb_gatt_exc_mtu(int conidx, uint16_t *p_mtu);
+
+/**
+ ****************************************************************************************
+ * @brief Service Discovery Procedure
+ * @note This can only issue by the Client.
+ *
+ * @param[in] conidx				Connection index  
+ * @param[in] sdp_type				Service Discovery Type, @see enum inb_gatt_sdp_type
+ * @param[in] p_sdp					Pointer to service discovery paramters
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
 int inb_gatt_sdp(int conidx, int sdp_type, inb_gatt_sdp_t *p_sdp);
+
+/**
+ ****************************************************************************************
+ * @brief Attributes Discovery
+ * @note This can only issue by the Client.
+ *
+ * @param[in] conidx				Connection index  
+ * @param[in] disc_type			Attribute discovery type, @see enum inb_gatt_disc_type
+ * @param[in] p_disc					Pointer to attribute discovery paramters
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
 int inb_gatt_discovery(int conidx, int disc_type, inb_gatt_disc_t *p_disc);
-int inb_gatt_read(int conidx, int read_type, inb_gatt_read_t *p_read, inb_gatt_read_value_t *p_readVal);
+
+/**
+ ****************************************************************************************
+ * @brief Read Attribute 
+ * @note This can only issue by the Client.
+ *
+ * @param[in] conidx				Connection index  
+ * @param[in] read_type			Attribute read type, @see enum inb_gatt_read_type
+ * @param[in] p_read				Pointer to attribute read paramters
+ * @param[out] p_readVal			Pointer to attribute read return value
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
+int inb_gatt_read(int conidx, int read_type, inb_gatt_read_t *p_read, inb_gatt_read_value_t *p_read_ret);
+
+/**
+ ****************************************************************************************
+ * @brief Write Attribute 
+ * @note This can only issue by the Client.
+ *
+ * @param[in] conidx				Connection index  
+ * @param[in] wrt_type				Attribute write type, @see enum inb_gatt_write_type
+ * @param[in] p_write				Pointer to attribute write paramters
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
 int inb_gatt_write(int conidx, int wrt_type, inb_gatt_write_t *p_write);
+
+/**
+ ****************************************************************************************
+ * @brief Execute Write command for queue writes 
+ * @note This can only issue by the Client.
+ *
+ * @param[in] conidx				Connection index  
+ * @param[in] execute				True: execute, false: cancel
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
 int inb_gatt_excute_write(int conidx, bool execute);
+
+/**
+ ****************************************************************************************
+ * @brief Registration to peer device events (Indication/Notification) 
+ * @note This can only issue by the Client.
+ *
+ * @param[in] conidx				Connection index  
+ * @param[in] reg						True: regiter, false: unregister
+ * @param[in] start_hdl			Peer attribute start handle
+ * @param[in] end_hdl				Peer attribute end handle
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
 int inb_gatt_register_ind_ntf_event(int conidx, bool reg, uint32_t start_hdl, uint32_t end_hdl);
+
+/**
+ ****************************************************************************************
+ * @brief Confirm receive Indication 
+ * @note This can only issue by the Client.
+ *
+ * @param[in] conidx				Connection index  
+ * @param[in] handle				Peer attribute handle
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
 int inb_gatt_indication_cfm(int conidx, uint16_t handle);
+
+/**
+ ****************************************************************************************
+ * @brief Send indication 
+ * @note This can only issue by the Server.
+ *
+ * @param[in] conidx				Connection index  
+ * @param[in] handle				Inidcation attribute handle
+ * @param[in] length				Inidcation attribute value length
+ * @param[in] value					Inidcation attribute value
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
 int inb_gatt_send_ind(int conidx, uint32_t handle, uint32_t length, uint8_t *value);
+
+/**
+ ****************************************************************************************
+ * @brief Send notification 
+ * @note This can only issue by the Server.
+ *
+ * @param[in] conidx				Connection index  
+ * @param[in] handle				Notification attribute handle
+ * @param[in] length				Notification attribute value length
+ * @param[in] value					Notification attribute value
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
 int inb_gatt_send_ntf(int conidx, uint32_t handle, uint32_t length, uint8_t *value);
+
+/**
+ ****************************************************************************************
+ * @brief Inform Service changed 
+ * @note This can only issue by the Server.
+ *
+ * @param[in] conidx				Connection index  
+ * @param[in] svc_shdl				Service start handle
+ * @param[in] svc_ehdl				Service end handle
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
 int inb_gatt_send_svc_changed(int conidx, uint32_t svc_shdl, uint32_t svc_ehdl);
+
+/**
+ ****************************************************************************************
+ * @brief Add a new Service  
+ * @note This can only issue by the Server.
+ *
+ * @param[in] p_svc					Pointer to service data structure  
+ * @param[out] p_hdl				Service handle
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
 int inb_gatt_add_svc(inb_gatt_svc_desc_t *p_svc, uint16_t *p_hdl);
+
+/**
+ ****************************************************************************************
+ * @brief Retrieve service attribute permission  
+ * @note This can only issue by the Server.
+ *
+ * @param[in] start_hdl			Service attribute handle  
+ * @param[out] p_perm				Service attribute permission, @see enum inb_att_svc_perm_mask 
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
 int inb_gatt_get_svc_perm(uint16_t start_hdl, uint8_t *p_perm);
+
+/**
+ ****************************************************************************************
+ * @brief Set service attribute permission  
+ * @note This can only issue by the Server.
+ *
+ * @param[in] start_hdl			Service attribute handle  
+ * @param[in] perm					Service attribute permission, @see enum inb_att_svc_perm_mask 
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
 int inb_gatt_set_svc_perm(uint16_t start_hdl, uint8_t perm);
+
+/**
+ ****************************************************************************************
+ * @brief Retrieve attribute permission  
+ * @note This can only issue by the Server.
+ *
+ * @param[in] handle				Attribute handle  
+ * @param[out] p_perm				Pointer to return attribute permission 
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
 int inb_gatt_get_att_perm(uint16_t handle, inb_att_perm_t *p_perm);
+
+/**
+ ****************************************************************************************
+ * @brief Set attribute permission  
+ * @note This can only issue by the Server.
+ *
+ * @param[in] handle				Attribute handle  
+ * @param[in] perm					Attribute permission, @see enum inb_att_perm_mask 
+ * @param[in] ext_perm			Attribute extended permission, @see enum inb_att_value_perm_mask
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
 int inb_gatt_set_att_perm(uint16_t handle, uint16_t perm, uint16_t ext_perm);
+
+/**
+ ****************************************************************************************
+ * @brief Retrieve attribute value  
+ * @note This can only issue by the Server.
+ *
+ * @param[in] handle				Attribute handle  
+ * @param[out] p_att_val			Pointer to return attribute value
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
 int inb_gatt_get_att_value(uint16_t handle, inb_att_val_t *p_att_val);
+
+/**
+ ****************************************************************************************
+ * @brief Set attribute value  
+ * @note This can only issue by the Server.
+ *
+ * @param[in] handle				Attribute handle  
+ * @param[in] length				Attribute value length
+ * @param[in] value					Pointer to the attribute value
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
 int inb_gatt_set_att_value(uint16_t handle, uint16_t length, uint8_t *value);
+
+/**
+ ****************************************************************************************
+ * @brief Confirm attribute prepare write reqeust  
+ * @note This can only issue by the Server.
+ *
+ * @param[in] conidx				Connection index  
+ * @param[in] handle				Attribute handle  
+ * @param[in] length				Write length
+ * @param[in] status				Write status
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
 int inb_gatt_att_info_req_cfm(int conidx, uint16_t handle, uint16_t length, uint8_t status);
+
+/**
+ ****************************************************************************************
+ * @brief Confirm attribute write reqeust  
+ * @note This can only issue by the Server.
+ *
+ * @param[in] conidx				Connection index  
+ * @param[in] handle				Attribute handle  
+ * @param[in] status				Write status
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
 int inb_gatt_write_req_cfm(uint8_t conidx, uint16_t handle, uint8_t status);
+
+/**
+ ****************************************************************************************
+ * @brief Confirm attribute read reqeust  
+ * @note This can only issue by the Server.
+ *
+ * @param[in] conidx				Connection index  
+ * @param[in] handle				Attribute handle  
+ * @param[in] status				Attribute Read status
+ * @param[in] length				Attribute Read value length
+ * @param[in] value					Attribute Read value
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
 int inb_gatt_read_req_cfm(uint8_t conidx, uint16_t handle, uint8_t status, uint16_t length, uint8_t *value);
-
-
-
-
-
-
-
 
 /// @} INB_GATT
 

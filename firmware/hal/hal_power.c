@@ -27,8 +27,8 @@
 #include ".\hal\hal_power.h"
 #include ".\hal\hal_timer.h"
 #include ".\hal\hal_uart.h"
-#include ".\hal\hal_gpio.h"
 #include ".\hal\hal_global.h"
+#include ".\hal\hal_gpio.h"
 
 #if CFG_PM_EN
 
@@ -159,7 +159,17 @@ static void hal_sleep_timer_stop(int id)
 
 static uint32_t hal_sleep_timer_read_tick(int id)
 {
-	return sleep_timer_value(id);
+	uint32_t s1, s2;
+
+	// inplay: avoid edge...
+	while (1) {
+		s1 = sleep_timer_value(id);		
+		s2 = sleep_timer_value(id);		
+		if (s1 == s2)
+			break;
+	}	
+
+	return s2;
 }
 
 static uint32_t hal_sleep_timer_tick_diff(uint32_t s_tick, uint32_t e_tick)
@@ -212,7 +222,7 @@ typedef struct {
 	char pad[2];
 	uint32_t deep_sleep_comp_time_us;
 
-	uint8_t mu[16];
+	uint32_t mu[4];
 	osMutexId h_mu;
 
 	struct pm_module *ble_mod;
@@ -560,7 +570,7 @@ uint32_t hal_pm_suspend_and_resume(uint32_t os_sleep_ms)
 	if (sleep_state == PM_DEEP_SLEEP) 
 	{
 		uint32_t pre_sleep_time_us, post_sleep_time_us;
-
+		
 		e_tick = hal_sleep_timer_read_tick(SLEEP_TIMER1_ID);
 		pre_sleep_time_us = hal_sleep_timer_tick_diff(s_tick, e_tick);
 

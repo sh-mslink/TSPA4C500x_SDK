@@ -27,6 +27,9 @@
 #include "in_arm.h"
 #include "in_irq.h"
 #include "hal_hwacc.h"
+#include "hal_clk.h"
+#include "hal_power.h"
+#include "hal_smem.h"
 
 #include "cmsis_os.h"
 
@@ -105,6 +108,10 @@ int hal_hwacc_open() {
 	hwacc_check_min_pv_enable();
 	hwacc_check_zero_pv_enable();
 
+	//HWACC Global Regs
+	clk_hwacc_en(1);
+	smem_hwacc_en(1, pd->inst_offset);
+
 	pd->mutex = osMutexCreate(osMutex(mutex));
 	if (!pd->mutex)
 		goto fail;
@@ -112,7 +119,7 @@ int hal_hwacc_open() {
 	if (!pd->semaphore)
 		goto fail;
 
-#if CFG_PM_ENABLE
+#if CFG_PM_EN
 	pd->pm.power_state = hwacc_power_state;
 	pd->pm.power_down = hwacc_power_down;
 	pd->pm.power_up = hwacc_power_up;
@@ -121,7 +128,7 @@ int hal_hwacc_open() {
 	pd->power_state = PM_DEEP_SLEEP;
 #endif
 
-	osMutexWait(pd->mutex, osWaitForever);	
+	osMutexWait(pd->mutex, osWaitForever);
 	
 	return HWACC_ERR_OK;
 
@@ -156,17 +163,25 @@ int hal_hwacc_close() {
 		pd->semaphore = NULL;
 	}
 
-#if CFG_PM_ENABLE
+#if CFG_PM_EN
 	hal_pm_unreg_mod(&pd->pm);
 #endif
+
+	//HWACC Global Regs
+	clk_hwacc_en(0);
+	smem_hwacc_en(0, pd->inst_offset);
 
 	return HWACC_ERR_OK;
 }
 
-int hal_hwacc_write_matrix(hwacc_matrix_desc_t *matrix, float *head) {
+int hal_hwacc_write_matrix(hwacc_matrix_desc_t *matrix, const float *head) {
 	hwacc_dev_t* pd = &hwacc_dev;
 	if(!pd->used)
-		return HWACC_ERR_NOT_INIT;
+		return HWACC_ERR_NOT_INIT;	
+
+#if CFG_PM_EN
+	pd->power_state = PM_SLEEP;
+#endif
 
 	if (matrix->mem_block==0)
 		memcpy((float*)(HWACC_MEM_0_BASE_ADDR + (matrix->offset << 2)), head, (matrix->ncols*matrix->nrows)<<2);
@@ -245,7 +260,11 @@ int hal_hwacc_insert_inst(hwacc_matrix_desc_t *matrix_C, int C_symm, hwacc_matri
 
 	int result = hal_hwacc_matrix_op_dim_check(matrix_C, matrix_A, matrix_B, op);
 	if(result != HWACC_ERR_OK)
-		return result;
+		return result;	
+
+#if CFG_PM_EN
+	pd->power_state = PM_SLEEP;
+#endif
 	
 	// Write word index 0: result matrix descriptor
 	uint32_t reg = (matrix_C->mem_block & 0x3) | ((matrix_C->offset & 0x1FF) << 2) | ((C_symm & 0x1) << 20) | ((((int)op) & 0x7) << 29);
@@ -296,7 +315,11 @@ int hal_hwacc_execute(void) {
 	
 	// Disable interrupts
 	hwacc_mask_set();
-	NVIC_DisableIRQ(Hwacc_IRQn);
+	NVIC_DisableIRQ(Hwacc_IRQn);	
+
+#if CFG_PM_EN
+	pd->power_state = PM_DEEP_SLEEP;
+#endif
 	
 	// Set HWACC memory access to AHB
 	hwacc_mem_acc_ahb();

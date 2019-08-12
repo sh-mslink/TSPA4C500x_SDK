@@ -44,15 +44,15 @@
 #define MSRCU_BLE_ADV_DURATION      (30000)//unit: 1ms
 #define MSRCU_BLE_CNT_INTERVAL_MIN  (0x0006)//unit: 1.25ms, range: 7.5ms(0x0006)~4000ms(0x0C80)
 #define MSRCU_BLE_CNT_INTERVAL_MAX  (0x0006)//unit: 1.25ms, range: 7.5ms(0x0006)~4000ms(0x0C80)
-#define MSRCU_BLE_CNT_LATENCY       (249)//0~499
+#define MSRCU_BLE_CNT_LATENCY       (199)//0~499
 #define MSRCU_BLE_CNT_TIMEOUT       (600)//unit: 10ms, range: 10ms(0x000A)~32000ms(0x0C80)
+
+#define MSRCU_BLE_DIRECT_ADV_ENABLE (0)//Use direct adv after bonded
 
 //Power parameters
 #define MSRCU_POWER_BAT_SAMPLE_INTERVAL (3600000)//ms
 #define MSRCU_POWER_BAT_MV_LOW      (2200)//mV
 #define MSRCU_POWER_BAT_MV_EMPTY    (1900)//mV
-
-#define MSRCU_BLE_DIRECT_ADV_ENABLE (1)//Use direct adv after bonded
 
 ///LED parameters
 #define MSRCU_LED_KEY_PRESS_ON_TIME     (100)//ms
@@ -247,7 +247,7 @@ typedef enum
 #define MSRCU_BLE_ADV_DURATION      (30000)//unit: 1ms
 #define MSRCU_BLE_CNT_INTERVAL_MIN  (0x0006)//unit: 1.25ms, range: 7.5ms(0x0006)~4000ms(0x0C80)
 #define MSRCU_BLE_CNT_INTERVAL_MAX  (0x0006)//unit: 1.25ms, range: 7.5ms(0x0006)~4000ms(0x0C80)
-#define MSRCU_BLE_CNT_LATENCY       (249)//0~499
+#define MSRCU_BLE_CNT_LATENCY       (199)//0~499
 #define MSRCU_BLE_CNT_TIMEOUT       (600)//unit: 10ms, range: 10ms(0x000A)~32000ms(0x0C80)
 
 #define MSRCU_BLE_DIRECT_ADV_ENABLE (0)//Use direct adv after bonded

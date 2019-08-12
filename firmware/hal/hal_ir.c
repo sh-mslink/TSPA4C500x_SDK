@@ -214,10 +214,10 @@ static int ir_pm_state(void *arg, uint32_t *sleep_duration)
 
 static void ir_pm_down(void *arg, uint32_t sleep_duration)
 {
-    ir_dev_t *pd = (ir_dev_t *)arg;
+   ir_dev_t *pd = (ir_dev_t *)arg;
     //PRINTD(DBG_TRACE, "%s \n", __func__);
     //hal_gpio_aon_latch(2, pd->rx_pin + 1, 1);// CNT_PIN0 is gpio2_1
-    hal_gpio_aon_latch(2, pd->tx_pin + 1, 1);
+    hal_gpio_aon_latch(2,  pd->tx_pin + 1, 1);
         
 	return;
 }
@@ -229,7 +229,7 @@ static void ir_pm_up(void *arg)
 	// Recover pin mux
     hal_cnt_pin_mux_en(pd->tx_pin, 1);
     //hal_cnt_pin_mux_en(pd->rx_pin, 1);
-    hal_gpio_aon_latch(2, pd->tx_pin + 1, 0);
+    hal_gpio_aon_latch(2,  pd->tx_pin + 1, 0);
     hal_cnt_internal_din_pinmux(pd->cnt_dev->id*2, pd->rx_pin);//counter A pin number is cnt_id*2
     hal_cnt_internal_dout_pinmux(pd->cnt_dev->id*2, pd->tx_pin);
 

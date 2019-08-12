@@ -5,6 +5,12 @@
 #include "ble_test.h"
 #include "msg.h"
 
+#ifdef CFG_PROJ_TPPC
+#include "prf_tppc.h"
+#endif
+#ifdef CFG_PROJ_TPPS
+#include "prf_tpps.h"
+#endif
 #ifdef CFG_PROJ_RCU
 #include "msrcu_app.h"
 extern msrcuBleBondData_t msrcuBondData;
@@ -63,59 +69,33 @@ int handle_default_gap_evt(uint16_t eid, void *pv, void *param)
 			break;
 		case GAP_EVT_ADV_REPORT:
 			{
-				//inb_evt_adv_rpt_ind_t *ind = (inb_evt_adv_rpt_ind_t *)pv;
-				//uint8_t length=temp->length;
-				//inb_evt_adv_rpt_ind_t *ind=(void*)malloc(sizeof(inb_evt_adv_rpt_ind_t)+length);
-#if 0
-				PRINTD(DBG_TRACE, "scan receive 68 ...\r\n");
-				if(mode == NO_PAYLOAD)
-				{
-					if (ind->trans_addr.addr.addr[0] == 0x63/* && ind->info == 0x39*/)
-					PRINTD(DBG_ERR, "actv_idx= 0x%x info=0x%x  tx_pwr=0x%x rssi=0x%x length=0x%x data0=0x%x  data1=0x%x data4=0x%x data5=0x%x data6=0x%x\r\n",ind->actv_idx, ind->info, ind->tx_pwr, ind->rssi,ind->length,ind->data[0],ind->data[1],ind->data[4],ind->data[5],ind->data[6]);
-					if (memcmp(ind->trans_addr.addr.addr, arduino_bd_address, sizeof(arduino_bd_address)) == 0)
-					{
-
-						if (rx_tx_pwr != ind->tx_pwr) {
-						rx_tx_pwr = ind->tx_pwr;
-						PRINTD(DBG_ERR, "recv data 0x%x\r\n", ind->tx_pwr);
-						toggle_led();
-						
-						}
-						if ((ind->length >= 3) && (adv_name_data != ind->data[2])) {
-						adv_name_data =ind->data[2];
-						PRINTD(DBG_ERR, "=====recv dav data 0x%x=========\r\n", adv_name_data);
-						//toggle_led();				
-						}
-						
-					}
-				}
-				else{
-				//arduino test code
-				if (ind->trans_addr.addr.addr[0] == 0x63/* && ind->info == 0x39*/)
-				{
-					PRINTD(DBG_ERR, "actv_idx= 0x%x info=0x%x  tx_pwr=0x%x rssi=0x%x length=0x%x data0=0x%x  data1=0x%x data4=0x%x data5=0x%x data6=0x%x\r\n",ind->actv_idx, ind->info, ind->tx_pwr, ind->rssi,ind->length,ind->data[0],ind->data[1],ind->data[4],ind->data[5],ind->data[6]);
-					//PRINTD(DBG_ERR, "actid = %d  pwr=%d data=0x%x rssi=%d\r\n",ind->actv_idx, ind->tx_pwr, ind->length, ind->rssi);
-					if (memcmp(ind->trans_addr.addr.addr, arduino_bd_address, sizeof(arduino_bd_address)) == 0)
-					{
-						PRINTD(DBG_TRACE, "trans_addr\r\n");
-						dump_addr(ind->trans_addr);
-						
-						PRINTD(DBG_TRACE, "target_addr\r\n");
-						dump_addr(ind->target_addr);
-						if (recv_data != ind->data[5]) {
-						recv_data = ind->data[5];
-						PRINTD(DBG_ERR, "recv data 0x%x\r\n",ind->data[5]);
-						toggle_led();
-						}
-					}
-						
-				}
-
-				}
+				inb_evt_adv_rpt_ind_t *ind = (inb_evt_adv_rpt_ind_t *)pv;			
+//                PRINTD(DBG_TRACE, "Scanned device: %02x:%02x:%02x:%02x:%02x:%02x.\r\n", 
+//                        ind->trans_addr.addr.addr[0],
+//                        ind->trans_addr.addr.addr[1],
+//                        ind->trans_addr.addr.addr[2],
+//                        ind->trans_addr.addr.addr[3],
+//                        ind->trans_addr.addr.addr[4],
+//                        ind->trans_addr.addr.addr[5]);
+#ifdef CFG_PROJ_TPPC                
+                if(isTppsDevice(ind->data, ind->length))
+                {				
+                    PRINTD(DBG_TRACE, "TPPS device found!!!\r\n");
+                    stop_scan();
+                    start_connect(&ind->trans_addr);
+//                    msg_start_connect_t *msg = (msg_start_connect_t *)malloc(sizeof(msg_start_connect_t));
+//                    if(msg)
+//                    {
+//                        msg->msg_id = MSG_START_CONNECT;
+//                        memcpy(&msg->addr, &ind->trans_addr, sizeof(inb_bdaddr_t));
+//                        msg_put(msg);
+//                    }
+//                    else
+//                        PRINTD(DBG_TRACE, "msg_start_connect_t no memory.\r\n");
+                }
 #endif
-				//dump_addr(ind->trans_addr);
 			}
-				break;
+            break;
 		case GAP_EVT_ACTIVITY_STOP:
 			{
 				inb_evt_act_stop_ind_t *p_para = (inb_evt_act_stop_ind_t *)pv;
@@ -136,7 +116,6 @@ int handle_default_gap_evt(uint16_t eid, void *pv, void *param)
 				}
 			}
 			break;
-
 		case GAP_EVT_DEV_RND_ADDR_INFO:
 			{
 				//GAPM_DEV_BDADDR_IND
@@ -154,11 +133,11 @@ int handle_default_gap_evt(uint16_t eid, void *pv, void *param)
 				PRINTD(DBG_TRACE, " notification_type :%d",notification_type);
 			}
 			break;
-		case GAP_EVT_GET_DEV_INFO_REQ: 
+		case GAP_EVT_GET_DEV_INFO_REQ:
 			{
 				inb_evt_get_dev_info_req_t *ind = (inb_evt_get_dev_info_req_t *)pv;
 				inb_get_dev_info_cfm_t cfm={0};
-				PRINTD(DBG_TRACE, " req :%d",ind->req);	
+				PRINTD(DBG_TRACE, " req :%d",ind->req);
 				cfm.req=ind->req;
 				switch (cfm.req)
 				{
@@ -223,26 +202,36 @@ int handle_default_gap_evt(uint16_t eid, void *pv, void *param)
 			break;
 		case GAP_EVT_DISCONNECT:
 			{
+#ifdef CFG_PROJ_TPPC
+                tppcIsConnected = false;
+#endif
+#ifdef CFG_PROJ_TPPS
+                tppsIsConnected = false;
+#endif
 				/// Post a message to main task to re-start activity
 				inb_evt_disc_ind_t *p_para = (inb_evt_disc_ind_t *)pv;
-				//PRINTD(DBG_TRACE, "(%d) Disconnect, %d\r\n", p_para->conidx, p_para->reason);				
-
+				//PRINTD(DBG_TRACE, "(%d) Disconnect, %d\r\n", p_para->conidx, p_para->reason);
+				
 				msg_disc_t *msg = (msg_disc_t *)malloc(sizeof(msg_disc_t));
 				if (msg) {
 					msg->msg_id = MSG_DISC;
 					msg->conidx = p_para->conidx;
+					msg->reason = p_para->reason;
 
-					/// Post a message to main task to re-start connection
 					msg_put(msg);
-					/*status = osMessagePut(h_msg_q_id, (uint32_t)msg, 0) ;
-					if (status != osOK) {
-						PRINTD(DBG_ERR, "line:%d  OS error,%d\r\n", __LINE__, status);
-					}*/
 				}
+                else
+                    PRINTD(DBG_TRACE, "GAP_EVT_DISCONNECT no memory.\r\n");
 			}
 			break;
 		case GAP_EVT_CONN_REQ:
 			{
+#ifdef CFG_PROJ_TPPC
+                tppcIsConnected = true;
+#endif
+#ifdef CFG_PROJ_TPPS
+                tppsIsConnected = true;
+#endif
 				inb_evt_conn_req_t *p_para = (inb_evt_conn_req_t *)pv;
 
 				/// issue confirm to accept connection..
@@ -255,7 +244,6 @@ int handle_default_gap_evt(uint16_t eid, void *pv, void *param)
 				}
 				inb_conn_cfm(p_para->conidx, &cfm);
 
-				/// Post a message to enable profiles
 				msg_connected_t *msg = (msg_connected_t *)malloc(sizeof(msg_connected_t));
 				if (msg) {
 					msg->msg_id = MSG_CONNECTED;
@@ -266,14 +254,11 @@ int handle_default_gap_evt(uint16_t eid, void *pv, void *param)
 					msg->clk_accuracy = p_para->clk_accuracy;
 					msg->peer_addr_type = p_para->peer_addr_type;
 					memcpy(msg->peer_addr.addr, p_para->peer_addr.addr, BLE_BDADDR_LEN);
-
-					/// Post a message to main task to re-start connection
+					
 					msg_put(msg);
-					/*status = osMessagePut(h_msg_q_id, (uint32_t)msg, 0) ;
-					if (status != osOK) {
-						PRINTD(DBG_ERR, "line:%d  OS error,%d\r\n", __LINE__, status);
-					}*/
 				}
+                else
+                    PRINTD(DBG_TRACE, "GAP_EVT_CONN_REQ no memory.\r\n");
 			}
 			break;
 		case GAP_EVT_BOND_REQ:
@@ -565,8 +550,8 @@ int handle_default_gap_evt(uint16_t eid, void *pv, void *param)
 			
 		case GAP_EVT_CONN_PARAM_UPD_REQ:
 //			PRINTD(DBG_TRACE, "GAP_EVT_CONN_PARAM_UPD_REQ\n");
-//       			 inb_evt_conn_param_upd_req_t* p_para = (inb_evt_conn_param_upd_req_t*)pv;
-//      			 inb_conn_param_update_cfm(p_para->conidx, 1, 0x1, 0xff);
+       			 inb_evt_conn_param_upd_req_t* p_para = (inb_evt_conn_param_upd_req_t*)pv;
+      			 inb_conn_param_update_cfm(p_para->conidx, 1, 0x1, 0xff);
 			break;
 		case GAP_EVT_CONN_PARAM_UPD:
 			{

@@ -53,6 +53,9 @@ msrcuErr_t msrcu_app_led_toggle(uint8_t ledIdx);
     
 #if MSRCU_VOICE_ENABLE
 bool msrcu_app_voice_is_stop(void);
+#if MSRCU_BLE_VOICE_ATV_ENABLE
+msrcuErr_t msrcu_app_voice_atv_start(void);
+#endif
 msrcuErr_t msrcu_app_voice_start(void);
 msrcuErr_t msrcu_app_voice_stop(void);
 #endif

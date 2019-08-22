@@ -118,7 +118,7 @@
 #define CFG_RAM_BASE_ADDR	0x201000
 #define CFG_RAM_SIZE	0xf000
 #define CFG_STACK_SIZE	0x400
-#define CFG_HEAP_SIZE	0xc00
+#define CFG_HEAP_SIZE	0x1000
 /// @Misc::DEBUG
 #define DBG_ERR	0x01
 #define DBG_WARN	0x02

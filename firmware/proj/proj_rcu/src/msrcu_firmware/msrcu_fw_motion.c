@@ -46,7 +46,7 @@
 static bool isStop = true;
 
 #if MSRCU_BMI160_I2C
-struct bmi160_dev bm160Dev = {0};
+static struct bmi160_dev bm160Dev = {0};
 #endif
  
 /* Function Definition
@@ -335,9 +335,19 @@ msrcuErr_t msrcu_fw_motion_start(void)
     bm160Dev.accel_cfg.power = BMI160_ACCEL_NORMAL_MODE;
     bm160Dev.gyro_cfg.power = BMI160_GYRO_NORMAL_MODE; 
 
-    rslt = bmi160_set_sens_conf(&bm160Dev);    
+    //TODO
+    uint8_t i = 10;
+    while(i--)
+    {
+        rslt = bmi160_set_sens_conf(&bm160Dev);
+        if(rslt == BMI160_OK)
+            break;
+    }   
     if(rslt)
+    {
+        MSPRINT("%s bmi160_set error: %d.\r\n", __func__, rslt);
         err = ERR_PERIPHERAL;
+    }
     else
         err = ERR_NO_ERROR;
 #else
@@ -360,11 +370,20 @@ msrcuErr_t msrcu_fw_motion_stop(void)
     int8_t rslt = BMI160_OK;
     
     bm160Dev.accel_cfg.power = BMI160_ACCEL_SUSPEND_MODE;
-    bm160Dev.gyro_cfg.power = BMI160_GYRO_SUSPEND_MODE; 
-
-    rslt = bmi160_set_sens_conf(&bm160Dev);     
+    bm160Dev.gyro_cfg.power = BMI160_GYRO_SUSPEND_MODE;
+    
+    //TODO
+    while(1)//must stop
+    {
+        rslt = bmi160_set_sens_conf(&bm160Dev);
+        if(rslt == BMI160_OK)
+            break;
+    }       
     if(rslt)
+    {
+        MSPRINT("%s bmi160_set error: %d.\r\n", __func__, rslt);
         err = ERR_PERIPHERAL;
+    }
     else
         err = ERR_NO_ERROR;
 #else
@@ -455,6 +474,9 @@ msrcuErr_t msrcu_fw_motion_get_data(msrcuMotionAcc_t *acc, msrcuMotionGyro_t *gy
 
 msrcuErr_t msrcu_fw_motion_mouse_hid_send(uint8_t conIndex, msrcuMouseButton_t button, msrcuMotionMouse_t *mouse)
 {
+    if(BLE_STATE_READY != msrcu_dev_ble_get_state())
+        return ERR_NOT_SUPPORT;
+    
     msrcuErr_t err = ERR_DEVICE;
     
     msrcuBleHidReport_t report = {0};    

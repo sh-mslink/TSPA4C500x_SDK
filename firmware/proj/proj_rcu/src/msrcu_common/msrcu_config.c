@@ -52,13 +52,13 @@ hidKeycode_t msrcuKeycodeToHidKeycode(unsigned char keycode, unsigned char multi
         case KEY_CODE_VOLDOWN:
             return HID_KEYCODE_VOLDOWN;
         case KEY_CODE_VOICE:
-            return HID_KEYCODE_NULL;                
+            return HID_KEYCODE_SEARCH;
         case KEY_CODE_RIGHT:
             return HID_KEYCODE_RIGHT;
         case KEY_CODE_LEFT:
             return HID_KEYCODE_LEFT;
         case KEY_CODE_ENTER:
-            return HID_KEYCODE_ENTER;        
+            return HID_KEYCODE_ENTER;
         case KEY_CODE_MUTE:
             return HID_KEYCODE_MUTE;
         case KEY_CODE_HOME:
@@ -68,7 +68,7 @@ hidKeycode_t msrcuKeycodeToHidKeycode(unsigned char keycode, unsigned char multi
         case KEY_CODE_MENU:
             return HID_KEYCODE_MENU;
         case KEY_CODE_BACK:
-            return HID_KEYCODE_BACK;        
+            return HID_KEYCODE_BACK;
         case KEY_CODE_DOWN: 
             return HID_KEYCODE_DOWN;
         default:

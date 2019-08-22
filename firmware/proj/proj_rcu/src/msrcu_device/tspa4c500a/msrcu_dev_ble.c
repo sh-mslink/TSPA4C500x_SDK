@@ -151,23 +151,6 @@ static void msrcu_dev_ble_hogp_evt(uint16_t eid, void *pv)
                         | (INB_HOGPD_CFG_REPORT_NTF_EN << 2)))
                 {
                     msrcu_dev_ble_set_state(BLE_STATE_READY);
-                   
-                    msg_con_param_upd_req_t *msg = (msg_con_param_upd_req_t *)malloc(sizeof(msg_con_param_upd_req_t));
-                    if(msg)
-                    {
-                        msg->msg_id = MSG_CON_PARAM_UPD_REQ;
-                        msg->conidx = param->conidx;
-                        msg->interval_min = MSRCU_BLE_CNT_INTERVAL_MIN;
-                        msg->interval_max = MSRCU_BLE_CNT_INTERVAL_MAX;
-                        msg->latency = MSRCU_BLE_CNT_LATENCY;
-                        msg->time_out = MSRCU_BLE_CNT_TIMEOUT;
-                        msg->ce_len_min = 0x0001;
-                        msg->ce_len_max = 0xffff;
-
-                        msg_put(msg);
-                    }
-                    else
-                        MSPRINT("%s msg no memory.\r\n", __func__);
                      
                     hogpdNtfCfgInd->cfg = 1;
                                       
@@ -320,6 +303,9 @@ msrcuErr_t msrcu_dev_ble_hid_send(msrcuBleHidReport_t *param)
 
 msrcuErr_t msrcu_dev_ble_hid_send2(msrcuBleHidReport_t *param)
 {
+    if(BLE_STATE_READY != msrcu_dev_ble_get_state())
+        return ERR_NOT_SUPPORT;
+    
     if(!param)
         return ERR_VALID_INPUT;  
     
@@ -339,7 +325,7 @@ msrcuErr_t msrcu_dev_ble_hid_send2(msrcuBleHidReport_t *param)
     free(report);   
     if(!err)
     {
-        //MSPRINT("s"); 
+        //MSPRINT("h"); 
         return ERR_NO_ERROR;
     }
     else

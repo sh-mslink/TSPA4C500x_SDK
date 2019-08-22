@@ -30,6 +30,9 @@
 
 #define LED_NUMBER_MAX          (3)
 
+#define VOICE_SAMPLE_RATE_8K    (8000)
+#define VOICE_SAMPLE_RATE_16K   (16000)
+
 #define BLE_CON_IDX             (0)
 
 #define HID_KEYCODE_INSTANCE    (0)

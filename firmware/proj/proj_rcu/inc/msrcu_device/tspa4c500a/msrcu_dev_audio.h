@@ -37,6 +37,9 @@
  ****************************************************************************************
  */ 
 msrcuErr_t msrcu_dev_audio_init(void);
+#if MSRCU_BLE_VOICE_ATV_ENABLE
+msrcuErr_t msrcu_dev_audio_atv_start(void);
+#endif
 msrcuErr_t msrcu_dev_audio_start(void);
 msrcuErr_t msrcu_dev_audio_stop(void);
 #endif

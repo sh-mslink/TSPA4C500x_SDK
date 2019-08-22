@@ -55,6 +55,7 @@ msrcuErr_t msrcu_fw_voice_init(void)
 #else
     msrcu_dev_gpio_mic_power_pin_init();
 #endif
+    
     err = msrcu_dev_audio_init();
 #endif
     
@@ -67,6 +68,19 @@ bool msrcu_fw_voice_is_stop(void)
 {
     return isStop;
 }
+
+#if MSRCU_BLE_VOICE_ATV_ENABLE
+msrcuErr_t msrcu_fw_voice_atv_start(void)
+{
+    msrcuErr_t err = ERR_DEVICE;
+    
+#if MSRCU_DEV == MSRCU_DEV_TSPA4C500A
+    err = msrcu_dev_audio_atv_start(); 
+#endif
+    
+    return err;
+}
+#endif
 
 msrcuErr_t msrcu_fw_voice_start(void)
 {

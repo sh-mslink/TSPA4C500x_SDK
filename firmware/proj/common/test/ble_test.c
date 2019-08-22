@@ -13,6 +13,9 @@
 #endif
 #ifdef CFG_PROJ_RCU
 #include "msrcu_app.h"
+#if MSRCU_BLE_VOICE_ATV_ENABLE
+#include "prf_atv.h"
+#endif
 
 extern void msrcu_dev_ble_evt_cb(inb_evt_t *evt, void *param);
 extern msrcuErr_t msrcu_dev_ble_hid_send2(msrcuBleHidReport_t *param);
@@ -68,27 +71,27 @@ int start_adv(void)
 	inb_actv_create_t adv = {0};
 	uint8_t advData[] = 
     {
-#ifdef CFG_PROJ_TPPS  
-        0x0B,//AD Element Length
-        0x08,//AD Type: Shortened local name
-        'T','r','o','p','o','s',' ','T','P','P'//AD Data Bytes: "Tropos TPP"
-#else        
-        0x07,//AD Element Length
-        0x08,//AD Type: Shortened local name
-        'T','r','o','p','o','s'//AD Data Bytes: "Tropos"
-#endif        
+        0x02,//AD Element Length
+        0x0A,//AD Type: Transmit Power
+        0x00,//AD Data: 0dBm
     };   
     uint8_t scanRspData[] = 
     {      
-        0x03,//AD Element Length
-        0x03,//AD Type: Complete list of 16-bit UUIDs
-        0xFF, 0xFF//AD Data UUID
+#ifdef CFG_PROJ_TPPS
+        0x0B,//AD Element Length
+        0x08,//AD Type: Shortened local name
+        'T','r','o','p','o','s',' ','T','P','P',//AD Data Bytes: "Tropos TPP"
+#else
+        0x07,//AD Element Length
+        0x08,//AD Type: Shortened local name
+        'T','r','o','p','o','s',//AD Data Bytes: "Tropos"
+#endif
     };        
 
 	adv.option = 0;
 	adv.own_addr_type = 0;
 	adv.adv_param.type = ADV_TYPE_LEGACY;
-	adv.adv_param.disc_mode = ADV_MODE_GEN_DISC;
+	adv.adv_param.disc_mode = ADV_MODE_LIM_DISC;
 	adv.adv_param.prop = ADV_PROP_UNDIR_CONN;
 	adv.adv_param.max_tx_pwr = 0;
 	adv.adv_param.filter_pol = ADV_FILT_ALLOW_SCAN_ANY_CON_ANY;
@@ -651,6 +654,13 @@ int ble_config(int role)
 	}
 	
 	prof_init();
+
+#ifdef CFG_PROJ_RCU
+#if MSRCU_BLE_VOICE_ATV_ENABLE   
+	if(!role)
+        atv_add_svc();
+#endif
+#endif
     
 #ifdef CFG_PROJ_TPPS    
 	if(!role)
@@ -743,6 +753,8 @@ void handle_default_msg(msg_t *p_msg)
     case MSG_CON_PARAM_UPD_REQ:
     {
 		//PRINTD(DBG_TRACE, "msg con param upd req...\r\n");
+        osDelay(1000);//for stabilization
+        
         msg_con_param_upd_req_t *p = (msg_con_param_upd_req_t *)p_msg;        
         inb_conn_param_update_t *p_upd = (inb_conn_param_update_t *)malloc(sizeof(inb_conn_param_update_t));
         if(!p_upd)
@@ -755,8 +767,13 @@ void handle_default_msg(msg_t *p_msg)
         p_upd->ce_len_min = p->ce_len_min;
         p_upd->ce_len_max = p->ce_len_max;
         
-        if(!inb_conn_param_update(p->conidx, p_upd))
-            ;//PRINTD(DBG_TRACE, "Request to update connection parameters.\r\n");
+        int err = inb_conn_param_update(p->conidx, p_upd);
+        if(err)
+        {
+            PRINTD(DBG_TRACE, "inb_conn_param_update error:0x%02X.\r\n", err);
+        }
+        else
+            PRINTD(DBG_TRACE, "Request to update connection parameters.\r\n");
         
         if(p_upd)
             free(p_upd);
@@ -765,33 +782,7 @@ void handle_default_msg(msg_t *p_msg)
         
     case MSG_CON_PARAM_UPD:
     {
-#ifdef CFG_PROJ_RCU
 		//PRINTD(DBG_TRACE, "msg con param upd...\r\n");
-        msg_con_param_upd_t *p = (msg_con_param_upd_t *)p_msg;
-        
-        if((p->con_interval < MSRCU_BLE_CNT_INTERVAL_MIN)
-                || (p->con_interval > MSRCU_BLE_CNT_INTERVAL_MIN)
-                || (p->con_latency != MSRCU_BLE_CNT_LATENCY)
-                || (p->sup_to != MSRCU_BLE_CNT_TIMEOUT))
-        {
-            inb_conn_param_update_t *p_upd = malloc(sizeof(inb_conn_param_update_t));
-            if(!p_upd)
-                return;
-            
-            p_upd->intv_min = MSRCU_BLE_CNT_INTERVAL_MIN;
-            p_upd->intv_max = MSRCU_BLE_CNT_INTERVAL_MAX;
-            p_upd->latency = MSRCU_BLE_CNT_LATENCY;
-            p_upd->time_out = MSRCU_BLE_CNT_TIMEOUT;
-            p_upd->ce_len_min = 0x0001;
-            p_upd->ce_len_max = 0xffff;
-            
-            if(!inb_conn_param_update(conidx, p_upd))
-                PRINTD(DBG_TRACE, "Request to update connection parameters.\r\n");
-            
-            if(p_upd)
-                free(p_upd);
-        }
-#endif        
     }
     break;
         
@@ -824,15 +815,15 @@ void handle_default_msg(msg_t *p_msg)
                 ;//PRINTD(DBG_TRACE, "inb_bass_enable success.\r\n");
 #endif      
             
-#if CFG_PRF_DISS  
+#if CFG_PRF_DISS
             /// Enable Device Information Service...
 #endif
-#if CFG_PRF_HOGPD 
+#if CFG_PRF_HOGPD
             /// Enable HOGPD Profiles
             uint16_t ntf_cfg[3];
             ntf_cfg[0] = INB_HOGPD_CFG_REPORT_NTF_EN
                     | (INB_HOGPD_CFG_REPORT_NTF_EN << 1)
-                    | (INB_HOGPD_CFG_REPORT_NTF_EN << 2);                
+                    | (INB_HOGPD_CFG_REPORT_NTF_EN << 2);
 //                uint16_t ntf_cfg[3];
 //                ntf_cfg[0] = INB_HOGPD_CFG_REPORT_NTF_EN;
 //                ntf_cfg[1] = INB_HOGPD_CFG_REPORT_NTF_EN << 1;
@@ -879,8 +870,8 @@ void handle_default_msg(msg_t *p_msg)
                         report.data[MOUSE_HID_PKG_Y_IDX] = mouse.y; 
                         
                         msrcuErr_t err = msrcu_dev_ble_hid_send2(&report);
-                        if(err)
-                            MSPRINT("msrcu_dev_ble_hid_send2 ERR:%d\r\n", err);
+//                        if(err)
+//                            MSPRINT("msrcu_dev_ble_hid_send2 ERR:%d\r\n", err);
                     }
                 }
                 else
@@ -896,8 +887,8 @@ void handle_default_msg(msg_t *p_msg)
             memcpy(report.data, p->data, p->length);             
             
             msrcuErr_t err = msrcu_dev_ble_hid_send2(&report);
-            if(err)
-                MSPRINT("msrcu_dev_ble_hid_send2 ERR:%d\r\n", err);
+//            if(err)
+//                MSPRINT("msrcu_dev_ble_hid_send2 ERR:%d\r\n", err);
         }
 #endif        
     }  

@@ -115,6 +115,13 @@ bool msrcu_app_voice_is_stop(void)
     return msrcu_fw_voice_is_stop();
 }
 
+#if MSRCU_BLE_VOICE_ATV_ENABLE
+msrcuErr_t msrcu_app_voice_atv_start(void)
+{
+    return msrcu_fw_voice_atv_start();
+}
+#endif
+
 msrcuErr_t msrcu_app_voice_start(void)
 {
     msrcuErr_t err = ERR_NO_ERROR;

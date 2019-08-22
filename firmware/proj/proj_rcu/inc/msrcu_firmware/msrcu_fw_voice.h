@@ -38,6 +38,9 @@
  */
 msrcuErr_t msrcu_fw_voice_init(void); 
 bool msrcu_fw_voice_is_stop(void);
+#if MSRCU_BLE_VOICE_ATV_ENABLE
+msrcuErr_t msrcu_fw_voice_atv_start(void);
+#endif
 msrcuErr_t msrcu_fw_voice_start(void);
 msrcuErr_t msrcu_fw_voice_stop(void);
  

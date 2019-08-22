@@ -13,6 +13,9 @@
 #endif
 #ifdef CFG_PROJ_RCU
 #include "msrcu_app.h"
+#if MSRCU_BLE_VOICE_ATV_ENABLE
+#include "prf_atv.h"
+#endif
 extern msrcuBleBondData_t msrcuBondData;
 #endif
 
@@ -202,6 +205,11 @@ int handle_default_gap_evt(uint16_t eid, void *pv, void *param)
 			break;
 		case GAP_EVT_DISCONNECT:
 			{
+#ifdef CFG_PROJ_RCU
+#if MSRCU_BLE_VOICE_ATV_ENABLE
+                atvIsConnected = false;
+#endif
+#endif
 #ifdef CFG_PROJ_TPPC
                 tppcIsConnected = false;
 #endif
@@ -226,6 +234,11 @@ int handle_default_gap_evt(uint16_t eid, void *pv, void *param)
 			break;
 		case GAP_EVT_CONN_REQ:
 			{
+#ifdef CFG_PROJ_RCU
+#if MSRCU_BLE_VOICE_ATV_ENABLE
+                atvIsConnected = true;
+#endif
+#endif
 #ifdef CFG_PROJ_TPPC
                 tppcIsConnected = true;
 #endif

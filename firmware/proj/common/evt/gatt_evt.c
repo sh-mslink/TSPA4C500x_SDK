@@ -12,6 +12,13 @@
 #include ".\hal\hal_adc.h"
 #include ".\ble\inb_api.h"
 
+#ifdef CFG_PROJ_RCU
+#include "msrcu_config.h"
+#if MSRCU_BLE_VOICE_ATV_ENABLE
+#include "prf_atv.h"
+#endif
+#endif
+
 #ifdef CFG_PROJ_TPPC
 #include "prf_tppc.h"
 #endif
@@ -132,12 +139,35 @@ int handle_default_gatt_evt(uint16_t eid, void* pv, void* param)
 			inb_gatt_write_req_cfm(ind->conidx, ind->handle, 0/*ATT_ERR_NO_ERROR*/);
 
 //			PRINTD(DBG_TRACE, " EVT_WRT_REQ on connection %d:\r\n", ind->conidx);
-//			PRINTD(DBG_TRACE, "\t handle: 0x%02X \r\n",ind->handle); 
+//			PRINTD(DBG_TRACE, "\t handle: %d \r\n", ind->handle); 
 //			PRINTD(DBG_TRACE, "\t value length: %d  offset: %d\r\n", ind->length, ind->offset);
 //			PRINTD(DBG_TRACE, "\t value to write: ");
 //			for (int i=0;i<ind->length;i++)
 //				PRINTD(DBG_TRACE, "%02X ", ind->value[i]);
 //			PRINTD(DBG_TRACE, "\r\n");
+            
+#ifdef CFG_PROJ_RCU
+#if MSRCU_BLE_VOICE_ATV_ENABLE
+            if(ind->handle == g_AtvPrimarySvc_shl + 1 + ATVV_IDX_CHAR_TX_VAL)
+            {
+                atv_voice_char_tx_receive(ind->conidx, ind->value, ind->length);
+            }
+            else if(ind->handle == g_AtvPrimarySvc_shl + 1 + ATVV_IDX_CHAR_RX_CFG)
+            {
+                if(ind->value[1] == 0x00 && ind->value[0] == 0x01)
+                    PRINTD(DBG_TRACE, "ATVV_CHAR_RX notify enable\r\n");
+                else if(ind->value[1] == 0x00 && ind->value[0] == 0x00)
+                    PRINTD(DBG_TRACE, "ATVV_CHAR_RX notify disable\r\n");
+            }          
+            else if(ind->handle == g_AtvPrimarySvc_shl + 1 + ATVV_IDX_CHAR_CTL_CFG)
+            {
+                if(ind->value[1] == 0x00 && ind->value[0] == 0x01)
+                    PRINTD(DBG_TRACE, "ATVV_CHAR_CTL notify enable\r\n");
+                else if(ind->value[1] == 0x00 && ind->value[0] == 0x00)
+                    PRINTD(DBG_TRACE, "ATVV_CHAR_CTL notify disable\r\n");
+            }          
+#endif
+#endif
 #ifdef CFG_PROJ_TPPS    
             if(ind->handle == g_TppPrimarySvc_shl + 1 + TPP_IDX_NTF_VAL_CFG)
             {

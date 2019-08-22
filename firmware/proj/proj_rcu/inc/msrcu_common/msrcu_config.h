@@ -44,10 +44,13 @@
 #define MSRCU_BLE_ADV_DURATION      (30000)//unit: 1ms
 #define MSRCU_BLE_CNT_INTERVAL_MIN  (0x0006)//unit: 1.25ms, range: 7.5ms(0x0006)~4000ms(0x0C80)
 #define MSRCU_BLE_CNT_INTERVAL_MAX  (0x0006)//unit: 1.25ms, range: 7.5ms(0x0006)~4000ms(0x0C80)
-#define MSRCU_BLE_CNT_LATENCY       (199)//0~499
-#define MSRCU_BLE_CNT_TIMEOUT       (600)//unit: 10ms, range: 10ms(0x000A)~32000ms(0x0C80)
+#define MSRCU_BLE_CNT_LATENCY       (49)//0~499
+#define MSRCU_BLE_CNT_TIMEOUT       (250)//unit: 10ms, range: 10ms(0x000A)~32000ms(0x0C80)
 
-#define MSRCU_BLE_DIRECT_ADV_ENABLE (0)//Use direct adv after bonded
+#define MSRCU_BLE_DIRECT_ADV_ENABLE (1)//Use direct adv after bonded
+#if MSRCU_VOICE_ENABLE
+#define MSRCU_BLE_VOICE_ATV_ENABLE  (1)//Use ATV Voice Service
+#endif
 
 //Power parameters
 #define MSRCU_POWER_BAT_SAMPLE_INTERVAL (3600000)//ms
@@ -194,9 +197,10 @@ typedef enum
     HID_KEYCODE_BACK    = 0x0007,
     HID_KEYCODE_VOLUP   = 0x0008,
     HID_KEYCODE_VOLDOWN = 0x0009,
-    HID_KEYCODE_HOME    = 0x0100,
-    HID_KEYCODE_MUTE    = 0x0200,
-    HID_KEYCODE_MENU    = 0x0300,
+    HID_KEYCODE_SEARCH  = 0x0100,
+    HID_KEYCODE_HOME    = 0x0200,
+    HID_KEYCODE_MUTE    = 0x0300,
+    HID_KEYCODE_MENU    = 0x0400,
 }hidKeycode_t;
 
 #if MSRCU_IR_SEND_ENABLE 
@@ -247,10 +251,13 @@ typedef enum
 #define MSRCU_BLE_ADV_DURATION      (30000)//unit: 1ms
 #define MSRCU_BLE_CNT_INTERVAL_MIN  (0x0006)//unit: 1.25ms, range: 7.5ms(0x0006)~4000ms(0x0C80)
 #define MSRCU_BLE_CNT_INTERVAL_MAX  (0x0006)//unit: 1.25ms, range: 7.5ms(0x0006)~4000ms(0x0C80)
-#define MSRCU_BLE_CNT_LATENCY       (199)//0~499
-#define MSRCU_BLE_CNT_TIMEOUT       (600)//unit: 10ms, range: 10ms(0x000A)~32000ms(0x0C80)
+#define MSRCU_BLE_CNT_LATENCY       (49)//0~499
+#define MSRCU_BLE_CNT_TIMEOUT       (250)//unit: 10ms, range: 10ms(0x000A)~32000ms(0x0C80)
 
-#define MSRCU_BLE_DIRECT_ADV_ENABLE (0)//Use direct adv after bonded
+#define MSRCU_BLE_DIRECT_ADV_ENABLE (1)//Use direct adv after bonded
+#if MSRCU_VOICE_ENABLE
+#define MSRCU_BLE_VOICE_ATV_ENABLE  (1)//Use ATV Voice Service
+#endif
 
 ///Power parameters
 #define MSRCU_POWER_BAT_SAMPLE_INTERVAL (3600000)//ms
@@ -397,9 +404,10 @@ typedef enum
     HID_KEYCODE_BACK    = 0x0007,
     HID_KEYCODE_VOLUP   = 0x0008,
     HID_KEYCODE_VOLDOWN = 0x0009,
-    HID_KEYCODE_HOME    = 0x0100,
-    HID_KEYCODE_MUTE    = 0x0200,
-    HID_KEYCODE_MENU    = 0x0300,
+    HID_KEYCODE_SEARCH  = 0x0100,
+    HID_KEYCODE_HOME    = 0x0200,
+    HID_KEYCODE_MUTE    = 0x0300,
+    HID_KEYCODE_MENU    = 0x0400,
 }hidKeycode_t;
 
 #if MSRCU_IR_SEND_ENABLE 

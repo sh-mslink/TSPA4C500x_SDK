@@ -335,7 +335,7 @@
               <MiscControls>--diag_suppress 3731 --bss_threshold=0</MiscControls>
               <Define>__CORTEX_M4F __FPU_PRESENT=1 __CMSIS_RTOS DBG_MSG CFG_PROJ_RCU</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\..\common\ARM\CMSIS\Include;..\..\..\common\inc;..\..\..\..\ble_if\inc;..\..\..\..\inc;..\..\..\..\inc\hal;..\..\..\..\spi_flash\inc;..\..\..\..\bootloader\inc;..\..\..\..\RF;..\..\..\..\thirdparty\rtx\src;..\..\..\..\thirdparty\rtx\inc;..\..\inc\msrcu_app;..\..\inc\msrcu_firmware;..\..\inc\msrcu_device\tspa4c500a;..\..\inc\msrcu_peripheral\sensor;..\..\inc\msrcu_common;..\..\inc\msrcu_algorithm</IncludePath>
+              <IncludePath>..\..\..\common\ARM\CMSIS\Include;..\..\..\common\inc;..\..\..\..\ble_if\inc;..\..\..\..\inc;..\..\..\..\inc\hal;..\..\..\..\spi_flash\inc;..\..\..\..\bootloader\inc;..\..\..\..\RF;..\..\..\..\thirdparty\rtx\src;..\..\..\..\thirdparty\rtx\inc;..\..\inc;..\..\inc\msrcu_app;..\..\inc\msrcu_firmware;..\..\inc\msrcu_device\tspa4c500a;..\..\inc\msrcu_peripheral\sensor;..\..\inc\msrcu_common;..\..\inc\msrcu_algorithm</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -521,6 +521,16 @@
               <FileType>4</FileType>
               <FilePath>..\..\..\..\lib\prf\inb_prf_hog.lib</FilePath>
             </File>
+            <File>
+              <FileName>prf_atv.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\src\prf_atv.c</FilePath>
+            </File>
+            <File>
+              <FileName>prf_atv_task.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\src\prf_atv_task.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -704,94 +714,6 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>msrcu_lib_src</GroupName>
-          <GroupOption>
-            <CommonProperty>
-              <UseCPPCompiler>0</UseCPPCompiler>
-              <RVCTCodeConst>0</RVCTCodeConst>
-              <RVCTZI>0</RVCTZI>
-              <RVCTOtherData>0</RVCTOtherData>
-              <ModuleSelection>0</ModuleSelection>
-              <IncludeInBuild>0</IncludeInBuild>
-              <AlwaysBuild>2</AlwaysBuild>
-              <GenerateAssemblyFile>2</GenerateAssemblyFile>
-              <AssembleAssemblyFile>2</AssembleAssemblyFile>
-              <PublicsOnly>2</PublicsOnly>
-              <StopOnExitCode>11</StopOnExitCode>
-              <CustomArgument></CustomArgument>
-              <IncludeLibraryModules></IncludeLibraryModules>
-              <ComprImg>1</ComprImg>
-            </CommonProperty>
-            <GroupArmAds>
-              <Cads>
-                <interw>2</interw>
-                <Optim>0</Optim>
-                <oTime>2</oTime>
-                <SplitLS>2</SplitLS>
-                <OneElfS>2</OneElfS>
-                <Strict>2</Strict>
-                <EnumInt>2</EnumInt>
-                <PlainCh>2</PlainCh>
-                <Ropi>2</Ropi>
-                <Rwpi>2</Rwpi>
-                <wLevel>0</wLevel>
-                <uThumb>2</uThumb>
-                <uSurpInc>2</uSurpInc>
-                <uC99>2</uC99>
-                <useXO>2</useXO>
-                <v6Lang>0</v6Lang>
-                <v6LangP>0</v6LangP>
-                <vShortEn>2</vShortEn>
-                <vShortWch>2</vShortWch>
-                <v6Lto>2</v6Lto>
-                <v6WtE>2</v6WtE>
-                <v6Rtti>2</v6Rtti>
-                <VariousControls>
-                  <MiscControls></MiscControls>
-                  <Define></Define>
-                  <Undefine></Undefine>
-                  <IncludePath></IncludePath>
-                </VariousControls>
-              </Cads>
-              <Aads>
-                <interw>2</interw>
-                <Ropi>2</Ropi>
-                <Rwpi>2</Rwpi>
-                <thumb>2</thumb>
-                <SplitLS>2</SplitLS>
-                <SwStkChk>2</SwStkChk>
-                <NoWarn>2</NoWarn>
-                <uSurpInc>2</uSurpInc>
-                <useXO>2</useXO>
-                <uClangAs>2</uClangAs>
-                <VariousControls>
-                  <MiscControls></MiscControls>
-                  <Define></Define>
-                  <Undefine></Undefine>
-                  <IncludePath></IncludePath>
-                </VariousControls>
-              </Aads>
-            </GroupArmAds>
-          </GroupOption>
-          <Files>
-            <File>
-              <FileName>msrcu_dev_audio.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\src\msrcu_device\tspa4c500a\msrcu_dev_audio.c</FilePath>
-            </File>
-            <File>
-              <FileName>msrcu_dev_ir.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\src\msrcu_device\tspa4c500a\msrcu_dev_ir.c</FilePath>
-            </File>
-            <File>
-              <FileName>airmouse.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\src\msrcu_algorithm\airmouse.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
           <GroupName>msrcu_app</GroupName>
           <Files>
             <File>
@@ -923,6 +845,11 @@
               <FileName>msrcu_dev_keyboard.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\..\inc\msrcu_device\tspa4c500a\msrcu_dev_keyboard.h</FilePath>
+            </File>
+            <File>
+              <FileName>msrcu_dev_audio.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\src\msrcu_device\tspa4c500a\msrcu_dev_audio.c</FilePath>
             </File>
             <File>
               <FileName>msrcu_dev_audio.h</FileName>

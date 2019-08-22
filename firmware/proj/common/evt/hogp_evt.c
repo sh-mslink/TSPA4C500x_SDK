@@ -42,9 +42,10 @@ static uint8_t hid_report_map[] =
         0x81, 0x00,     // INPUT  
         //the 2nd byte for USAGE_PAGE Consumer Devices keycode
         0x05, 0x0C,     // USAGE_PAGE
-        0x0A, 0x23, 0x02,     // 0x0100//home
-        0x09, 0xe2,     // 0x0200//mute
-        0x09, 0x40,     // 0x0300//menu
+        0x0A, 0x21, 0x02,     // 0x0100//search: for ATV voice
+        0x0A, 0x23, 0x02,     // 0x0200//home
+        0x09, 0xe2,     // 0x0300//mute
+        0x09, 0x40,     // 0x0400//menu
         0x15, 0x01,     // LOGICAL_MINIMUM    
         0x25, 0x03,     // LOGICAL_MAXIMUM  
         0x75, 0x08,     // REPORT_SIZE                   
@@ -80,7 +81,7 @@ static uint8_t hid_report_map[] =
         0x15, 0x00, // LOGICAL_MINIMUM (0)
         0x26, 0xff, 0x00, // LOGICAL_MAXIMUM (255)
         0x75, 0x08, // REPORT_SIZE (8)
-        0x95, 0xf3, // REPORT_COUNT (244 - 1)//(VOICE_HID_PKG_SIZE - 1)
+        0x95, 0xf3, // REPORT_COUNT (244 - 1)//(VOICE_BLE_PKG_SIZE - 1)
         0x81, 0x00, // INPUT (Data, Ary, Abs)
 	0xc0, // END_COLLECTION
     

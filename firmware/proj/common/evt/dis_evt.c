@@ -41,7 +41,7 @@
 #define APP_DIS_HARD_REV_STR_LEN        (5)
 
 /// Software Revision String
-#define APP_DIS_SW_REV_STR              ("SDK_0.3.2")
+#define APP_DIS_SW_REV_STR              ("SDK_0.3.3")
 #define APP_DIS_SW_REV_STR_LEN          (9)
 
 /// IEEE

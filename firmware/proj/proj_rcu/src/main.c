@@ -25,6 +25,9 @@
 #include "gap_test.h"
 
 #include "msrcu_app.h"
+#if MSRCU_BLE_VOICE_ATV_ENABLE
+#include "prf_atv_task.h"
+#endif
 #include "airmouse.h"
 
 #define LED_R   0
@@ -60,6 +63,7 @@ static int userLedDuration = 0;
 static void user_rcu_led_timer_callback(void const *arg);
 static osTimerId msrcuAppLedTimerId;
 static osTimerDef(msrcuAppLedTimer, user_rcu_led_timer_callback);
+static msrcuErr_t user_rcu_led_set(msrcuLedSt newSt);
 
 static void user_rcu_adv_timer_callback(void const *arg);
 static osTimerId msrcuAppAdvTimerId;
@@ -95,22 +99,6 @@ static msrcuIrCode_t userIrCode;
 static bool userIrLearnIsStop = true;
 #endif
             
-#if (CFG_MEMORY_TRACK==1)
-//Timer for memory track, optional
-osTimerDef(bmem, ble_mem_usage_tmr_callback);
-
-void ble_mem_usage_tmr_callback(void const *arg)
-{
-	int max;
-	inb_mem_usage_t muse;
-
-	inb_get_mem_usage(&muse);
-	max = inb_get_max_mem_usage();
-
-	PRINTD(DBG_TRACE, "--- mem: %d,%d,%d,%d,%d ---\r\n", muse.retn_mem_env_mem_usage, muse.retn_mem_db_mem_usage, muse.retn_mem_msg_mem_usage, muse.non_retn_mem_usage, max);
-}
-#endif
-
 static int handle_msg(msg_t *p_msg)
 {
 	//PRINTD(DBG_TRACE, "main evt %d...\r\n", p_msg->msg_id);
@@ -122,48 +110,6 @@ static int handle_msg(msg_t *p_msg)
             break;
 	}
     return 0;
-}
-
-static void user_rcu_rf_test(void)
-{
-    bool testMode = false;
-    
-    //if the button which connected to GPIO_3_2 & GPIO_1_7
-    //is pressed when power on, go to BLE RF test mode.
-    hal_gpio_pin_mux(3, 2, 0, 0);
-    hal_gpio_pad_oe_ie(3, 2, 0, 1);
-    hal_gpio_pad_pd_pu(3, 2, 0, 1);		
-    
-    hal_gpio_pin_mux(1, 7, 0, 0);
-    hal_gpio_pad_oe_ie(1, 7, 1, 0);
-    hal_gpio_pad_pd_pu(1, 7, 0, 1);		
-    hal_gpio_output(1, 7, 0, 1);
-        
-    if(!hal_gpio_input(3, 2))
-        testMode = true;
-    
-    if(testMode)
-    {        
-#if 1 //HCI mode
-#if CFG_HCI        
-        hci_enable();
-        ble_stack_init();//wait for HCI communication
-#endif
-#else //inb_test mode
-        inb_test_mode_t tMode = {0};
-        uint16_t rxPacketNb = 0;
-        
-        tMode.test_mode = TEST_MODE_TX;
-        tMode.channel = 19;//2440MHz
-        tMode.tx_data_length = 20;
-        tMode.tx_pkt_payload = PKT_PLD_PRBS15;
-        tMode.phy = TEST_PHY_1MBPS;
-        tMode.modulation_idx = MODULATION_STANDARD;
-        inb_test(&tMode, &rxPacketNb);//test start
-#endif
-        
-        while(1);//continue to test forever until chip reset
-    }    
 }
 
 static void user_rcu_power_timer_callback(void const *arg)
@@ -484,6 +430,71 @@ static void user_rcu_longpress_timer_callback(void const *arg)
     }    
 }
 
+#ifdef CFG_PROJ_RCU
+#if MSRCU_VOICE_ENABLE 
+void user_rcu_voice_start(void)
+{
+    if(userVoiceIsStop)
+    {
+#if MSRCU_MOTION_ENABLE 
+        if(!userMotionIsStop)
+        {
+            msrcu_app_motion_stop(); 
+#if MSRCU_MOTION_SENSOR_POWER_CTRL_ENABLE
+            msrcu_app_motion_power_off();
+#endif
+            osTimerStop(msrcuAppMotionTimerId);
+            userMotionIsPause = true;
+            MSPRINT("Motion stop.\r\n");
+            user_rcu_led_set(LED_STATE_FUNC_MOTION_STOP);
+        }
+#endif
+        if(!msrcu_app_voice_start())
+        {
+            userVoiceIsStop = false;
+            MSPRINT("Voice start.\r\n");
+            user_rcu_led_set(LED_STATE_FUNC_VOICE_START);
+        }
+        else
+            MSPRINT("Voice start error.\r\n");
+    }
+}
+        
+void user_rcu_voice_stop(void)
+{
+    if(!userVoiceIsStop)
+    {
+        if(!msrcu_app_voice_stop())
+        {
+            userVoiceIsStop = true;
+            MSPRINT("Voice stop.\r\n");
+            user_rcu_led_set(LED_STATE_FUNC_VOICE_STOP);
+        }
+        else
+            MSPRINT("Voice stop error.\r\n");
+#if MSRCU_MOTION_ENABLE 
+        if(userMotionIsPause)
+        {
+#if MSRCU_MOTION_SENSOR_POWER_CTRL_ENABLE
+            if(msrcu_app_motion_reinit())
+            {
+                MSPRINT("Motion reinit error.\r\n");
+                return;
+            }
+            msrcu_app_motion_power_on();
+#endif
+            msrcu_app_motion_start();
+            userMotionIsPause = false;
+            MSPRINT("Motion start.\r\n");
+            osTimerStart(msrcuAppMotionTimerId, MOTION_TIMER_MS);
+            user_rcu_led_set(LED_STATE_FUNC_MOTION_START);
+        }
+#endif
+    }
+}
+#endif
+#endif
+
 static void user_rcu_adv_timer_callback(void const *arg)
 {
     if(BLE_STATE_ADVERTISING == msrcu_app_ble_get_state())
@@ -502,6 +513,84 @@ static void user_rcu_bond_timer_callback(void const *arg)
         user_rcu_ble_adv_stop();
     
     user_rcu_led_set(LED_STATE_BOND_FAIL);
+}
+
+static void user_rcu_ble_rf_test(void)
+{
+    uint8_t testMode = 0;
+    const uint8_t hciMode = 1;
+    const uint8_t inbMode = 2;
+    
+    hal_gpio_pin_mux(3, 2, 0, 0);
+    hal_gpio_pad_oe_ie(3, 2, 0, 1);
+    hal_gpio_pad_pd_pu(3, 2, 0, 1);
+
+    hal_gpio_pin_mux(3, 3, 0, 0);
+    hal_gpio_pad_oe_ie(3, 3, 0, 1);
+    hal_gpio_pad_pd_pu(3, 3, 0, 1);
+    
+    hal_gpio_pin_mux(1, 7, 0, 0);
+    hal_gpio_pad_oe_ie(1, 7, 1, 0);
+    hal_gpio_pad_pd_pu(1, 7, 0, 1);		
+    hal_gpio_output(1, 7, 0, 1);
+        
+    //If the button which connected to GPIO_3_2 & GPIO_1_7
+    //is pressed when power on, go to BLE RF test mode: HCI.
+    if(!hal_gpio_input(3, 2))
+        testMode = hciMode;
+    //If the button which connected to GPIO_3_3 & GPIO_1_7
+    //is pressed when power on, go to BLE RF test mode: inb_test.
+    else if(!hal_gpio_input(3, 3))
+        testMode = inbMode;
+    
+    if(testMode == hciMode)
+    {
+#if CFG_HCI
+        hci_enable();
+        ble_stack_init();//wait for HCI communication
+#else
+        #error "CFG_HCI is disabled." 
+#endif
+    }
+    else if(testMode == inbMode)
+    {
+        inb_test_mode_t tMode = {0};
+        uint16_t rxPacketNb = 0;
+        
+        ble_config(0);
+        
+        tMode.test_mode = TEST_MODE_TX;
+        tMode.channel = 19;//2440MHz
+        tMode.tx_data_length = 20;
+        tMode.tx_pkt_payload = PKT_PLD_PRBS15;
+        tMode.phy = TEST_PHY_1MBPS;
+        tMode.modulation_idx = MODULATION_STANDARD;
+        inb_test(&tMode, &rxPacketNb);//test start
+    }
+    else
+        return;
+        
+    while(1);//continue to test forever until chip reset
+}
+
+static msrcuErr_t user_rcu_ble_update_connection_parameter(void)
+{
+    msg_con_param_upd_req_t *msg = malloc(sizeof(msg_con_param_upd_req_t));
+    if(!msg)
+        return ERR_NO_MEMORY;
+    
+    msg->msg_id = MSG_CON_PARAM_UPD_REQ;
+    msg->conidx = BLE_CON_IDX;
+    msg->interval_min = MSRCU_BLE_CNT_INTERVAL_MIN;
+    msg->interval_max = MSRCU_BLE_CNT_INTERVAL_MAX;
+    msg->latency = MSRCU_BLE_CNT_LATENCY;
+    msg->time_out = MSRCU_BLE_CNT_TIMEOUT;
+    msg->ce_len_min = 0x0001;
+    msg->ce_len_max = 0xffff;
+    
+    msg_put(msg);
+    
+    return ERR_NO_ERROR;
 }
 
 static msrcuErr_t user_rcu_ble_bond_data_save(msrcuBleBondData_t* data)
@@ -547,15 +636,19 @@ static msrcuErr_t user_rcu_ble_adv_start(void)
     msrcuErr_t err = ERR_NO_ERROR;
     uint8_t advData[] = 
     {
-        0x06,//AD Element Length
-        0x08,//AD Type: Shortened local name
-        'M','S','R','C','U'//AD Data Bytes:"MSRCU"
+        0x03,//AD Element Length
+        0x03,//AD Type: Complete list of 16-bit UUIDs
+        0x12, 0x18,//AD Data UUID
+        
+        0x03,//AD Element Length
+        0x19,//AD Type: Appearance
+        0x80, 0x01,//AD Data: Generic Remote Control
     };
     uint8_t scanRspData[] = 
     {
-        0x03,//AD Element Length
-        0x03,//AD Type: Complete list of 16-bit UUIDs
-        0x12, 0x18//AD Data UUID: Human Interface Device
+        0x0B,//AD Element Length
+        0x08,//AD Type: Shortened local name
+        'T','r','o','p','o','s',' ','T','P','P',//AD Data Bytes: "Tropos RCU"
     };
     msrcuBleAdv_t* adv;
     
@@ -585,7 +678,7 @@ static msrcuErr_t user_rcu_ble_adv_start(void)
     adv->scanRspData = scanRspData;
     adv->scanRspDataLen = sizeof(scanRspData);
     
-    err = msrcu_app_ble_adv_start(adv); 
+    err = msrcu_app_ble_adv_start(adv);
     
     if(adv->pduType == ADV_IND)
         MSPRINT("ADV_IND\r\n");
@@ -611,6 +704,9 @@ static msrcuErr_t user_rcu_ble_adv_stop(void)
 {    
     msrcuErr_t err = ERR_NO_ERROR;
     
+    if(userBondEnable)
+        return ERR_NOT_SUPPORT;
+    
     err = msrcu_app_ble_adv_stop();
     
     if(!err)        
@@ -631,11 +727,19 @@ static void user_rcu_ble_callback(msrcuEvtBle_t *evt)
             MSPRINT("Connected, idx:%d, interval=0x%X, latency=%d, timeout=%dms, addrType:%d, addr:%02X %02X %02X %02X %02X %02X.\r\n", 
                     conInd->conIndex, conInd->conInterval, conInd->conLatency, conInd->conTimeOut * 10, conInd->peerAddrType,
                     conInd->peerAddr.addr[0], conInd->peerAddr.addr[1], conInd->peerAddr.addr[2],
-                    conInd->peerAddr.addr[3], conInd->peerAddr.addr[4], conInd->peerAddr.addr[5]);   
+                    conInd->peerAddr.addr[3], conInd->peerAddr.addr[4], conInd->peerAddr.addr[5]);
             
             msrcuBondData.peerAddrType = conInd->peerAddrType;
             memcpy(msrcuBondData.peerAddr.addr, conInd->peerAddr.addr, BLE_ADDR_LEN);
-                        
+            
+            if((conInd->conInterval < MSRCU_BLE_CNT_INTERVAL_MIN)
+                    || (conInd->conInterval > MSRCU_BLE_CNT_INTERVAL_MAX)
+                    || (conInd->conLatency != MSRCU_BLE_CNT_LATENCY)
+                    || (conInd->conTimeOut != MSRCU_BLE_CNT_TIMEOUT))
+            {
+                user_rcu_ble_update_connection_parameter();
+            }
+            
             break;
         }
         
@@ -644,6 +748,7 @@ static void user_rcu_ble_callback(msrcuEvtBle_t *evt)
             msrcuBleDisconInd_t* disconInd = &evt->param.disconInd;
             MSPRINT("Disconnected, idx:%d, reason:0x%02X.\r\n", disconInd->conIndex, disconInd->reason);
             
+            msrcuLedSt ledSt = LED_STATE_NULL;
 #if MSRCU_VOICE_ENABLE
             if(!userVoiceIsStop)
             {
@@ -651,6 +756,8 @@ static void user_rcu_ble_callback(msrcuEvtBle_t *evt)
                 {
                     userVoiceIsStop = true;
                     MSPRINT("Voice stop.\r\n");
+                    
+                    ledSt = LED_STATE_FUNC_VOICE_STOP;
                 }
                 else
                     MSPRINT("Voice stop error.\r\n");
@@ -666,6 +773,8 @@ static void user_rcu_ble_callback(msrcuEvtBle_t *evt)
                     MSPRINT("Motion stop.\r\n");
                     
                     osTimerStop(msrcuAppMotionTimerId);
+                    
+                    ledSt = LED_STATE_FUNC_MOTION_STOP;
                 }
                 else
                     MSPRINT("Motion stop error.\r\n"); 
@@ -677,6 +786,8 @@ static void user_rcu_ble_callback(msrcuEvtBle_t *evt)
             if(msrcuBondData.status)
                 user_rcu_ble_adv_start();
             
+            user_rcu_led_set(ledSt);
+            
             break;
         }
         
@@ -686,6 +797,14 @@ static void user_rcu_ble_callback(msrcuEvtBle_t *evt)
             MSPRINT("Connection parameter updated, idx:%d, interval=0x%X, latency=%d, timeout=%dms.\r\n", 
                     conParamUpd->conIndex, conParamUpd->conInterval, 
                     conParamUpd->conLatency, conParamUpd->conTimeOut * 10);
+            
+            if((conParamUpd->conInterval < MSRCU_BLE_CNT_INTERVAL_MIN)
+                    || (conParamUpd->conInterval > MSRCU_BLE_CNT_INTERVAL_MAX)
+                    || (conParamUpd->conLatency != MSRCU_BLE_CNT_LATENCY)
+                    || (conParamUpd->conTimeOut != MSRCU_BLE_CNT_TIMEOUT))
+            {
+                user_rcu_ble_update_connection_parameter();
+            }
             
             break;
         }
@@ -844,67 +963,23 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
             {
                 if(BLE_STATE_READY == msrcu_app_ble_get_state())
                 {
-                    //msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(param->code, 0));
-#if MSRCU_VOICE_ENABLE 
-                    if(userVoiceIsStop)
-                    {
-#if MSRCU_MOTION_ENABLE 
-                        if(!userMotionIsStop)
-                        {
-                            msrcu_app_motion_stop(); 
-#if MSRCU_MOTION_SENSOR_POWER_CTRL_ENABLE
-                            msrcu_app_motion_power_off();
-#endif
-                            osTimerStop(msrcuAppMotionTimerId);
-                            userMotionIsPause = true;
-                            MSPRINT("Motion stop.\r\n");
-                            ledSt = LED_STATE_FUNC_MOTION_STOP;
-                        }
-#endif
-                        if(!msrcu_app_voice_start())
-                        {
-                            userVoiceIsStop = false;
-                            MSPRINT("Voice start.\r\n");
-                            ledSt = LED_STATE_FUNC_VOICE_START;
-                        }
-                        else
-                            MSPRINT("Voice start error.\r\n");
-                    }
+#if MSRCU_BLE_VOICE_ATV_ENABLE
+                    msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(param->code, 0));
+                    msrcu_app_voice_atv_start();
+                    if(!userVoiceIsStop)
+                        user_rcu_voice_stop();
+#else
+                    user_rcu_voice_start();
 #endif
                 }
             }
             else if(param->behavior == EVT_KEY_RELEASE)
             {
-#if MSRCU_VOICE_ENABLE
-                if(!userVoiceIsStop)
-                {
-                    if(!msrcu_app_voice_stop())
-                    {
-                        userVoiceIsStop = true;
-                        MSPRINT("Voice stop.\r\n");
-                        ledSt = LED_STATE_FUNC_VOICE_STOP;
-                    }
-                    else
-                        MSPRINT("Voice stop error.\r\n");
-#if MSRCU_MOTION_ENABLE 
-                    if(userMotionIsPause)
-                    {
-#if MSRCU_MOTION_SENSOR_POWER_CTRL_ENABLE
-                        if(msrcu_app_motion_reinit())
-                        {
-                            MSPRINT("Motion reinit error.\r\n");
-                            break;
-                        }
-                        msrcu_app_motion_power_on();
-#endif
-                        msrcu_app_motion_start();
-                        userMotionIsPause = false;
-                        MSPRINT("Motion start.\r\n");
-                        osTimerStart(msrcuAppMotionTimerId, MOTION_TIMER_MS);
-                        ledSt = LED_STATE_FUNC_MOTION_START;
-                    }
-#endif
-                }
+#if MSRCU_BLE_VOICE_ATV_ENABLE
+                if(BLE_STATE_READY == msrcu_app_ble_get_state())
+                    msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(KEY_CODE_NULL, 0));
+#else
+                user_rcu_voice_stop();
 #endif
             }
         }
@@ -1005,7 +1080,14 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
                 if(BLE_STATE_READY == msrcu_app_ble_get_state())
                 {
                     if(userMotionIsStop)
+                    {
                         msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(param->code, 0));
+#if MSRCU_BLE_VOICE_ATV_ENABLE
+                        uint8_t cmd[ATVV_CHAR_CTL_DPAP_SELECT_LEN] = {0};
+                        cmd[0] = ATVV_CHAR_CTL_DPAP_SELECT_CMD;
+                        atv_task_cmd_send(BLE_CON_IDX, cmd, ATVV_CHAR_CTL_DPAP_SELECT_LEN);
+#endif
+                    }
                     else
                     {
                         msg_hogpd_ntf_t *msg = malloc(sizeof(msg_hogpd_ntf_t));
@@ -1252,7 +1334,7 @@ int main (void)
 	hal_global_post_init();
     
 	//RF test mode for RCU production
-	user_rcu_rf_test();
+	user_rcu_ble_rf_test();
     
 	//Debug UART port init
     hal_global_debug_uart_init();

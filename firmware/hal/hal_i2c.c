@@ -67,6 +67,7 @@ typedef struct {
 	uint8_t *buffer;
 	uint16_t buffer_len;
 	uint16_t buffer_idx;
+	int stop;
 
 #if CFG_PM_EN
 	int power_state;
@@ -375,7 +376,7 @@ static void i2c_isr(i2c_dev_t *pd)
 
 				for (int i = 0; i < nbytes; i++) {
 					if ((idx + i) == pd->buffer_len - 1) {
-						i2c_write(pd->base, 0, 1, 1);		/// Write Stop bit 
+						i2c_write(pd->base, 0, 1, pd->stop);		/// Write Stop bit 
 					} else {
 						i2c_write(pd->base, 0, 1, 0);
 					}
@@ -400,7 +401,7 @@ static void i2c_isr(i2c_dev_t *pd)
 		} else {
 			for (int i = 0; i < nbytes; i++) {
 				if (idx == (pd->buffer_len - 1))
-					i2c_write(pd->base, pd->buffer[idx], 0, 1);	// Stop
+					i2c_write(pd->base, pd->buffer[idx], 0, pd->stop);	// Stop
 				else
 					i2c_write(pd->base, pd->buffer[idx], 0, 0);
 				idx++;
@@ -596,6 +597,7 @@ int hal_mi2c_read(void *hdl, int speed, uint8_t tar, uint8_t *buffer, uint16_t b
 	pd->buffer = buffer;
 	pd->buffer_len = buffer_len;
 	pd->buffer_idx = 0;	
+	pd->stop = 1;
 
 	i2c_disable(pd->base);
 	i2c_con_clear(pd->base);
@@ -676,6 +678,7 @@ int hal_mi2c_write(void *hdl, int speed, uint8_t tar, uint8_t *buffer, uint16_t 
 	pd->buffer = buffer;
 	pd->buffer_len = buffer_len;
 	pd->buffer_idx = 0;	
+	pd->stop = 1;
 
 	i2c_disable(pd->base);
 	i2c_con_clear(pd->base);
@@ -720,7 +723,112 @@ int hal_mi2c_write(void *hdl, int speed, uint8_t tar, uint8_t *buffer, uint16_t 
 
 	return pd->error;
 }
+int hal_mi2c_write_read(void *hdl, int speed, uint8_t tar, uint8_t *wr_buf, uint16_t wr_len, uint8_t *rd_buf, uint16_t rd_len, uint32_t tmo)
+{
+	i2c_dev_t *pd = (i2c_dev_t *)hdl;
+	int wait_ret;
+	int rd_bytes;
 
+	if (!pd) 
+		return I2C_ERR_INVALID_PARAM;
+
+	if (!pd->used)
+		return I2C_ERR_INVALID_STATE;
+	
+	osMutexWait(pd->h_mu, osWaitForever);
+
+	pd->slv = 0;
+	pd->error = I2C_ERR_OK;
+	pd->dir = I2C_DIR_WRITE;
+	pd->buffer = wr_buf;
+	pd->buffer_len = wr_len;
+	pd->buffer_idx = 0;	
+	pd->stop = 0;
+
+	i2c_disable(pd->base);
+	i2c_con_clear(pd->base);
+	i2c_master_enable(pd->base);	
+	i2c_tar(pd->base, tar);
+	i2c_speed(pd->base, speed);
+	i2c_scl_cnt(pd, speed);
+	i2c_intr_clr(pd->base);												/// Clear all the interrupt
+	i2c_intr_mask(pd->base, I2C_INTR_MASK_ALL);		/// Mask all the interrupt
+	// Set FIFO threshold
+	if (wr_len <  I2C_FIFO_DEPTH) { 
+		i2c_tx_fifo_tl(pd->base, wr_len);
+	} else {
+		i2c_tx_fifo_tl(pd->base, I2C_TX_FIFO_TL);
+	}
+
+	// Set FIFO threshold
+	if (rd_len <  I2C_FIFO_DEPTH) { 
+		rd_bytes = rd_len;
+	} else {
+		rd_bytes = I2C_RX_FIFO_TL;
+	}
+	i2c_rx_fifo_tl(pd->base, (rd_bytes-1));
+		
+	i2c_intr_unmask(pd->base, I2C_INTR_TX_EMPTY|I2C_INTR_TX_OVER|I2C_INTR_TX_ABRT);
+	i2c_enable(pd->base);												/// All set, enable controller
+	NVIC_SetPriority(pd->irq, IRQ_PRI_High);	
+	NVIC_EnableIRQ(pd->irq);
+
+#if CFG_PM_EN
+	pd->power_state = PM_SLEEP;
+#endif
+		
+	/// Wait for complete
+	wait_ret = osSemaphoreWait(pd->h_sma, tmo);
+
+	
+	if (wait_ret == 0) 
+		pd->error = I2C_ERR_TMO;
+
+	if (pd->error == I2C_ERR_OK ) {
+		//pd->slv = 0;
+		//pd->error = I2C_ERR_OK;
+		pd->dir = I2C_DIR_READ;
+		pd->buffer = rd_buf;
+		pd->buffer_len = rd_len;
+		pd->buffer_idx = 0;	
+		pd->stop = 1;
+
+
+		i2c_intr_unmask(pd->base, I2C_INTR_RX_FULL|I2C_INTR_RX_OVER|I2C_INTR_RX_UNDER);
+
+
+		// program fifo to kick start read 
+		for (int i = 0; i < rd_bytes; i++) {
+			if (i == (rd_len - 1)) {
+				i2c_write(pd->base, 0, 1, 1);		/// Write Stop bit 
+			} else {
+				i2c_write(pd->base, 0, 1, 0);		  
+			}
+		}
+			
+		/// Wait for complete
+		wait_ret = osSemaphoreWait(pd->h_sma, tmo);
+		if (wait_ret == 0) {
+			pd->error = I2C_ERR_TMO;
+		}
+
+	}
+
+	/// Disable interrupt
+	i2c_intr_mask(pd->base, I2C_INTR_MASK_ALL);		
+	NVIC_DisableIRQ(pd->irq);
+
+	/// Finish, Disable I2c
+	i2c_finish(pd);
+
+#if CFG_PM_EN
+	pd->power_state = PM_DEEP_SLEEP;
+#endif
+
+	osMutexRelease(pd->h_mu);
+
+	return pd->error;
+}
 int hal_si2c_read(void *hdl, int speed, uint8_t sar, uint8_t *buffer, uint16_t buffer_len, uint32_t tmo)
 {
 	i2c_dev_t *pd = (i2c_dev_t *)hdl;
@@ -739,7 +847,8 @@ int hal_si2c_read(void *hdl, int speed, uint8_t sar, uint8_t *buffer, uint16_t b
 	pd->dir = I2C_DIR_READ;
 	pd->buffer = buffer;
 	pd->buffer_len = buffer_len;
-	pd->buffer_idx = 0;	
+	pd->buffer_idx = 0;
+	pd->stop = 1;
 
 	i2c_disable(pd->base);
 	i2c_con_clear(pd->base);
@@ -802,7 +911,8 @@ int hal_si2c_write(void *hdl, int speed, uint8_t sar, uint8_t *buffer, uint16_t 
 	pd->dir = I2C_DIR_WRITE;
 	pd->buffer = buffer;
 	pd->buffer_len = buffer_len;
-	pd->buffer_idx = 0;	
+	pd->buffer_idx = 0;
+	pd->stop = 1;
 
 	i2c_disable(pd->base);
 	i2c_con_clear(pd->base);
@@ -868,7 +978,7 @@ int hal_mi2c_read_dma(void *hdl, int speed, uint8_t tar, uint8_t *buffer, uint16
 	pd->slv = 0;
 	pd->error = I2C_ERR_OK;
 	pd->dir = I2C_DIR_READ;
-
+	pd->stop = 1;
 	/// Set DMA read/write burst size
 	if (buffer_len <  4) { 
 		dma_burst_size = DMA_CTL_TR_MSIZE_1;
@@ -1015,7 +1125,7 @@ int hal_mi2c_write_dma(void *hdl, int speed, uint8_t tar, uint8_t *buffer, uint1
 	pd->slv = 0;
 	pd->error = I2C_ERR_OK;
 	pd->dir = I2C_DIR_WRITE;
-
+	pd->stop = 1;
 	/// Set DMA read/write burst size
 	if (buffer_len <  4) { 
 		dma_burst_size = DMA_CTL_TR_MSIZE_1;
@@ -1134,7 +1244,7 @@ int hal_si2c_write_dma(void *hdl, int speed, uint8_t sar, uint8_t *buffer, uint1
 	pd->slv = 3;
 	pd->error = I2C_ERR_OK;
 	pd->dir = I2C_DIR_WRITE;
-
+	pd->stop = 1;
 	/// Set DMA read/write burst size
 	if (buffer_len <  4) { 
 		dma_burst_size = DMA_CTL_TR_MSIZE_1;
@@ -1246,7 +1356,7 @@ int hal_si2c_read_dma(void *hdl, int speed, uint8_t sar, uint8_t *buffer, uint16
 	pd->slv = 3;
 	pd->error = I2C_ERR_OK;
 	pd->dir = I2C_DIR_READ;
-
+	pd->stop = 1;
 	/// Set up DMA read burst size
 	if (buffer_len <  4) { 
 		dma_burst_size = DMA_CTL_TR_MSIZE_1;

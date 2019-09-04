@@ -206,7 +206,7 @@ msrcuErr_t msrcu_dev_gpio_motion_sensor_power_on(void)
 }
 
 msrcuErr_t msrcu_dev_gpio_motion_sensor_power_off(void)
-{         
+{
 #if (MSRCU_MOTION_ENABLE && MSRCU_MOTION_SENSOR_POWER_CTRL_ENABLE)
     msrcu_dev_gpio_motion_sensor_power_pin_init();
     msrcu_dev_gpio_output(

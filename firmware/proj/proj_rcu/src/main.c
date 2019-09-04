@@ -30,9 +30,15 @@
 #endif
 #include "airmouse.h"
 
+#if defined(BOARD_TSPA4C500A_REMOTER)
+#define LED_R   0
+#define LED_G   LED_R
+#define LED_B   LED_R
+#elif defined(BOARD_TSPA4C500A_EVB_BONE)
 #define LED_R   0
 #define LED_G   1
 #define LED_B   2
+#endif
 #define LED_BLINK_CYCLE_MS  (500)
 #define LED_BLINK_DUTY_MS   (250)
 
@@ -112,14 +118,20 @@ static int handle_msg(msg_t *p_msg)
     return 0;
 }
 
-static void user_rcu_power_timer_callback(void const *arg)
+static void user_rcu_power_update_battery_level(void)
 {
     uint16_t batMv = 0;
+    uint32_t pct = 0;
     int err;
     
     err = msrcu_app_power_bat_voltage_get(&batMv);
     if(!err)
-        MSPRINT("Battery voltage : %dmV\r\n", batMv);
+    {
+        pct = 100 * (batMv - MSRCU_POWER_BAT_MV_EMPTY) / (3000 - MSRCU_POWER_BAT_MV_EMPTY);
+        if(pct > 100)
+            pct = 100;
+        MSPRINT("Battery: %dmV, %d%%\r\n", batMv, pct);
+    }
     else
     {
         MSPRINT("Battery voltage get error: %d\r\n", err);
@@ -138,6 +150,20 @@ static void user_rcu_power_timer_callback(void const *arg)
     }
     else
         userPowerState = POWER_STATE_NORMAL;
+    
+    if(BLE_STATE_READY == msrcu_app_ble_get_state())
+    {
+        err = inb_bass_batt_level_upd_req(BLE_CON_IDX, 0, pct);
+        if(!err)
+            MSPRINT("Battery level update: %d%%\r\n", pct);
+        else
+            MSPRINT("Battery level update error: 0x%02X\r\n", err);
+    }
+}
+
+static void user_rcu_power_timer_callback(void const *arg)
+{
+    user_rcu_power_update_battery_level();
 }
 
 static void user_rcu_led_all_off(void)
@@ -430,7 +456,6 @@ static void user_rcu_longpress_timer_callback(void const *arg)
     }    
 }
 
-#ifdef CFG_PROJ_RCU
 #if MSRCU_VOICE_ENABLE 
 void user_rcu_voice_start(void)
 {
@@ -492,7 +517,6 @@ void user_rcu_voice_stop(void)
 #endif
     }
 }
-#endif
 #endif
 
 static void user_rcu_adv_timer_callback(void const *arg)
@@ -809,23 +833,22 @@ static void user_rcu_ble_callback(msrcuEvtBle_t *evt)
             break;
         }
             
-        case EVT_BLE_HOGPD_NTF_CFG:
+        case EVT_BLE_RCU_READY:
         {
-            msrcuBleHogpdNtfCfgInd_t* hogpdNtfCfgInd = &evt->param.hogpdNtfCfgInd;
-            if(hogpdNtfCfgInd->cfg)
+            if(userBondEnable)
             {
-                if(userBondEnable)
-                {
-                    MSPRINT("Bond success.\r\n");
-                    userBondEnable = false;
-                    osTimerStop(msrcuAppBondTimerId);
-                    user_rcu_led_set(LED_STATE_BOND_SUCCESS);
-                    
-                    msrcuBondData.status = 1;
-                    if(user_rcu_ble_bond_data_save(&msrcuBondData))
-                        PRINTD(DBG_TRACE, "bond sata save error.\r\n");
-                }
+                MSPRINT("Bond success.\r\n");
+                userBondEnable = false;
+                osTimerStop(msrcuAppBondTimerId);
+                user_rcu_led_set(LED_STATE_BOND_SUCCESS);
+                
+                msrcuBondData.status = 1;
+                if(user_rcu_ble_bond_data_save(&msrcuBondData))
+                    PRINTD(DBG_TRACE, "bond sata save error.\r\n");
             }
+            
+            user_rcu_power_update_battery_level();
+                
             break;
         }
         
@@ -1256,10 +1279,10 @@ static msrcuErr_t user_rcu_init(msrcuAppCallback_t *cb)
     //get bond data from FLASH
     user_rcu_ble_bond_data_read(&msrcuBondData);
     
-    memcpy(ble_bond_data[GAP_BOND_DATA].ltk.key, msrcuBondData.ltk.key, BLE_KEY_LEN); 
-    ble_bond_data[GAP_BOND_DATA].ediv = msrcuBondData.ediv; 
+    memcpy(ble_bond_data[GAP_BOND_DATA].ltk.key, msrcuBondData.ltk.key, BLE_KEY_LEN);
+    ble_bond_data[GAP_BOND_DATA].ediv = msrcuBondData.ediv;
     memcpy(ble_bond_data[GAP_BOND_DATA].randnb.nb, msrcuBondData.randNb.nb, BLE_RANDOM_NB_LEN);
-    ble_bond_data[GAP_BOND_DATA].key_size = msrcuBondData.keySize;                
+    ble_bond_data[GAP_BOND_DATA].key_size = msrcuBondData.keySize;
     
     //user_rcu_ble_bond_data_clear(&msrcuBondData);//for test
     
@@ -1273,13 +1296,13 @@ static msrcuErr_t user_rcu_init(msrcuAppCallback_t *cb)
     cb->msrcu_app_key_cb = user_rcu_key_callback;
 #if (MSRCU_IR_LEARN_ENABLE)
     cb->msrcu_app_ir_cb = user_rcu_ir_callback;
-#endif    
+#endif
     
     //rcu function init
     err = msrcu_app_init(cb);
     if(err)
         return err;
-    
+            
     //LED check
     msrcu_app_led_on(LED_R);
     msrcu_app_led_on(LED_G);
@@ -1288,7 +1311,7 @@ static msrcuErr_t user_rcu_init(msrcuAppCallback_t *cb)
     user_rcu_led_all_off();
         
     //check battery voltage
-    user_rcu_power_timer_callback(NULL);
+    user_rcu_power_update_battery_level();
     //start timer for checking battery voltage
     osTimerStart(msrcuAppPowerTimerId, MSRCU_POWER_BAT_SAMPLE_INTERVAL); 
     
@@ -1347,7 +1370,7 @@ int main (void)
     
 	//BLE init
 	ble_config(0);
-	
+	    
 	//RCU init
 	msrcuErr_t err = user_rcu_init(&userAppCb);
 	if(err)
@@ -1356,8 +1379,9 @@ int main (void)
 		return 0;
 	}
 	else
-		MSPRINT("RCU init success.\r\n");
-	
+		MSPRINT("RCU init success.\r\n");  
+    
+    
 	//Wait for message
 	while(1)
 	{

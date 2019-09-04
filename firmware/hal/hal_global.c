@@ -245,6 +245,43 @@ void hal_global_post_init(void)
 
 }
 
+void hal_global_sys_reset(void)
+{
+	// Disable all interrupt
+	__set_PRIMASK(1);
+	__set_FAULTMASK(0);
+
+#if 1
+	// Switch RTC back to RC
+	aon_rc_rtc_sw(0);
+	for (int i = 0; i < (6*100); i++) {
+		__nop();
+	}			
+	
+	// Reset...
+	aon_reset_chip();
+#else
+	// enable Power control
+	aon_deep_sleep_enable(1);
+	// enable wake up source
+	aon_sleep_timer_global_wup_enable();
+	
+	// Make sure it is cold boot
+	aon_write(AON_REG_CPU_PROGRAM_COUNTER_COLD_BOOT, 0); 
+
+	// enable sleep timer
+	aon_sleep_timer_disable(SLEEP_TIMER0_ID);
+	aon_sleep_timer_set_init_value(SLEEP_TIMER0_ID, (32*3));
+	aon_sleep_timer_wup_enable(SLEEP_TIMER0_ID);
+	aon_sleep_timer_enable(SLEEP_TIMER0_ID);
+
+	// enable sleep wake up	
+	chip_sleep();	
+#endif
+
+	// never return...
+}
+
 /*
  * PM system wide HW saving and restoring
  ****************************************************************************************

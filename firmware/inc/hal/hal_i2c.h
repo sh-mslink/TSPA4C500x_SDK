@@ -568,6 +568,9 @@ int hal_mi2c_read_dma(void *hdl, int speed, uint8_t tar, uint8_t *buffer, uint16
 int hal_mi2c_write(void *hdl, int speed, uint8_t tar, uint8_t *buffer, uint16_t buffer_len, uint32_t tmo);	
 int hal_mi2c_write_dma(void *hdl, int speed, uint8_t tar, uint8_t *buffer, uint16_t buffer_len, uint32_t tmo);
 
+
+int hal_mi2c_write_read(void *hdl, int speed, uint8_t tar, uint8_t *wr_buf, uint16_t wr_len, uint8_t *rd_buf, uint16_t rd_len, uint32_t tmo);
+
 /**
  ****************************************************************************************
  * @brief I2c slave read function.

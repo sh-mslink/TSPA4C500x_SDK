@@ -49,7 +49,7 @@
 
 #define MSRCU_BLE_DIRECT_ADV_ENABLE (1)//Use direct adv after bonded
 #if MSRCU_VOICE_ENABLE
-#define MSRCU_BLE_VOICE_ATV_ENABLE  (1)//Use ATV Voice Service
+#define MSRCU_BLE_VOICE_ATV_ENABLE  (0)//Use ATV Voice Service
 #endif
 
 //Power parameters
@@ -256,7 +256,7 @@ typedef enum
 
 #define MSRCU_BLE_DIRECT_ADV_ENABLE (1)//Use direct adv after bonded
 #if MSRCU_VOICE_ENABLE
-#define MSRCU_BLE_VOICE_ATV_ENABLE  (1)//Use ATV Voice Service
+#define MSRCU_BLE_VOICE_ATV_ENABLE  (0)//Use ATV Voice Service
 #endif
 
 ///Power parameters

@@ -79,7 +79,7 @@ msrcuErr_t msrcu_fw_key_hid_send(uint8_t conIndex, hidKeycode_t code)
     report->data[KEYCODE_HID_PKG_CD_IDX] = code >> 8;  
     
 #if MSRCU_DEV == MSRCU_DEV_TSPA4C500A
-    err = msrcu_dev_ble_hid_send2(report);
+    err = msrcu_dev_ble_hid_send(report);
 #endif  
     
     free(report);

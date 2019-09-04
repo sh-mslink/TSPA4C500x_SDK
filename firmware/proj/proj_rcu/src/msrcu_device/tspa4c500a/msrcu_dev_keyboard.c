@@ -114,7 +114,7 @@ static void msrcu_dev_keyboard_task(const void *arg)
 		}
         else     
         {            
-            MSPRINT("Keyboard MSG ERROR.\r\n");  
+            MSPRINT("Keyboard MSG ERROR.\r\n");
             continue;
         }
                 

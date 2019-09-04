@@ -50,7 +50,23 @@ static void msrcu_dev_ble_set_state(msrcuBleState_t state)
     if(bleSt != state)
     {
         bleSt = state;    
-        MSPRINT("MSRCU BLE STATE: %d\r\n", state);
+        MSPRINT("MSRCU BLE STATE: %d\r\n", bleSt);
+        
+        if(bleSt == BLE_STATE_READY)
+        {
+            msrcuEvtBle_t* msBleEvt = malloc(sizeof(msrcuEvtBle_t));
+            if(!msBleEvt)
+            {
+                MSPRINT("%s no memory\r\n", __func__);
+                return;
+            }
+            
+            msBleEvt->code = EVT_BLE_RCU_READY;  
+            
+            msrcuBleRcuReady_t *rcuReady = &msBleEvt->param.rcuReady;
+            rcuReady->conIndex = BLE_CON_IDX;
+            msrcu_evt_ble_cb(msBleEvt);
+        }
     }
 }
 
@@ -138,11 +154,7 @@ static void msrcu_dev_ble_hogp_evt(uint16_t eid, void *pv)
 	switch(eid) 
 	{   
         case HOGPD_EVT_NTF_CFG_IND:
-        {
-            msrcuBleHogpdNtfCfgInd_t *hogpdNtfCfgInd = &msBleEvt->param.hogpdNtfCfgInd;             
-            msBleEvt->code = EVT_BLE_HOGPD_NTF_CFG; 
-            hogpdNtfCfgInd->conIndex = param->conidx;
-            
+        {            
             if((param->ntf_cfg[param->conidx] & INB_HOGPD_CFG_REPORT_NTF_EN) != 0)
             {
                 if(param->ntf_cfg[param->conidx] == 
@@ -151,14 +163,8 @@ static void msrcu_dev_ble_hogp_evt(uint16_t eid, void *pv)
                         | (INB_HOGPD_CFG_REPORT_NTF_EN << 2)))
                 {
                     msrcu_dev_ble_set_state(BLE_STATE_READY);
-                     
-                    hogpdNtfCfgInd->cfg = 1;
                                       
                 }
-                else
-                    hogpdNtfCfgInd->cfg = 0;
-                
-                msrcu_evt_ble_cb(msBleEvt);  
             }
         }
         
@@ -319,8 +325,8 @@ msrcuErr_t msrcu_dev_ble_hid_send2(msrcuBleHidReport_t *param)
     report->idx = param->instance;
     report->type = INB_HOGPD_REPORT;
     memcpy(report->value, param->data, param->length);
-    //MSPRINT("%d,%d,%d,%d, ", report->hid_idx, report->length, report->idx, report->type); 
-    //MSPRINT("%d,%d,%d,%d\r\n", report->value[0], report->value[1],report->value[2], report->value[5]); 
+    //MSPRINT("%d,%d,%d,%d, ", report->hid_idx, report->length, report->idx, report->type);
+    //MSPRINT("%d,%d,%d,%d\r\n", report->value[0], report->value[1],report->value[2], report->value[5]);
     int err = inb_hogpd_report_upd_req(param->conIndex, report);
     free(report);   
     if(!err)

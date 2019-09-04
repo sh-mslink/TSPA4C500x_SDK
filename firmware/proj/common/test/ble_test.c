@@ -847,7 +847,7 @@ void handle_default_msg(msg_t *p_msg)
     case MSG_HOGPD_NTF:
     {
 #ifdef CFG_PROJ_RCU
-        //PRINTD(DBG_TRACE, "msg hogpd ntf...\r\n");
+//        PRINTD(DBG_TRACE, "msg hogpd ntf...\r\n");
         msg_hogpd_ntf_t *p = (msg_hogpd_ntf_t *)p_msg;
         msrcuBleHidReport_t report = {0};
 #if MSRCU_MOTION_ENABLE             
@@ -855,17 +855,38 @@ void handle_default_msg(msg_t *p_msg)
         {
             if(!userMotionIsStop && !userMotionIsPause)
             {
+                //send button
+                if(p->data[MOUSE_HID_PKG_KEY_IDX] != MOUSE_BUTTON_NULL)
+                {
+                    report.conIndex = p->conIndex;
+                    report.instance = p->instance;
+                    report.length = p->length;
+                    memcpy(report.data, p->data, p->length);
+                    msrcuErr_t err = msrcu_dev_ble_hid_send2(&report);
+//                    if(err)
+//                        MSPRINT("msrcu_dev_ble_hid_send2 ERR:%d\r\n", err);
+                    break;
+                }
+                
+                //pause mouse when KEY_CODE_ENTER is pressed
+//                msrcuKeySt st = KEY_RELEASED;
+//                msrcu_app_key_state_get(KEY_CODE_ENTER, &st);
+//                if(st == KEY_PRESSED)
+//                    break;
+                
+                //send mouse
                 msrcuMotionMouse_t mouse = {0};
                 if(!msrcu_app_motion_get_data(NULL, NULL, &mouse))
                 {    
-                    //MSPRINT("m: %d %d.\r\n", mouse.x, mouse.y);
+//                    MSPRINT("x %d,y %d\r\n", mouse.x, mouse.y);
                     if(mouse.x || mouse.y)//mouse move
                     {
+//                        MSPRINT("x %d,y %d\r\n", mouse.x, mouse.y);
                         report.conIndex = p->conIndex;
                         report.instance = p->instance;
                         report.length = p->length;
                         memcpy(report.data, p->data, p->length); 
-                        report.data[MOUSE_HID_PKG_KEY_IDX] = MOUSE_BUTTON_NULL;
+                        report.data[MOUSE_HID_PKG_KEY_IDX] = p->data[MOUSE_HID_PKG_KEY_IDX];
                         report.data[MOUSE_HID_PKG_X_IDX] = mouse.x;
                         report.data[MOUSE_HID_PKG_Y_IDX] = mouse.y; 
                         

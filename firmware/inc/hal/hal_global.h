@@ -56,6 +56,8 @@ void hal_global_pre_init(void);
  */
 void hal_global_post_init(void);
 
+void hal_global_sys_reset(void);
+
 /**
  ****************************************************************************************
  * @brief  Globally save system (such as system tick...) registers before deep sleep.  

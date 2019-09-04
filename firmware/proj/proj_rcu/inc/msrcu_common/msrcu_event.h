@@ -35,11 +35,11 @@ msrcuEvtType_t;
 
 typedef enum
 {
-    EVT_BLE_NULL           = 0,
-    EVT_BLE_CONNETED       = 1,
-    EVT_BLE_DISCONNETED    = 2,
-    EVT_BLE_CON_PRAM_UPD   = 3,
-    EVT_BLE_HOGPD_NTF_CFG  = 4
+    EVT_BLE_NULL            = 0,
+    EVT_BLE_CONNETED        = 1,
+    EVT_BLE_DISCONNETED     = 2,
+    EVT_BLE_CON_PRAM_UPD    = 3,
+    EVT_BLE_RCU_READY       = 4,
 }
 msrcuEvtBleCode_t;
 
@@ -70,7 +70,7 @@ typedef struct
         msrcuBleConInd_t conInd;
         msrcuBleDisconInd_t disconInd;
         msrcuBleConParamUpd_t conParamUpd;
-        msrcuBleHogpdNtfCfgInd_t hogpdNtfCfgInd;
+        msrcuBleRcuReady_t rcuReady;
     }
     param;
 }

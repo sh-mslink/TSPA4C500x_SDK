@@ -219,26 +219,41 @@ static msrcuErr_t msrcu_fw_motion_sensor_init(void)
     bm160Dev.write = (bmi160_com_fptr_t)bmi160_i2c_write;
     bm160Dev.delay_ms = (bmi160_delay_fptr_t)bmi160_delay_ms;
 
-    //bmi160_delay_ms(10);
     rslt = bmi160_init(&bm160Dev);
     if(rslt)
         return ERR_PERIPHERAL;
     
-//    //interrupt config
-//    struct bmi160_int_settg int_config;
+    //reset
+    rslt = bmi160_soft_reset(&bm160Dev);
+    if(rslt)
+        return ERR_PERIPHERAL;
+    
+/*    //interrupt config
+    struct bmi160_int_settg int_config;
 
-//    int_config.int_channel = BMI160_INT_CHANNEL_1;// Interrupt channel/pin 1
+    int_config.int_channel = BMI160_INT_CHANNEL_1;// Interrupt channel/pin 1
 
-//    int_config.int_type = BMI160_ACC_GYRO_DATA_RDY_INT;// Choosing Any motion interrupt
-//    
-//    int_config.int_pin_settg.output_en = BMI160_ENABLE;// Enabling interrupt pins to act as output pin
-//    int_config.int_pin_settg.output_mode = BMI160_DISABLE;// Choosing push-pull mode for interrupt pin
-//    int_config.int_pin_settg.output_type = BMI160_DISABLE;// Choosing active low output
-//    int_config.int_pin_settg.edge_ctrl = BMI160_ENABLE;// Choosing edge triggered output
-//    int_config.int_pin_settg.input_en = BMI160_DISABLE;// Disabling interrupt pin to act as input
-//    int_config.int_pin_settg.latch_dur = BMI160_LATCH_DUR_NONE;// non-latched output
-//    
-//    bmi160_set_int_config(&int_config, &bm160Dev); /* sensor is an instance of the structure bmi160_dev  */
+    int_config.int_type = BMI160_ACC_HIGH_G_INT;
+    
+    int_config.int_pin_settg.output_en = BMI160_ENABLE;// Enabling interrupt pins to act as output pin
+    int_config.int_pin_settg.output_mode = BMI160_DISABLE;// Choosing push-pull mode for interrupt pin
+    int_config.int_pin_settg.output_type = BMI160_DISABLE;// Choosing active low output
+    int_config.int_pin_settg.edge_ctrl = BMI160_ENABLE;// Choosing edge triggered output
+    int_config.int_pin_settg.input_en = BMI160_DISABLE;// Disabling interrupt pin to act as input
+    int_config.int_pin_settg.latch_dur = BMI160_LATCH_DUR_2_56_SEC;// non-latched output
+    
+    int_config.int_type_cfg.acc_high_g_int.high_g_x = 0;
+    int_config.int_type_cfg.acc_high_g_int.high_g_y = 1;
+    int_config.int_type_cfg.acc_high_g_int.high_g_z = 0;
+    int_config.int_type_cfg.acc_high_g_int.high_hy = 2;
+    int_config.int_type_cfg.acc_high_g_int.high_data_src = 1;
+    int_config.int_type_cfg.acc_high_g_int.high_thres = 64;
+    int_config.int_type_cfg.acc_high_g_int.high_dur = 9;
+    
+    rslt = bmi160_set_int_config(&int_config, &bm160Dev);
+    if(rslt)
+        return ERR_PERIPHERAL;
+*/
     
     //acc&gyro config
     bm160Dev.accel_cfg.odr = BMI160_ACCEL_ODR_100HZ;
@@ -249,11 +264,12 @@ static msrcuErr_t msrcu_fw_motion_sensor_init(void)
     bm160Dev.gyro_cfg.odr = BMI160_GYRO_ODR_100HZ;
     bm160Dev.gyro_cfg.range = BMI160_GYRO_RANGE_2000_DPS;
     bm160Dev.gyro_cfg.bw = BMI160_GYRO_BW_NORMAL_MODE; 
-    bm160Dev.gyro_cfg.power = BMI160_GYRO_SUSPEND_MODE; 
-
+    bm160Dev.gyro_cfg.power = BMI160_GYRO_SUSPEND_MODE;
+    
     rslt = bmi160_set_sens_conf(&bm160Dev);
     if(rslt)
         return ERR_PERIPHERAL;
+    
 #else
     return ERR_PERIPHERAL;
 #endif    
@@ -335,14 +351,7 @@ msrcuErr_t msrcu_fw_motion_start(void)
     bm160Dev.accel_cfg.power = BMI160_ACCEL_NORMAL_MODE;
     bm160Dev.gyro_cfg.power = BMI160_GYRO_NORMAL_MODE; 
 
-    //TODO
-    uint8_t i = 10;
-    while(i--)
-    {
-        rslt = bmi160_set_sens_conf(&bm160Dev);
-        if(rslt == BMI160_OK)
-            break;
-    }   
+    rslt = bmi160_set_sens_conf(&bm160Dev);
     if(rslt)
     {
         MSPRINT("%s bmi160_set error: %d.\r\n", __func__, rslt);
@@ -372,13 +381,7 @@ msrcuErr_t msrcu_fw_motion_stop(void)
     bm160Dev.accel_cfg.power = BMI160_ACCEL_SUSPEND_MODE;
     bm160Dev.gyro_cfg.power = BMI160_GYRO_SUSPEND_MODE;
     
-    //TODO
-    while(1)//must stop
-    {
-        rslt = bmi160_set_sens_conf(&bm160Dev);
-        if(rslt == BMI160_OK)
-            break;
-    }       
+    rslt = bmi160_set_sens_conf(&bm160Dev);
     if(rslt)
     {
         MSPRINT("%s bmi160_set error: %d.\r\n", __func__, rslt);
@@ -466,7 +469,7 @@ msrcuErr_t msrcu_fw_motion_get_data(msrcuMotionAcc_t *acc, msrcuMotionGyro_t *gy
         mouse->y = amD.mouse.y;
     }  
 #else
-    return ERR_PERIPHERAL;    
+    return ERR_PERIPHERAL;
 #endif
     
     return err;

@@ -195,8 +195,7 @@ typedef struct
 typedef struct 
 {
 	uint8_t conIndex;
-    uint8_t cfg;
-}msrcuBleHogpdNtfCfgInd_t;
+}msrcuBleRcuReady_t;
 
 typedef struct 
 {

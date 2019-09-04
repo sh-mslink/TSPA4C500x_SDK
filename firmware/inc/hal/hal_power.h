@@ -438,6 +438,22 @@ static __inline void aon_qspi_vddio(int en)
 	aon_write(AON_PS_REGS_MISC_BYPASS_0_CTRL, reg);
 }
 
+static __inline void aon_ble_ext_wup(int en)
+{
+	uint32_t reg = aon_read(AON_REG_AON_MISC_CTRL);
+
+	if (en) {
+		reg |= AON_REG_AON_MISC_CTRL_CTL_BLE_EXT_WAKEUP_ENABLE;
+	} else {
+		reg &= ~AON_REG_AON_MISC_CTRL_CTL_BLE_EXT_WAKEUP_ENABLE;
+	}
+	aon_write(AON_REG_AON_MISC_CTRL, reg);
+}
+
+static __inline void aon_reset_chip(void)
+{
+	aon_write(AON_REG_AON_GLOBAL_RESET_CTRL, 0);
+}
 /*
  * APIs
  ****************************************************************************************

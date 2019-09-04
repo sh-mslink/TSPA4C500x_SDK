@@ -64,10 +64,13 @@ msrcuErr_t msrcu_dev_i2c_write(uint8_t devAddr, uint8_t regAddr, uint8_t *data, 
     wr[0] = regAddr;
     memcpy(wr + 1, data, len);
     
-    int err = hal_mi2c_write(i2cDev, MSRCU_DEV_I2C_SPEED, devAddr, wr, len + 1, 1);
+    int err = hal_mi2c_write(i2cDev, MSRCU_DEV_I2C_SPEED, devAddr, wr, len + 1, osWaitForever);
     if(wr)
         free(wr);
-            
+    
+    if(err)
+        MSPRINT("%s err: %d.\r\n", __func__, err);
+    
     if(err)
         return ERR_DEVICE_DRIVER;
     else
@@ -76,17 +79,35 @@ msrcuErr_t msrcu_dev_i2c_write(uint8_t devAddr, uint8_t regAddr, uint8_t *data, 
 
 msrcuErr_t msrcu_dev_i2c_read(uint8_t devAddr, uint8_t regAddr, uint8_t *data, uint16_t len)
 {    
-    uint8_t wr;
     int err;
+    uint8_t wr = regAddr;
     
-    wr = regAddr;
-    err = hal_mi2c_write(i2cDev, MSRCU_DEV_I2C_SPEED, devAddr, &wr, 1, 1);
+    err = hal_mi2c_write_read(i2cDev, MSRCU_DEV_I2C_SPEED, devAddr, &wr, 1, data, len, osWaitForever);
     if(err)
-        return ERR_DEVICE_DRIVER;    
-    
-    err = hal_mi2c_read(i2cDev, MSRCU_DEV_I2C_SPEED, devAddr, data, len, 1);
+        MSPRINT("%s err: %d.\r\n", __func__, err);
     if(err)
         return ERR_DEVICE_DRIVER;    
     else
         return ERR_NO_ERROR;
 }
+
+//msrcuErr_t msrcu_dev_i2c_read(uint8_t devAddr, uint8_t regAddr, uint8_t *data, uint16_t len)
+//{    
+//    uint8_t wr;
+//    int err;
+//    
+//    wr = regAddr;
+//    err = hal_mi2c_write(i2cDev, MSRCU_DEV_I2C_SPEED, devAddr, &wr, 1, 1);
+//    if(err)
+//        MSPRINT("hal_mi2c_write R error: %d.\r\n", err);
+//    if(err)
+//        return ERR_DEVICE_DRIVER;    
+//    
+//    err = hal_mi2c_read(i2cDev, MSRCU_DEV_I2C_SPEED, devAddr, data, len, 2);
+//    if(err)
+//        MSPRINT("hal_mi2c_read error: %d.\r\n", err);
+//    if(err)
+//        return ERR_DEVICE_DRIVER;    
+//    else
+//        return ERR_NO_ERROR;
+//}

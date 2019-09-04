@@ -40,6 +40,7 @@
 #include "in_irq.h"
 #include "in_debug.h"
 #include ".\hal\hal_power.h"
+#include ".\hal\hal_global.h"
 
 /*----------------------------------------------------------------------------
  *      RTX User configuration part BEGIN
@@ -319,6 +320,7 @@ PRINTD(DBG_ERR, "os thread %d error code = %d\r\n", svcThreadGetId(), error_code
     default:
       break;
   }
+  hal_global_sys_reset();
   for (;;);
 }
  

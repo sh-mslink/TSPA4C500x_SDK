@@ -648,6 +648,11 @@ void inb_platform_reset(uint32_t reson)
 	__breakpoint(3);
 }
 
+uint32_t get_rtc_clk(void)
+{
+	return hal_clk_rtc_get();
+}
+
 const plat_fun_t plat_fun = {
 	inb_srand,
 	inb_rand,

@@ -116,14 +116,20 @@ typedef struct
 /// Parameters for the database creation
 typedef struct 
 {
+	///If the service is multi-instance
+	bool multi_instance;
+
+	/*The following params are for ANPS only*/
+	
+	///If let the service check whether encryption key size is 16bytes (more security).
+	bool check_enc_key_size;
+
 	/// Security Level, @see enum inb_att_svc_perm_mask
-    uint8_t  sec_lvl;
-    /// Service start handle
-    /// 0: dynamically allocated in Attribute database
-    uint16_t start_hdl;
+	enum inb_att_perm sec_lvl;
+	
 	/// Database configuration @see enum inb_diss_features
 	uint16_t features;
-} inb_diss_prf_t;
+} inb_dis_prf_t;
 
 typedef struct 
 {
@@ -163,12 +169,12 @@ typedef struct
  * @note Add it after device configuration, but before any activity starts
  *
  *
- * @param[in] p_prf					Pointer to profile attributes
+ * @param[in] p_prf					Pointer to profile attributes @see inb_dis_prf_t
  *
  * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
  ****************************************************************************************
  */
-int inb_disc_add(inb_add_prf_t *p_prf);
+int inb_disc_add(inb_dis_prf_t *p_prf);
 
 /**
  ****************************************************************************************
@@ -214,12 +220,12 @@ int inb_disc_read_char(int conidx, int char_code, inb_att_info_t *p_att)	;
  * @note Add it after device configuration, but before any activity starts
  *
  *
- * @param[in] p_prf					Pointer to profile attributes, @see inb_diss_prf_t
+ * @param[in] p_prf					Pointer to profile attributes, @see inb_dis_prf_t
  *
  * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
  ****************************************************************************************
  */
-int inb_diss_add(inb_add_prf_t *p_prf);
+int inb_diss_add(inb_dis_prf_t *p_prf);
 
 /**
  ****************************************************************************************

@@ -32,6 +32,9 @@
 ///Device parameters
 #define MSRCU_DEV                   MSRCU_DEV_TSPA4C500A//MSRCU device chip selection
 
+///RF test
+#define MSRCU_RF_TEST_DURATION      (0)//unit: 1ms, 0 for non-stop
+
 ///Functions enable
 #define MSRCU_VOICE_ENABLE          (1)//Enable voice functions
 #define MSRCU_MOTION_ENABLE         (1)//Enable motion functions
@@ -46,6 +49,7 @@
 #define MSRCU_BLE_CNT_INTERVAL_MAX  (0x0006)//unit: 1.25ms, range: 7.5ms(0x0006)~4000ms(0x0C80)
 #define MSRCU_BLE_CNT_LATENCY       (49)//0~499
 #define MSRCU_BLE_CNT_TIMEOUT       (250)//unit: 10ms, range: 10ms(0x000A)~32000ms(0x0C80)
+#define MSRCU_BLE_CNT_DURATION      (0)//unit: 1ms, 0 for non-stop
 
 #define MSRCU_BLE_DIRECT_ADV_ENABLE (1)//Use direct adv after bonded
 #if MSRCU_VOICE_ENABLE
@@ -65,8 +69,8 @@
 #define MSRCU_LED_POWER_EMPTY_ON_TIME   (250)//ms
 #define MSRCU_LED_POWER_EMPTY_OFF_TIME  (250)//ms
 #define MSRCU_LED_POWER_EMPTY_DURATION  (3000)//ms
-#define MSRCU_LED_BOND_START_ON_TIME    (250)//ms
-#define MSRCU_LED_BOND_START_OFF_TIME   (250)//ms
+#define MSRCU_LED_BOND_START_ON_TIME    (500)//ms
+#define MSRCU_LED_BOND_START_OFF_TIME   (500)//ms
 #define MSRCU_LED_BOND_START_DURATION   (60000)//ms
 #define MSRCU_LED_BOND_SUCCESS_ON_TIME  (3000)//ms
 #define MSRCU_LED_BOND_FAIL_ON_TIME     (3000)//ms
@@ -138,12 +142,9 @@
 //#endif
 #endif
 
-#if MSRCU_IR_SEND_ENABLE
-#define MSRCU_DEV_IR_SEND_GPIO_PORT (2)
-#define MSRCU_DEV_IR_SEND_GPIO_PIN  (4)
-#endif
-
-#if MSRCU_IR_LEARN_ENABLE
+#if (MSRCU_IR_SEND_ENABLE || MSRCU_IR_LEARN_ENABLE)
+#define MSRCU_DEV_IR_SEND_GPIO_PORT         (2)
+#define MSRCU_DEV_IR_SEND_GPIO_PIN          (4)
 #define MSRCU_DEV_IR_LEARN_GPIO_PORT        (2)
 #define MSRCU_DEV_IR_LEARN_GPIO_PIN         (7)
 #define MSRCU_DEV_IR_LEARN_CTRL_GPIO_PORT   (4)
@@ -239,6 +240,9 @@ typedef enum
 ///Device parameters
 #define MSRCU_DEV                   MSRCU_DEV_TSPA4C500A//MSRCU device chip selection
 
+///RF test
+#define MSRCU_RF_TEST_DURATION      (0)//unit: 1ms, 0 for non-stop
+
 ///Functions enable
 #define MSRCU_VOICE_ENABLE          (1)//Enable voice functions
 #define MSRCU_MOTION_ENABLE         (1)//Enable motion functions
@@ -253,10 +257,11 @@ typedef enum
 #define MSRCU_BLE_CNT_INTERVAL_MAX  (0x0006)//unit: 1.25ms, range: 7.5ms(0x0006)~4000ms(0x0C80)
 #define MSRCU_BLE_CNT_LATENCY       (49)//0~499
 #define MSRCU_BLE_CNT_TIMEOUT       (250)//unit: 10ms, range: 10ms(0x000A)~32000ms(0x0C80)
+#define MSRCU_BLE_CNT_DURATION      (0)//unit: 1ms, 0 for non-stop
 
 #define MSRCU_BLE_DIRECT_ADV_ENABLE (1)//Use direct adv after bonded
 #if MSRCU_VOICE_ENABLE
-#define MSRCU_BLE_VOICE_ATV_ENABLE  (0)//Use ATV Voice Service
+#define MSRCU_BLE_VOICE_ATV_ENABLE  (1)//Use ATV Voice Service
 #endif
 
 ///Power parameters
@@ -345,12 +350,9 @@ typedef enum
 //#endif
 #endif
 
-#if MSRCU_IR_SEND_ENABLE
-#define MSRCU_DEV_IR_SEND_GPIO_PORT (2)
-#define MSRCU_DEV_IR_SEND_GPIO_PIN  (4)
-#endif
-
-#if MSRCU_IR_LEARN_ENABLE
+#if (MSRCU_IR_SEND_ENABLE || MSRCU_IR_LEARN_ENABLE)
+#define MSRCU_DEV_IR_SEND_GPIO_PORT         (2)
+#define MSRCU_DEV_IR_SEND_GPIO_PIN          (4)
 #define MSRCU_DEV_IR_LEARN_GPIO_PORT        (2)
 #define MSRCU_DEV_IR_LEARN_GPIO_PIN         (7)
 #define MSRCU_DEV_IR_LEARN_CTRL_GPIO_PORT   (4)

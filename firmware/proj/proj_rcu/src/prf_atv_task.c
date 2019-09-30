@@ -2,12 +2,10 @@
 
 #include "prf_atv_task.h"
 
-#include "msrcu_common.h"
 
+#if (MSRCU_VOICE_ENABLE && MSRCU_BLE_VOICE_ATV_ENABLE)
 
-#if MSRCU_BLE_VOICE_ATV_ENABLE
 extern void msrcu_dev_audio_atv_set_sample_rate(uint16_t sampleRate);
-#endif
 
 extern void user_rcu_voice_start(void);
 extern void user_rcu_voice_stop(void);
@@ -45,11 +43,10 @@ void atv_task_cmd_receive(int conIdx, uint8_t *buffer, uint8_t len)
 			PRINTD(DBG_TRACE, "ATV version:0x%02X%02X.\r\n", buffer[1], buffer[2]);
 			PRINTD(DBG_TRACE, "ATV codecs supported:0x%02X%02X.\r\n", buffer[3], buffer[4]);
         
-#if MSRCU_BLE_VOICE_ATV_ENABLE
             uint8_t rspCmd[ATVV_CHAR_CTL_GET_CAPS_RESP_LEN] = {0};
             set_caps_resp_cmd(rspCmd);
             atv_task_cmd_send(conIdx, rspCmd, ATVV_CHAR_CTL_GET_CAPS_RESP_LEN);
-#endif            
+            
             break;
         }
         
@@ -59,7 +56,6 @@ void atv_task_cmd_receive(int conIdx, uint8_t *buffer, uint8_t len)
 //                break;
 			PRINTD(DBG_TRACE, "ATV MIC open with codec:0x%02X%02X.\r\n", buffer[1], buffer[2]);
             
-#if MSRCU_BLE_VOICE_ATV_ENABLE
             if(buffer[1] == 0x00 && buffer[2] == 0x01)
             {
                 msrcu_dev_audio_atv_set_sample_rate(VOICE_SAMPLE_RATE_8K);
@@ -72,7 +68,7 @@ void atv_task_cmd_receive(int conIdx, uint8_t *buffer, uint8_t len)
             }
             else
                 PRINTD(DBG_TRACE, "ATV MIC open codec error.\r\n");
-#endif            
+            
             break;
         }
         
@@ -101,3 +97,4 @@ void atv_task_audio_send(int conIdx, uint8_t *buffer, uint8_t len)
 {
     atv_voice_char_rx_send(conIdx, buffer, len);
 }
+#endif

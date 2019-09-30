@@ -3,6 +3,10 @@
 
 #include <stdint.h>
 
+#include "msrcu_common.h"
+
+
+#if (MSRCU_VOICE_ENABLE && MSRCU_BLE_VOICE_ATV_ENABLE)
 
 //ATVV_CHAR_TX
 #define ATVV_CHAR_TX_ATV_GET_CAPS_LEN   (5)
@@ -62,4 +66,5 @@ void atv_task_cmd_receive(int conIdx, uint8_t *buffer, uint8_t len);
 void atv_task_cmd_send(int conIdx, uint8_t *buffer, uint8_t len);
 void atv_task_audio_send(int conIdx, uint8_t *buffer, uint8_t len);
 
+#endif
 #endif

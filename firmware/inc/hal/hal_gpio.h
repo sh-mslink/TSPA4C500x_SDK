@@ -1274,7 +1274,7 @@ void hal_gpio_suspend(void);
 
 void hal_gpio_resume(void);
 
-
+void hal_gpio_ext_int_clear(int port, int pin);
 /// @} HAL_GPIO
 
 #endif // HAL_GPIO_H

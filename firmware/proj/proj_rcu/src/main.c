@@ -30,6 +30,7 @@
 #endif
 #include "airmouse.h"
 
+
 #if defined(BOARD_TSPA4C500A_REMOTER)
 #define LED_R   0
 #define LED_G   LED_R
@@ -39,9 +40,6 @@
 #define LED_G   1
 #define LED_B   2
 #endif
-#define LED_BLINK_CYCLE_MS  (500)
-#define LED_BLINK_DUTY_MS   (250)
-
 
 #if MSRCU_MOTION_ENABLE
 #define MOTION_TIMER_MS     (1000 / M_SAMPLE_FREQUENCY)
@@ -71,9 +69,17 @@ static osTimerId msrcuAppLedTimerId;
 static osTimerDef(msrcuAppLedTimer, user_rcu_led_timer_callback);
 static msrcuErr_t user_rcu_led_set(msrcuLedSt newSt);
 
+static void user_rcu_rf_test_timer_callback(void const *arg);
+static osTimerId msrcuAppRfTestTimerId;
+static osTimerDef(msrcuAppRfTestTimer, user_rcu_rf_test_timer_callback);
+
 static void user_rcu_adv_timer_callback(void const *arg);
 static osTimerId msrcuAppAdvTimerId;
 static osTimerDef(msrcuAppAdvTimer, user_rcu_adv_timer_callback);
+
+static void user_rcu_connect_timer_callback(void const *arg);
+static osTimerId msrcuAppConnectTimerId;
+static osTimerDef(msrcuAppConnectTimer, user_rcu_connect_timer_callback);
 
 static bool userBondEnable = false;
 static void user_rcu_bond_timer_callback(void const *arg);
@@ -519,11 +525,25 @@ void user_rcu_voice_stop(void)
 }
 #endif
 
+static void user_rcu_rf_test_timer_callback(void const *arg)
+{
+    hal_global_sys_reset();//reset to stop rf test
+}
+
 static void user_rcu_adv_timer_callback(void const *arg)
 {
     if(BLE_STATE_ADVERTISING == msrcu_app_ble_get_state())
         user_rcu_ble_adv_stop();    
     osTimerStop(msrcuAppAdvTimerId);
+}
+
+static void user_rcu_connect_timer_callback(void const *arg)
+{
+    osTimerStop(msrcuAppConnectTimerId); 
+    
+    MSPRINT("BLE connection duration time out.\r\n"); 
+    
+    msrcu_app_ble_disconnect();    
 }
 
 static void user_rcu_bond_timer_callback(void const *arg)
@@ -545,18 +565,24 @@ static void user_rcu_ble_rf_test(void)
     const uint8_t hciMode = 1;
     const uint8_t inbMode = 2;
     
-    hal_gpio_pin_mux(3, 2, 0, 0);
-    hal_gpio_pad_oe_ie(3, 2, 0, 1);
-    hal_gpio_pad_pd_pu(3, 2, 0, 1);
+    int port = 3;
+    int pin = 2;
+    hal_gpio_pin_mux(port, pin, 0, 0);
+    hal_gpio_pad_oe_ie(port, pin, 0, 1);
+    hal_gpio_pad_pd_pu(port, pin, 0, 1);
 
-    hal_gpio_pin_mux(3, 3, 0, 0);
-    hal_gpio_pad_oe_ie(3, 3, 0, 1);
-    hal_gpio_pad_pd_pu(3, 3, 0, 1);
+    port = 3;
+    pin = 3;
+    hal_gpio_pin_mux(port, pin, 0, 0);
+    hal_gpio_pad_oe_ie(port, pin, 0, 1);
+    hal_gpio_pad_pd_pu(port, pin, 0, 1);
     
-    hal_gpio_pin_mux(1, 7, 0, 0);
-    hal_gpio_pad_oe_ie(1, 7, 1, 0);
-    hal_gpio_pad_pd_pu(1, 7, 0, 1);		
-    hal_gpio_output(1, 7, 0, 1);
+    port = 1;
+    pin = 7;
+    hal_gpio_pin_mux(port, pin, 0, 0);
+    hal_gpio_pad_oe_ie(port, pin, 1, 0);
+    hal_gpio_pad_pd_pu(port, pin, 0, 1);
+    hal_gpio_output(port, pin, 0, 1);
         
     //If the button which connected to GPIO_3_2 & GPIO_1_7
     //is pressed when power on, go to BLE RF test mode: HCI.
@@ -567,8 +593,23 @@ static void user_rcu_ble_rf_test(void)
     else if(!hal_gpio_input(3, 3))
         testMode = inbMode;
     
-    if(testMode == hciMode)
+    if(testMode)
     {
+        //LED red on
+        port = MSRCU_DEV_LED_0_GPIO_PORT;
+        pin = MSRCU_DEV_LED_0_GPIO_PIN;
+        hal_gpio_pin_mux(port, pin, 0, 0);
+        hal_gpio_pad_oe_ie(port, pin, 1, 0);
+        hal_gpio_pad_pd_pu(port, pin, 0, 1);
+        hal_gpio_aon_latch(port, pin, 0);//latch off
+        hal_gpio_output(port, pin, 0, 1);//output low
+        hal_gpio_aon_latch(port, pin, 1);//latch on
+    }
+    else
+        return;
+    
+    if(testMode == hciMode)
+    {        
 #if CFG_HCI
         hci_enable();
         ble_stack_init();//wait for HCI communication
@@ -577,12 +618,22 @@ static void user_rcu_ble_rf_test(void)
 #endif
     }
     else if(testMode == inbMode)
-    {
+    {        
+        //init timer for rf test
+        if(MSRCU_RF_TEST_DURATION)
+        {
+            msrcuAppRfTestTimerId = osTimerCreate(osTimer(msrcuAppRfTestTimer), osTimerPeriodic, NULL);
+            if(msrcuAppRfTestTimerId == NULL)
+                return;
+            
+            osTimerStart(msrcuAppRfTestTimerId, MSRCU_RF_TEST_DURATION);
+        }
+        
         inb_test_mode_t tMode = {0};
         uint16_t rxPacketNb = 0;
         
         ble_config(0);
-        
+                
         tMode.test_mode = TEST_MODE_TX;
         tMode.channel = 19;//2440MHz
         tMode.tx_data_length = 20;
@@ -591,8 +642,6 @@ static void user_rcu_ble_rf_test(void)
         tMode.modulation_idx = MODULATION_STANDARD;
         inb_test(&tMode, &rxPacketNb);//test start
     }
-    else
-        return;
         
     while(1);//continue to test forever until chip reset
 }
@@ -672,7 +721,7 @@ static msrcuErr_t user_rcu_ble_adv_start(void)
     {
         0x0B,//AD Element Length
         0x08,//AD Type: Shortened local name
-        'T','r','o','p','o','s',' ','T','P','P',//AD Data Bytes: "Tropos RCU"
+        'T','r','o','p','o','s',' ','R','C','U',//AD Data Bytes: "Tropos RCU"
     };
     msrcuBleAdv_t* adv;
     
@@ -753,6 +802,9 @@ static void user_rcu_ble_callback(msrcuEvtBle_t *evt)
                     conInd->peerAddr.addr[0], conInd->peerAddr.addr[1], conInd->peerAddr.addr[2],
                     conInd->peerAddr.addr[3], conInd->peerAddr.addr[4], conInd->peerAddr.addr[5]);
             
+			if(MSRCU_BLE_CNT_DURATION)
+            	osTimerStart(msrcuAppConnectTimerId, MSRCU_BLE_CNT_DURATION);
+            
             msrcuBondData.peerAddrType = conInd->peerAddrType;
             memcpy(msrcuBondData.peerAddr.addr, conInd->peerAddr.addr, BLE_ADDR_LEN);
             
@@ -771,6 +823,8 @@ static void user_rcu_ble_callback(msrcuEvtBle_t *evt)
         {
             msrcuBleDisconInd_t* disconInd = &evt->param.disconInd;
             MSPRINT("Disconnected, idx:%d, reason:0x%02X.\r\n", disconInd->conIndex, disconInd->reason);
+            
+            osTimerStop(msrcuAppConnectTimerId);
             
             msrcuLedSt ledSt = LED_STATE_NULL;
 #if MSRCU_VOICE_ENABLE
@@ -807,7 +861,7 @@ static void user_rcu_ble_callback(msrcuEvtBle_t *evt)
 #endif                                          
             }
 #endif                
-            if(msrcuBondData.status)
+            if(msrcuBondData.status && disconInd->reason != BLE_ERROR_CON_TERM_BY_LOCAL_HOST)
                 user_rcu_ble_adv_start();
             
             user_rcu_led_set(ledSt);
@@ -858,7 +912,7 @@ static void user_rcu_ble_callback(msrcuEvtBle_t *evt)
 }
 
 static void user_rcu_key_callback(msrcuEvtKey_t *param)
-{        
+{
     msrcuLedSt ledSt = LED_STATE_NULL;
     
     switch(param->behavior)
@@ -879,12 +933,12 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
             if(BLE_STATE_IDLE == msrcu_app_ble_get_state() && msrcuBondData.status)
                 user_rcu_ble_adv_start();
             
-#if MSRCU_IR_SEND_ENABLE 
-            //IR send start
             if((BLE_STATE_IDLE == msrcu_app_ble_get_state()
                     || BLE_STATE_ADVERTISING == msrcu_app_ble_get_state())
                     && userIrSendIsStop)
             {
+#if MSRCU_IR_SEND_ENABLE 
+                //IR send start
                 userIrCode.protocol = IR_PROT_NEC;
                 userIrCode.param.necCode.addL = MSRCU_IR_NEC_ADD_L;
                 userIrCode.param.necCode.addH = MSRCU_IR_NEC_ADD_H; 
@@ -897,8 +951,11 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
                 }
                 else
                     MSPRINT("IR send start error.\r\n");
-            }
 #endif
+            }
+            else if(BLE_STATE_READY == msrcu_app_ble_get_state()
+                    && param->code != KEY_CODE_VOICE)
+                msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(param->code, 0));
         }
         break;
         
@@ -908,7 +965,7 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
             
             //set LED
             ledSt = LED_STATE_KEY_RELEASE;
-        
+            
 #if MSRCU_IR_SEND_ENABLE 
             //IR send stop
             if(!userIrSendIsStop)
@@ -919,7 +976,11 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
                     MSPRINT("IR send stop.\r\n");
                 }
             }
-#endif        
+#endif
+            //HID keycode release
+            if(BLE_STATE_READY == msrcu_app_ble_get_state()
+                 && param->code != KEY_CODE_VOICE)
+                msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(KEY_CODE_NULL, 0));
         }
         break;
         
@@ -986,6 +1047,7 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
             {
                 if(BLE_STATE_READY == msrcu_app_ble_get_state())
                 {
+#if MSRCU_VOICE_ENABLE
 #if MSRCU_BLE_VOICE_ATV_ENABLE
                     msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(param->code, 0));
                     msrcu_app_voice_atv_start();
@@ -994,15 +1056,18 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
 #else
                     user_rcu_voice_start();
 #endif
+#endif
                 }
             }
             else if(param->behavior == EVT_KEY_RELEASE)
             {
+#if MSRCU_VOICE_ENABLE
 #if MSRCU_BLE_VOICE_ATV_ENABLE
                 if(BLE_STATE_READY == msrcu_app_ble_get_state())
                     msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(KEY_CODE_NULL, 0));
 #else
                 user_rcu_voice_stop();
+#endif
 #endif
             }
         }
@@ -1104,7 +1169,6 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
                 {
                     if(userMotionIsStop)
                     {
-                        msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(param->code, 0));
 #if MSRCU_BLE_VOICE_ATV_ENABLE
                         uint8_t cmd[ATVV_CHAR_CTL_DPAP_SELECT_LEN] = {0};
                         cmd[0] = ATVV_CHAR_CTL_DPAP_SELECT_CMD;
@@ -1133,8 +1197,6 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
             {
                 if(BLE_STATE_READY == msrcu_app_ble_get_state())
                 {
-                    msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(KEY_CODE_NULL, 0));
-                    
                     msg_hogpd_ntf_t *msg = malloc(sizeof(msg_hogpd_ntf_t));
                     if(!msg)
                         return;
@@ -1161,16 +1223,8 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
         
         default:
         {            
-            if(param->behavior == EVT_KEY_PRESS)
-            {
-                if(BLE_STATE_READY == msrcu_app_ble_get_state())
-                    msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(param->code, 0));
-            }
-            else if(param->behavior == EVT_KEY_RELEASE)
-            {
-                if(BLE_STATE_READY == msrcu_app_ble_get_state())
-                    msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(KEY_CODE_NULL, 0));
-            }
+            if(param->behavior == EVT_KEY_PRESS){}
+            else if(param->behavior == EVT_KEY_RELEASE){}
         }
         break;
     }
@@ -1254,6 +1308,11 @@ static msrcuErr_t user_rcu_timer_init(void)
     
     //init timer for advertising
 	msrcuAppAdvTimerId = osTimerCreate(osTimer(msrcuAppAdvTimer), osTimerPeriodic, NULL);
+	if(msrcuAppAdvTimerId == NULL)
+		return ERR_OS;
+    
+    //init timer for conncetion duration
+	msrcuAppConnectTimerId = osTimerCreate(osTimer(msrcuAppConnectTimer), osTimerPeriodic, NULL);
 	if(msrcuAppAdvTimerId == NULL)
 		return ERR_OS;
     
@@ -1355,22 +1414,22 @@ int main (void)
 {
 	//Initialize platform.
 	hal_global_post_init();
-    
+	
 	//RF test mode for RCU production
 	user_rcu_ble_rf_test();
-    
+	
 	//Debug UART port init
-    hal_global_debug_uart_init();
+	hal_global_debug_uart_init();
 	
 	PRINTD(DBG_TRACE, "----------------\r\n");
 	PRINTD(DBG_TRACE, "main start...\r\n");
 	
 	//MessageQ for main thread.
 	msg_init();
-    
+	
 	//BLE init
 	ble_config(0);
-	    
+	
 	//RCU init
 	msrcuErr_t err = user_rcu_init(&userAppCb);
 	if(err)
@@ -1380,8 +1439,7 @@ int main (void)
 	}
 	else
 		MSPRINT("RCU init success.\r\n");  
-    
-    
+	
 	//Wait for message
 	while(1)
 	{
@@ -1394,7 +1452,7 @@ int main (void)
 		handle_msg(p_msg);
 		
 		p_msg = msg_free(p_msg);
-	}	
+	}
 }
 #endif
 

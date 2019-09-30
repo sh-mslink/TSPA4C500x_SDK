@@ -32,7 +32,8 @@ typedef struct {
 
 	char used;
 	char chn;
-	char pad[2];
+	char ttype;
+	char pad[1];
 
 	void *arg;
 	void (*callback)(int id, void *arg, int status);
@@ -85,21 +86,16 @@ static dma_dev_t dma_dev[2] = {
  */
 static void dma_isr(int id, dma_dev_t *pd)
 {
-	for (int i = 0; i < DMA_MAX_CH_NB; i++) {
-		uint32_t status = dma_intr_status(pd->base, i);
-		if (status & DMA_IT_STATUS_TFR) {
-			if (pd->ch[i].callback) {
-				pd->ch[i].callback(id, pd->ch[i].arg, DMA_STATUS_COMPLETE);
-			}
-		}
+	uint32_t status[DMA_MAX_CH_NB] = {0};
 
-		if (status & DMA_IT_STATUS_ERR) {
-			if (pd->ch[i].callback) {
-				pd->ch[i].callback(id, pd->ch[i].arg, DMA_STATUS_ERROR);
-			}
+	dma_intr_status(pd->base, DMA_MAX_CH_NB, status);
+
+	for (int i = 0; i < DMA_MAX_CH_NB; i++) {
+		if (pd->ch[i].callback) {
+			pd->ch[i].callback(id, pd->ch[i].arg, status[i]);
 		}
-		dma_intr_clr(pd->base, i, status);
 	}
+	//dma_intr_clr(pd->base, DMA_MAX_CH_NB, status);
 }
 
 __irq void DMA0_Handler(void)
@@ -171,6 +167,55 @@ void *hal_dma_open(int id, int periph_id, uint32_t sar, uint32_t dar, int size, 
 	return (void *)pch;
 }
 
+void *hal_dma_soft_open(int id, uint32_t sar, uint32_t dar, int size, int sdw, int ddw, int sai, int dai, int sbz, int dbz, int sahb, int dahb, int ttype)
+{
+	int i;
+	dma_dev_t *pd = NULL;
+	dma_ch_t *pch = NULL;
+
+	if ((ttype != DMA_TT_MEM_TO_PERF_FC_DMAC) && 
+			(ttype != DMA_TT_PERF_TO_MEM_FC_DMAC))
+		return NULL;
+
+
+	if (id == DMA0_ID)
+		pd = &dma_dev[0];
+	else
+		pd = &dma_dev[1];
+
+	for (i = 0; i < DMA_MAX_CH_NB; i++) {
+		if (!pd->ch[i].used) {
+			pch = &pd->ch[i];
+			break;
+		}
+	}
+
+	if (!pch)
+		return NULL;
+
+	// config dma
+	dma_enable(pd->base);		
+	dma_ch_set_sar(pch->base, sar);			// soruce address
+	dma_ch_set_dar(pch->base, dar);			// destination base
+ 	dma_ch_src_width(pch->base, sdw);
+	dma_ch_dst_width(pch->base, ddw);
+	dma_ch_src_inc(pch->base, sai);
+	dma_ch_dst_inc(pch->base, dai);
+	dma_ch_src_msize(pch->base, sbz);
+	dma_ch_dst_msize(pch->base, dbz);
+	dma_ch_src_ahb_master(pch->base, sahb);
+	dma_ch_dst_ahb_master(pch->base, dahb);
+	dma_ch_tran_type_fc(pch->base, ttype);
+	dma_ch_tran_block_size(pch->base, size);
+	dma_ch_hs_src(pch->base, 0);			// Software
+	dma_ch_hs_dest(pch->base, 0);		// Software
+
+	pch->used = 1;
+	pch->ttype = ttype;
+
+	return (void *)pch;
+}
+
 void hal_dma_close(void *hdl)
 {
 	dma_ch_t *pch = (dma_ch_t *)hdl;
@@ -200,6 +245,7 @@ int hal_dma_ch_enable(void *hdl, void *arg, void (*callback)(int id, void *arg, 
 {
 	dma_ch_t *pch = (dma_ch_t *)hdl;
 	dma_dev_t *pd = NULL;
+	uint32_t status[DMA_MAX_CH_NB] = {0}; 
 
 	if (!pch)
 		return DMA_ERR_INVALID_PARA;
@@ -214,8 +260,44 @@ int hal_dma_ch_enable(void *hdl, void *arg, void (*callback)(int id, void *arg, 
 
 	pch->arg = arg;
 	pch->callback = callback;
-	dma_intr_clr(pd->base, pch->chn, DMA_IT_STATUS_ALL);
-	dma_intr_unmask(pd->base, pch->chn, DMA_IT_STATUS_TFR);
+	status[pch->chn] = DMA_IT_STATUS_ALL;
+	dma_intr_clr(pd->base, DMA_MAX_CH_NB, status);
+	dma_intr_unmask(pd->base, pch->chn, DMA_IT_STATUS_TFR|DMA_IT_STATUS_ERR);
+	NVIC_SetPriority(pd->irq, IRQ_PRI_Normal);	
+	NVIC_EnableIRQ(pd->irq);
+
+	// enable channel
+	dma_ch_enable(pd->base, pch->chn);
+	
+	return DMA_ERR_OK;
+}
+
+int hal_dma_soft_ch_enable(void *hdl, void *arg, void (*callback)(int id, void *arg, int status))
+{
+	dma_ch_t *pch = (dma_ch_t *)hdl;
+	dma_dev_t *pd = NULL;
+	uint32_t status[DMA_MAX_CH_NB] = {0}; 
+
+	if (!pch)
+		return DMA_ERR_INVALID_PARA;
+
+	if (!pch->used)	
+		return DMA_ERR_BAD_STATE;
+
+	/// turn on force on ahb bus clocks 
+	clk_force_dma_ctl_clks(1);
+	 
+	pd = (dma_dev_t *)pch->pde;
+
+	pch->arg = arg;
+	pch->callback = callback;
+	status[pch->chn] = DMA_IT_STATUS_ALL;
+	dma_intr_clr(pd->base, DMA_MAX_CH_NB, status);
+	if (pch->ttype == DMA_TT_MEM_TO_PERF_FC_DMAC) { 	
+		dma_intr_unmask(pd->base, pch->chn, DMA_IT_STATUS_TFR|DMA_IT_STATUS_DSTT);
+	} else {
+		dma_intr_unmask(pd->base, pch->chn, DMA_IT_STATUS_TFR|DMA_IT_STATUS_SRCT);
+	}
 	NVIC_SetPriority(pd->irq, IRQ_PRI_Normal);	
 	NVIC_EnableIRQ(pd->irq);
 
@@ -241,7 +323,7 @@ int hal_dma_ch_disable(void *hdl)
 	// disable channel
 	dma_ch_disable(pd->base, pch->chn);
 
-	dma_intr_mask(pd->base, pch->chn, DMA_IT_STATUS_TFR);
+	dma_intr_mask(pd->base, pch->chn, DMA_IT_STATUS_ALL);
 	NVIC_DisableIRQ(pd->irq);
 
 	pch->arg = NULL;
@@ -249,6 +331,69 @@ int hal_dma_ch_disable(void *hdl)
 
 	/// turn off force on ahb bus clock
 	clk_force_dma_ctl_clks(0);
+
+	return DMA_ERR_OK;
+}
+
+int hal_dma_switch_buffer(void *hdl, int sa_da, uint32_t buffer_addr)
+{
+	dma_ch_t *pch = (dma_ch_t *)hdl;
+	dma_dev_t *pd = NULL;
+
+	if (!pch)
+		return DMA_ERR_INVALID_PARA;
+
+	if (!pch->used)	
+		return DMA_ERR_BAD_STATE;
+
+	pd = (dma_dev_t *)pch->pde;
+
+	if (sa_da) {
+		dma_ch_set_sar(pch->base, buffer_addr);			// soruce address
+	} else {
+		dma_ch_set_dar(pch->base, buffer_addr);			// destination base
+	}
+
+	// enable channel
+	dma_ch_enable(pd->base, pch->chn);
+
+	return DMA_ERR_OK;
+}
+
+int hal_dma_src_req(void *hdl)
+{
+	dma_ch_t *pch = (dma_ch_t *)hdl;
+	dma_dev_t *pd = NULL;
+
+	if (!pch)
+		return DMA_ERR_INVALID_PARA;
+
+	if (!pch->used)	
+		return DMA_ERR_BAD_STATE;
+
+	pd = (dma_dev_t *)pch->pde;
+
+	dma_sw_src_req(pd->base, pch->chn);
+	dma_sw_src_sreq(pd->base, pch->chn);
+
+	return DMA_ERR_OK;
+}
+
+int hal_dma_dst_req(void *hdl)
+{
+	dma_ch_t *pch = (dma_ch_t *)hdl;
+	dma_dev_t *pd = NULL;
+
+	if (!pch)
+		return DMA_ERR_INVALID_PARA;
+
+	if (!pch->used)	
+		return DMA_ERR_BAD_STATE;
+
+	pd = (dma_dev_t *)pch->pde;
+
+	dma_sw_dst_req(pd->base, pch->chn);
+	dma_sw_dst_sreq(pd->base, pch->chn);
 
 	return DMA_ERR_OK;
 }

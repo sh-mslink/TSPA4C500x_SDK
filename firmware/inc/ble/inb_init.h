@@ -196,6 +196,18 @@ void inb_get_mem_usage(inb_mem_usage_t *p_mem_usage);
  */
 uint32_t inb_get_max_mem_usage(void);
 
+/**
+ ****************************************************************************************
+ * @brief Check if BLE is in the middle of transaction 
+ *
+ * @param[in] void					No paramters
+ *
+ * @return 1: BLE is busy, 0: Otherwise 
+ ****************************************************************************************
+ */
+int inb_is_ble_busy(void);
+
+
 /// @} INB_INI
 
 #endif	/* INB_PLT_H */

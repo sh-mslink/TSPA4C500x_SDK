@@ -58,6 +58,13 @@
 
 #define DMA_REG_INTR_STAT					0x00000360UL
 
+#define DMA_REG_SRC_SW_REQ				0x00000368UL
+#define DMA_REG_DST_SW_REQ				0x00000370UL
+#define DMA_REG_SRC_SW_SGLREQ		0x00000378UL
+#define DMA_REG_DST_SW_SGLREQ		0x00000380UL
+#define DMA_REG_LST_SRC_SW_REQ		0x00000388UL
+#define DMA_REG_LST_DST_SW_REQ		0x00000390UL
+
 #define DMA_CH_REG_SAR_OFS					0x00000000UL
 #define DMA_CH_REG_DAR_OFS					0x00000008UL
 #define DMA_CH_REG_LLP_OFS					0x00000010UL
@@ -154,11 +161,6 @@ enum dma1_periph_id {
 	DMA_ID_I2C1_RX,
 	DMA_ID_UART0_RX,
 	DMA_ID_UART1_RX,
-};
-
-enum dma_status {
-	DMA_STATUS_COMPLETE,
-	DMA_STATUS_ERROR,
 };
 
 enum dma_tr_width {
@@ -267,55 +269,65 @@ static __inline uint32_t dma_intr_raw_status(uint32_t base, int chn)
 	return status;
 }
 
-static __inline uint32_t dma_intr_status(uint32_t base, int chn)
+static __inline void dma_intr_status(uint32_t base, int nch, uint32_t status[])
 {
-	uint32_t status = 0;
-	uint32_t reg;
+	uint32_t reg[5];
 
-	reg = RD_WORD(base + DMA_REG_INTR_STAT_TFR);
-	if ((reg >> chn) & 1)
-		status |= DMA_IT_STATUS_TFR;
-		
-	reg = RD_WORD(base + DMA_REG_INTR_STAT_BLOCK);
-	if ((reg >> chn) & 1)
-		status |= DMA_IT_STATUS_BLOCK;
+	reg[0] = RD_WORD(base + DMA_REG_INTR_STAT_TFR);
+	reg[1] = RD_WORD(base + DMA_REG_INTR_STAT_BLOCK);
+	reg[2] = RD_WORD(base + DMA_REG_INTR_STAT_SRC);
+	reg[3] = RD_WORD(base + DMA_REG_INTR_STAT_DST);
+	reg[4] = RD_WORD(base + DMA_REG_INTR_STAT_ERR);
 
-	reg = RD_WORD(base + DMA_REG_INTR_STAT_SRC);
-	if ((reg >> chn) & 1)
-		status |= DMA_IT_STATUS_SRCT;
+	WR_WORD((base + DMA_REG_INTR_CLR_TFR), reg[0]); 		
+	WR_WORD((base + DMA_REG_INTR_CLR_BLOCK), reg[1]); 		
+	WR_WORD((base + DMA_REG_INTR_CLR_SRC), reg[2]); 		
+	WR_WORD((base + DMA_REG_INTR_CLR_DST), reg[3]); 		
+	WR_WORD((base + DMA_REG_INTR_CLR_ERR), reg[4]); 		
 
-	reg = RD_WORD(base + DMA_REG_INTR_STAT_DST);
-	if ((reg >> chn) & 1)
-		status |= DMA_IT_STATUS_DSTT;
+	for (int i = 0; i < nch; i++) {
+		if ((reg[0] >> i) & 1)
+			status[i] |= DMA_IT_STATUS_TFR;
+		if ((reg[1] >> i) & 1)
+			status[i] |= DMA_IT_STATUS_BLOCK;
+		if ((reg[2] >> i) & 1)
+			status[i] |= DMA_IT_STATUS_SRCT;
+		if ((reg[3] >> i) & 1)
+			status[i] |= DMA_IT_STATUS_DSTT;
+		if ((reg[4] >> i) & 1)
+			status[i] |= DMA_IT_STATUS_ERR;
+	}
 
-	reg = RD_WORD(base + DMA_REG_INTR_STAT_ERR);
-	if ((reg >> chn) & 1)
-		status |= DMA_IT_STATUS_ERR;
-
-	return status;
+	return;
 }
 
-static __inline void dma_intr_clr(uint32_t base, int chn, uint32_t status)
+static __inline void dma_intr_clr(uint32_t base, int nch, uint32_t status[])
 {
-	if (status & DMA_IT_STATUS_TFR) {
-		WR_WORD((base + DMA_REG_INTR_CLR_TFR), (1 << chn)); 		
-	}
+	uint32_t reg[5]={0};
 
-	if (status & DMA_IT_STATUS_BLOCK) {
-		WR_WORD((base + DMA_REG_INTR_CLR_BLOCK), (1 << chn)); 		
+	for (int i = 0; i < nch; i++) {
+		if (status[i] & DMA_IT_STATUS_TFR) {
+			reg[0] |= (1<<i);
+		}
+		if (status[i] & DMA_IT_STATUS_BLOCK) {
+			reg[1] |= (1<<i);
+		}
+		if (status[i] & DMA_IT_STATUS_SRCT) {
+			reg[2] |= (1<<i);
+		}
+		if (status[i] & DMA_IT_STATUS_DSTT) {
+			reg[3] |= (1<<i);
+		}
+		if (status[i] & DMA_IT_STATUS_ERR) {
+			reg[4] |= (1<<i);
+		}
 	}
+	WR_WORD((base + DMA_REG_INTR_CLR_TFR), reg[0]); 		
+	WR_WORD((base + DMA_REG_INTR_CLR_BLOCK), reg[1]); 		
+	WR_WORD((base + DMA_REG_INTR_CLR_SRC), reg[2]); 		
+	WR_WORD((base + DMA_REG_INTR_CLR_DST), reg[3]); 		
+	WR_WORD((base + DMA_REG_INTR_CLR_ERR), reg[4]); 		
 
-	if (status & DMA_IT_STATUS_SRCT) {
-		WR_WORD((base + DMA_REG_INTR_CLR_SRC), (1 << chn)); 		
-	}
-
-	if (status & DMA_IT_STATUS_DSTT) {
-		WR_WORD((base + DMA_REG_INTR_CLR_DST), (1 << chn)); 		
-	}
-
-	if (status & DMA_IT_STATUS_ERR) {
-		WR_WORD((base + DMA_REG_INTR_CLR_ERR), (1 << chn)); 		
-	}
 }
 
 static __inline void dma_intr_mask(uint32_t base, int chn, uint32_t mask)
@@ -364,6 +376,36 @@ static __inline void dma_intr_unmask(uint32_t base, int chn, uint32_t mask)
 	if (mask & DMA_IT_STATUS_ERR) {
 		WR_WORD((base + DMA_REG_INTR_MASK_ERR), ((1<<chn) | (1<<(chn+8)))); 		
 	}
+}
+
+static __inline void dma_sw_src_req(uint32_t base, int chn)
+{
+	WR_WORD((base + DMA_REG_SRC_SW_REQ), ((1<<chn)|(1<<(8+chn))));
+}
+
+static __inline void dma_sw_dst_req(uint32_t base, int chn)
+{
+	WR_WORD((base + DMA_REG_DST_SW_REQ), ((1<<chn)|(1<<(8+chn))));
+}
+
+static __inline void dma_sw_src_sreq(uint32_t base, int chn)
+{
+	WR_WORD((base + DMA_REG_SRC_SW_SGLREQ), ((1<<chn)|(1<<(8+chn))));
+}
+
+static __inline void dma_sw_dst_sreq(uint32_t base, int chn)
+{
+	WR_WORD((base + DMA_REG_DST_SW_SGLREQ), ((1<<chn)|(1<<(8+chn))));
+}
+
+static __inline void dma_sw_src_lreq(uint32_t base, int chn)
+{
+	WR_WORD((base + DMA_REG_LST_SRC_SW_REQ), ((1<<chn)|(1<<(8+chn))));
+}
+
+static __inline void dma_sw_dst_lreq(uint32_t base, int chn)
+{
+	WR_WORD((base + DMA_REG_LST_DST_SW_REQ), ((1<<chn)|(1<<(8+chn))));
 }
 
 static __inline void dma_ch_set_sar(uint32_t ch_base, uint32_t addr)
@@ -686,6 +728,29 @@ void *hal_dma_open(int id, int periph_id, uint32_t sar, uint32_t dar, int size, 
 
 /**
  ****************************************************************************************
+ * @brief Open a Software Control DMA driver 
+ *
+ * @param[in] id					The DMAI ID, @see enum dma_id.   
+ * @param[in] sar					The source address of the DMA trandfer.
+ * @param[in] dar					The destination address of the DMA trandfer.
+ * @param[in] size				The total transfer size.
+ * @param[in] sdw				The source data width, @see enum dma_tr_width.
+ * @param[in] ddw				The destination data width, @see enum dma_tr_width.
+ * @param[in] sai					The source address changes, @see enum dma_addr_chg.
+ * @param[in] dai					The destination address changes, @see enum dma_addr_chg.
+ * @param[in] sbz					The source burst size, @see enum dma_tr_msize.
+ * @param[in] dbz					The destination burst size, @see enum dma_tr_msize.
+ * @param[in] sahb				The source AHB master, @see enum dma_ahb_master.
+ * @param[in] dahb				The destination AHB master, @see enum dma_ahb_master.
+ * @param[in] ttype				The DMA transfer type, @see enum dma_ttype.
+ *
+ * @return Handle to the DMA driver, NULL means open failed. 
+ ****************************************************************************************
+ */
+void *hal_dma_soft_open(int id, uint32_t sar, uint32_t dar, int size, int sdw, int ddw, int sai, int dai, int sbz, int dbz, int sahb, int dahb, int ttype);
+
+/**
+ ****************************************************************************************
  * @brief Close the DMA driver
  *
  * @param[in] hdl		The handle from the previous "open" function.   
@@ -709,6 +774,7 @@ void hal_dma_close(void *hdl);
  */
 
 int hal_dma_ch_enable(void *hdl, void *arg, void (*callback)(int id, void *arg, int status));
+int hal_dma_soft_ch_enable(void *hdl, void *arg, void (*callback)(int id, void *arg, int status));
 
 /**
  ****************************************************************************************
@@ -721,6 +787,34 @@ int hal_dma_ch_enable(void *hdl, void *arg, void (*callback)(int id, void *arg, 
  */
 
 int hal_dma_ch_disable(void *hdl);
+
+/**
+ ****************************************************************************************
+ * @brief DMA change source or destination buffer address
+ * @Note: This function is provided to quickly switch buffer without re-program all the DMA register
+ *
+ * @param[in] hdl					The handle from the previous "open" function.   
+ * @param[in] sa_da				Flag to indicate which buffer address to change, 1: Source address, 0: Destination address   
+ * @param[in] buffer_addr		New buffer address.   
+ *
+ * @return DMA_ERR_OK if successful, otherwise DMA failed. @see enum dma_error_code. 
+ ****************************************************************************************
+ */
+
+int hal_dma_switch_buffer(void *hdl, int sa_da, uint32_t buffer_addr);
+
+/**
+ ****************************************************************************************
+ * @brief DMA controlled by software to transfer data from or to peripheral
+ *
+ * @param[in] hdl					The handle from the previous "open" function.   
+ *
+ * @return DMA_ERR_OK if successful, otherwise DMA failed. @see enum dma_error_code. 
+ ****************************************************************************************
+ */
+int hal_dma_src_req(void *hdl);
+int hal_dma_dst_req(void *hdl);
+
 
 /// @} HAL_WDT
 

@@ -35,6 +35,10 @@ int handle_default_gatt_evt(uint16_t eid, void* pv, void* param)
 	//PRINTD(DBG_TRACE, "\n%s  id 0x%x\r\n", __func__, eid);
 	switch (eid)
 	{
+    case GATT_EVT_MTU_XCHG_IND:
+        {
+        }
+        break;        
 	case GATT_EVT_DISC_SVC:/// GATT service found indication
 		{
 			inb_evt_disc_svc_ind_t *ind = (inb_evt_disc_svc_ind_t *)pv;
@@ -147,6 +151,7 @@ int handle_default_gatt_evt(uint16_t eid, void* pv, void* param)
 //			PRINTD(DBG_TRACE, "\r\n");
             
 #ifdef CFG_PROJ_RCU
+#if MSRCU_VOICE_ENABLE
 #if MSRCU_BLE_VOICE_ATV_ENABLE
             if(ind->handle == g_AtvPrimarySvc_shl + 1 + ATVV_IDX_CHAR_TX_VAL)
             {
@@ -166,6 +171,7 @@ int handle_default_gatt_evt(uint16_t eid, void* pv, void* param)
                 else if(ind->value[1] == 0x00 && ind->value[0] == 0x00)
                     PRINTD(DBG_TRACE, "ATVV_CHAR_CTL notify disable\r\n");
             }          
+#endif
 #endif
 #endif
 #ifdef CFG_PROJ_TPPS    

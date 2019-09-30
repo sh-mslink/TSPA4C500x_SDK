@@ -44,10 +44,12 @@ void SystemInit (void)
 #endif
 
 #if CFG_FPGA
+	SCB->VTOR = CFG_BRAM_COLD_BOOT_ADDR & SCB_VTOR_TBLOFF_Msk; 
 	adi_tuner_start();
+#else
+	hal_global_pre_init();
 #endif
 
-	hal_global_pre_init();
 }
 /// @} HAL
 

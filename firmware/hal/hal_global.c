@@ -29,8 +29,11 @@
 #include ".\hal\hal_smem.h"
 #include ".\hal\hal_efuse.h"
 #include ".\hal\hal_gpio.h"
+#include ".\hal\hal_global.h"
 
 #include "..\rf\rf_int.h"
+
+#include "cmsis_os.h"
 
 /*
  * Debug
@@ -218,6 +221,9 @@ void hal_global_post_init(void)
 	hal_clk_rtc_en(CFG_RTC_EN);
 #endif
 
+	/// Disable BLE external wakeup (Software will wake it up)
+	aon_ble_ext_wup(0);
+	
 #if !CFG_HCI
     hal_global_debug_uart_init();
 #endif
@@ -251,7 +257,6 @@ void hal_global_sys_reset(void)
 	__set_PRIMASK(1);
 	__set_FAULTMASK(0);
 
-#if 1
 	// Switch RTC back to RC
 	aon_rc_rtc_sw(0);
 	for (int i = 0; i < (6*100); i++) {
@@ -260,24 +265,6 @@ void hal_global_sys_reset(void)
 	
 	// Reset...
 	aon_reset_chip();
-#else
-	// enable Power control
-	aon_deep_sleep_enable(1);
-	// enable wake up source
-	aon_sleep_timer_global_wup_enable();
-	
-	// Make sure it is cold boot
-	aon_write(AON_REG_CPU_PROGRAM_COUNTER_COLD_BOOT, 0); 
-
-	// enable sleep timer
-	aon_sleep_timer_disable(SLEEP_TIMER0_ID);
-	aon_sleep_timer_set_init_value(SLEEP_TIMER0_ID, (32*3));
-	aon_sleep_timer_wup_enable(SLEEP_TIMER0_ID);
-	aon_sleep_timer_enable(SLEEP_TIMER0_ID);
-
-	// enable sleep wake up	
-	chip_sleep();	
-#endif
 
 	// never return...
 }
@@ -292,8 +279,6 @@ static uint32_t systick_val;
 static uint32_t syspri2_val;
 static uint32_t syspri3_val;
 
-#define value_for_0x1080 0x407415
-
 void hal_global_suspend(void)
 {
 	boot_ram_entry_t entry = (boot_ram_entry_t)(BOOTRAM_CODE_START|1);		// 1 is for the thumb instruction
@@ -307,11 +292,8 @@ void hal_global_suspend(void)
 	syspri2_val = RD_WORD(0xE000ED1C);
 	syspri3_val = RD_WORD(0xE000ED20);
 
-	// UnGate RC32MHz; US RC 32M for DCDC during wakeup
-	aon_write(0x7100, aon_read(0x7100)&(0xfffff3ff));
-	// DCDC using RC		
-	aon_write(0x1080, value_for_0x1080 );
-
+	/// RF suspend
+	rf_int_suspend();
 }
 
 void hal_global_resume(void)
@@ -330,13 +312,8 @@ void hal_global_resume(void)
 	WR_WORD(0xE000ED1C, syspri2_val);
 	WR_WORD(0xE000ED20, syspri3_val);
 
-
-
-	// DC-DC clock using XO 
-	aon_write(0x1080,value_for_0x1080 |(1UL<<31));
-	// Gate RC 32MHz
-	aon_write(0x7100, (aon_read(0x7100)&(0xfffff3ff))|(0x2<<10));
-
+	/// RF resume
+	rf_int_resume();
 }
 #endif	// CFG_PM_EN
 

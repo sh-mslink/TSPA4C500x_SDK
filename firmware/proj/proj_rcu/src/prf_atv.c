@@ -10,6 +10,8 @@
 #include "prf_atv_task.h"
 
 
+#if (MSRCU_VOICE_ENABLE && MSRCU_BLE_VOICE_ATV_ENABLE)
+
 bool atvIsConnected = false;
 uint16_t g_AtvPrimarySvc_shl = 0;
 //uint16_t g_AtvSecondarySvc_shl = 0;
@@ -17,7 +19,7 @@ uint16_t g_AtvPrimarySvc_shl = 0;
 const inb_gatt_svc_desc_t g_AtvPrimarySvc =
 {
 	.start_hdl = 0,
-	.perm = 0x40,//UUID 128bit
+	.prop = 0x40,//UUID 128bit
 	.uuid = ATVV_SERVICE_UUID,
 	.nb_att = ATVV_IDX_NB,
 };
@@ -36,18 +38,18 @@ const inb_gatt_att_desc_t g_AtvPrimaryAtts[ATVV_IDX_NB] =
 	{
 		//.uuid = "\x02\x28",//INB_ATT_DECL_INCLUDE,
 		.uuid = "\x00\x28",//INB_ATT_DECL_PRIMARY_SERVICE,
-		.perm = INB_ATT_PERM_MASK_RD,
+		.prop = ATT_CHAR_PROP_READ,
 		//For Include Declaration, it contains the attribute value, which is include service start handler
 		//Other two info will be add by att in rsp pdu
 		//End Group Handle = include service end handler
 		//Service UUID = get by service start handler
 		.max_len = 0,
-		.ext_perm = 0x4000,//UUID 128bit
+		.ext_prop = 0x4000,//UUID 128bit
 	},
 	[ATVV_IDX_CHAR_TX] = 
 	{
 		.uuid = "\x03\x28",//INB_ATT_DECL_CHARACTERISTIC,
-		.perm = INB_ATT_PERM_MASK_RD,
+		.prop = ATT_CHAR_PROP_READ,
 		//For Characteristic Declaration, it contains attribute value, which is characteristic UUID.
 		//Other two info will be add by att in rsp pdu
 		//Characteristic Properties = perm & INB_ATT_PERM_MASK_PROP
@@ -55,82 +57,82 @@ const inb_gatt_att_desc_t g_AtvPrimaryAtts[ATVV_IDX_NB] =
 		//.max_len = 0xAA00,
 		//It's not used as 
 		.max_len = 0,
-		.ext_perm = 0,
+		.ext_prop = 0,
 	},
 	[ATVV_IDX_CHAR_TX_VAL] = 
 	{
 		.uuid = ATVV_CHAR_TX_UUID,
-		.perm = INB_ATT_PERM_MASK_WRITE_REQ,
+		.prop = ATT_CHAR_PROP_WRITE,
 		//it is max length of value.
 		//If ext_perm has RI set, read request indication will be triggered to get value, 
 		//or else, value present in database, put data at end of memory block. Attm will allocate memory 
 		//for having value in "service memory block". Ensure that size can be allocated into a 16 bits boundary ??
 		.max_len = 20,
-		.ext_perm = 0xC000,//UUID 128bit | INB_ATT_PERM_MASK_RI,
+		.ext_prop = 0xC000,//UUID 128bit | INB_ATT_PERM_MASK_RI,
 	},
 	[ATVV_IDX_CHAR_TX_USER_DESP] = 
 	{
 		.uuid = "\x01\x29",
-		.perm = INB_ATT_PERM_MASK_RD,
+		.prop = ATT_CHAR_PROP_READ,
 		//For Characteristic Extended Properties, this field contains 2 byte value
 		.max_len = 0,
-		.ext_perm = 0,
+		.ext_prop = 0,
 	},
 	[ATVV_IDX_CHAR_RX] = 
 	{
 		.uuid = "\x03\x28",
-		.perm = INB_ATT_PERM_MASK_RD,
+		.prop = ATT_CHAR_PROP_READ,
 		//Same as "Characteristic Value Declaration"
 		.max_len = 24,
-		.ext_perm = INB_ATT_PERM_MASK_RI,
+		.ext_prop = ATT_EXT_PROP_RI,
 	},
 	[ATVV_IDX_CHAR_RX_VAL] = 
 	{
 		.uuid = ATVV_CHAR_RX_UUID,
-		.perm = INB_ATT_PERM_MASK_NTF,
+		.prop = ATT_CHAR_PROP_NOTIFY,
 		// Not used Client Characteristic Configuration and Server Characteristic Configuration,
 		// this field is not used.
 		// Value is get always by RI. 
 		.max_len = 255,
-		.ext_perm = 0x4000,//UUID 128bit,
+		.ext_prop = 0x4000,//UUID 128bit,
 	},
 	[ATVV_IDX_CHAR_RX_CFG] = 
 	{
 		.uuid = "\x02\x29",
-		.perm = INB_ATT_PERM_MASK_RD | INB_ATT_PERM_MASK_WRITE_REQ,
+		.prop = ATT_CHAR_PROP_READ | ATT_CHAR_PROP_WRITE,
 		// Not used Client Characteristic Configuration and Server Characteristic Configuration,
 		// this field is not used.
 		// Value is get always by RI. Same as "DESC_CLIENT_CHAR_CFG"
 		.max_len = 255,
-		.ext_perm = 0,
+		.ext_prop = 0,
 	},
 	[ATVV_IDX_CHAR_CTL] = 
 	{
 		.uuid = "\x03\x28",
-		.perm = INB_ATT_PERM_MASK_RD,
+		.prop = ATT_CHAR_PROP_READ,
 		//Same as "Characteristic Value Declaration"
 		.max_len = 24,
-		.ext_perm = INB_ATT_PERM_MASK_RI,
+		.ext_prop = ATT_EXT_PROP_RI,
 	},
 	[ATVV_IDX_CHAR_CTL_VAL] = 
 	{
 		.uuid = ATVV_CHAR_CTL_UUID,
-		.perm = INB_ATT_PERM_MASK_NTF,
+		.prop = ATT_CHAR_PROP_NOTIFY,
 		// Not used Client Characteristic Configuration and Server Characteristic Configuration,
 		// this field is not used.
 		// Value is get always by RI. 
 		.max_len = 255,
-		.ext_perm = 0x4000,//UUID 128bit,
+		.ext_prop = 0x4000,//UUID 128bit,
 	},
 	[ATVV_IDX_CHAR_CTL_CFG] = 
 	{
 		.uuid = "\x02\x29",
-		.perm = INB_ATT_PERM_MASK_RD | INB_ATT_PERM_MASK_WRITE_REQ,
+		.prop = ATT_CHAR_PROP_READ | ATT_CHAR_PROP_WRITE,
 		// Not used Client Characteristic Configuration and Server Characteristic Configuration,
 		// this field is not used.
 		// Value is get always by RI. Same as "DESC_CLIENT_CHAR_CFG"
 		.max_len = 255,
-		.ext_perm = 0,
+		.ext_prop = 0,
 	},
 };
 
@@ -246,3 +248,4 @@ int atv_voice_char_ctl_send(int conIdx, uint8_t *buffer, uint8_t len)
     
     return res;
 }
+#endif

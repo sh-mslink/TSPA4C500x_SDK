@@ -1827,6 +1827,18 @@ int hal_clk_rtc_ready(void);
  */
 uint32_t hal_clk_rtc_get(void);
 
+/**
+ ****************************************************************************************
+ * @brief  Calibrate RC timer. 
+ *
+ * @param[in] cycles				Calibrate cycles (2 ^ cycles)
+ *
+ * @return NULL
+ ****************************************************************************************
+ */
+
+void hal_clk_calib_rc(int cycles);
+
 
 /// @} HAL_CLK
 

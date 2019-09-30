@@ -115,6 +115,23 @@ enum inb_anp_ntf_category_id_bits
     inb_char_desc_inf_t descs[2];
 } inb_anpc_service_info_t;*/
 
+typedef struct 
+{
+	///If the service is multi-instance
+	bool multi_instance;
+
+	/*The following params are for ANPS only*/
+	
+	///If let the service check whether encryption key size is 16bytes (more security).
+	bool check_enc_key_size;
+
+	/// Security Level, @see enum inb_att_svc_perm_mask
+	enum inb_att_perm sec_lvl;
+	
+	enum inb_anp_ntf_category_id_bits 	supp_new_alert_cat;
+	enum inb_anp_ntf_category_id_bits 	supp_unread_alert_cat;	
+} inb_anp_prf_t;
+
 /// Alert codes
 enum inb_anp_alert_type
 {
@@ -267,14 +284,170 @@ typedef union
  * APIs
  ****************************************************************************************
  */
-//int inb_anpc_add(inb_add_prf_t *p_prf);
-int inb_anpc_add(enum inb_att_svc_perm_mask secure_level);
 
-int inb_anps_add(	enum inb_att_svc_perm_mask 		secure_level, 
-					enum inb_anp_ntf_category_id_bits 	supp_new_alert_cat, 
-					enum inb_anp_ntf_category_id_bits 	supp_unread_alert_cat);
+
+/**
+ ****************************************************************************************
+ * @brief Add ANP Server Service 
+ *	
+ * @note Add it after device configuration, but before any activity starts
+ *
+ *
+ * @param[in] p_prf					Pointer to profile attributes, @see inb_anp_prf_t
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
+int inb_anps_add(inb_anp_prf_t *p_prf);
+
+/**
+***************************************************************************************************
+ @brief Enable ANP service.
+
+ @param[in]   	conidx: 	connection index
+
+ @note	It is called after connection or reconnection with a peer device has been established in order to restore 
+ 		previous config on that connection
+ @return	@see INB_ERR_NO_ERROR
+ 		@see INB_PLT_ERR_NOT_READY
+ 		@see INB_PLT_ERR_NO_MEM
+ **************************************************************************************************
+ */
+int inb_anps_enable(int conidx);
+
+/**
+ **************************************************************************************************
+ @brief  Send new alert notification or indication to peer device 
+
+ @param[in]   	conidx: 		connection index
+ @param[in]	alert_type:	alert type @see inb_anp_alert_type
+ @param[in]	value:		new alert or unread alert content @see inb_anp_notify_alert_value
+
+ @return	@see INB_ERR_NO_ERROR
+ 		@see INB_PLT_ERR_NOT_READY
+ 		@see INB_PLT_ERR_INVALID_PARAM
+ 		@see INB_PLT_ERR_NO_MEM
+ **************************************************************************************************
+ */ 
+int inb_anps_notify_alert(int conidx, enum inb_anp_alert_type alert_type, inb_anp_notify_alert_value value) ;
+
+/**
+ ****************************************************************************************
+ * @brief Add ANP Client Service 
+ *	
+ * @note Add it after device configuration, but before any activity starts
+ *
+ *
+ * @param[in] p_prf					Pointer to profile attributes, @see  inb_anp_prf_t
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
+int inb_anpc_add(inb_anp_prf_t *p_prf);
+
+/**
+***************************************************************************************************
+ @brief Enable ANP client.
+
+ @param[in]   	conidx: 	connection index
+
+ @note	It is called after connection or reconnection with a central device has been established 
+ @return	@see INB_ERR_NO_ERROR
+ 		@see INB_PLT_ERR_NOT_READY
+ 		@see INB_PLT_ERR_NO_MEM
+ **************************************************************************************************
+ */
+int inb_anpc_enable(int conidx);
+
+/**
+***************************************************************************************************
+ @brief Get ANP server supported category.
+
+ @param[in]   	conidx: 		connection index
+ @param[in]	alert_type:	alert type @see inb_anp_alert_type
+ @param[in]	p_supp_cat:	butter to receive @see inb_anp_ntf_category_id_bits
+
+ @note	It is called after connection or reconnection with a central device has been established 
+ @return	@see INB_ERR_NO_ERROR
+ 		@see INB_PLT_ERR_NOT_READY
+ 		@see INB_PLT_ERR_INVALID_PARAM
+ 		@see INB_PLT_ERR_NO_MEM
+ **************************************************************************************************
+ */
+int inb_anpc_get_ntf_supp_categroy(int conidx, enum inb_anp_alert_type alert_type, enum inb_anp_ntf_category_id_bits *p_supp_cat);
+
+/**
+***************************************************************************************************
+ @brief Get ANP server notification status.
+
+ @param[in]   	conidx: 			connection index
+ @param[in]	alert_type:		alert type @see inb_anp_alert_type
+ @param[in]	p_alert_ntf_cfg:	butter to receive @see inb_ntf_cfg
+
+ @note	It is called after connection or reconnection with a central device has been established 
+ @return	@see INB_ERR_NO_ERROR
+ 		@see INB_PLT_ERR_NOT_READY
+ 		@see INB_PLT_ERR_INVALID_PARAM
+ 		@see INB_PLT_ERR_NO_MEM
+ **************************************************************************************************
+ */
+int inb_anpc_get_ntf_status(int conidx, enum inb_anp_alert_type alert_type, enum inb_ntf_cfg *p_alert_ntf_cfg);
+
+/**
+***************************************************************************************************
+ @brief Get ANP server notification status.
+
+ @param[in]   	conidx: 			connection index
+ @param[in]	alert_type:		alert type @see inb_anp_alert_type
+ @param[in]	alert_ntf_cfg:		content to send @see inb_ntf_cfg
+
+ @note	It is called after connection or reconnection with a central device has been established 
+ @return	@see INB_ERR_NO_ERROR
+ 		@see INB_PLT_ERR_NOT_READY
+ 		@see INB_PLT_ERR_INVALID_PARAM
+ 		@see INB_PLT_ERR_NO_MEM
+ **************************************************************************************************
+ */
+int inb_anpc_set_ntf_status(int conidx, enum inb_anp_alert_type alert_type, enum inb_ntf_cfg alert_ntf_cfg);
+
+/**
+***************************************************************************************************
+ @brief Set ANP server notification status for individual category
+
+ @param[in]   	conidx: 			connection index
+ @param[in]	alert_type:		alert type @see inb_anp_alert_type
+ @param[in]	alert_ntf_cfg:		content to send @see inb_ntf_cfg
+
+ @note	It is called after connection or reconnection with a central device has been established 
+ @return	@see INB_ERR_NO_ERROR
+ 		@see INB_PLT_ERR_NOT_READY
+ 		@see INB_PLT_ERR_INVALID_PARAM
+ 		@see INB_PLT_ERR_NO_MEM
+ **************************************************************************************************
+ */
+int inb_anpc_set_ntf_cat_status(	int conidx,
+									enum inb_anp_alert_type alert_type, 
+									enum inb_anp_ntf_category_id_bits cat_id,
+									enum inb_ntf_cfg ntf_cfg);
 	
+/**
+***************************************************************************************************
+ @brief Ask ANP server to send notification immediately for individual category
 
+ @param[in]   	conidx: 			connection index
+ @param[in]	alert_type:		alert type @see inb_anp_alert_type
+ @param[in]	alert_ntf_cfg:		content to send @see inb_ntf_cfg
+
+ @note	It is called after connection or reconnection with a central device has been established 
+ @return	@see INB_ERR_NO_ERROR
+ 		@see INB_PLT_ERR_NOT_READY
+ 		@see INB_PLT_ERR_INVALID_PARAM
+ 		@see INB_PLT_ERR_NO_MEM
+ **************************************************************************************************
+ */
+int inb_anpc_req_ntf_immediately(	int conidx, 
+										enum inb_anp_alert_type alert_type, 
+										enum inb_anp_ntf_category_id_bits cat_id);
 /// @} INB_PRF_BAS
 
 #endif	/* INB_PRF_BAS_H */

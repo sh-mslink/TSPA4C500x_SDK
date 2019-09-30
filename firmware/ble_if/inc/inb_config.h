@@ -130,6 +130,8 @@
 
 #define BLE_LLCPTXBUF_NB        				(2*BLE_ACTIVITY_MAX)
 
+#define EM_BLE_TXDESC_INDEX(act_id, idx)      (BLE_NB_TX_DESC_PER_ACT * act_id + idx)
+
 /// Number of advertising data buffers
 #define BLE_ADV_BUF_NB_TX            			(CFG_BLE_ADV_BUF_NB_TX)//(BLE_ACTIVITY_MAX)
 
@@ -140,8 +142,7 @@
 #if !CFG_SDR
 #define BLE_ACL_BUF_NB_TX            			(BLE_ACTIVITY_MAX + 2)
 #else
-#define BLE_ACL_BUF_NB_TX            			((BLE_ACTIVITY_MAX + 2) + \
-																			(CFG_SDR_NB_TX_BUF))
+#define BLE_ACL_BUF_NB_TX            			((BLE_ACTIVITY_MAX + 2) + (CFG_SDR_NB_TX_BUF))
 #endif
 
 #if (BLE_OBSERVER)
@@ -171,6 +172,24 @@
 #define BLE_SMPC						0
 #define BLE_LECB						0
 #endif //(BLE_CENTRAL || BLE_PERIPHERAL)
+
+/// Prefetch time (in us)
+#define BLE_PREFETCH_TIME_US       (150)
+
+/// Prefetch Abort time (in us)
+/// (note 1: the prefetch abort time must be greater than prefetch time)
+/// (note 2: use less than IFS to ensure that two activities can be separated by an IFS time)
+#define BLE_PREFETCHABORT_TIME_US  (500)		// inplay
+
+/// Margin for event time reservation (in half-us)
+#define BLE_RESERVATION_TIME_MARGIN_HUS    (2 * BLE_PREFETCHABORT_TIME_US)
+
+/// Programming delay in half-slots
+#define LLD_PROG_DELAY          		6/*3*/		
+
+///The master should allow a minimum of 6 connection events that the slave will be listening
+///for before the instant occurs
+#define LLC_PROC_SWITCH_INSTANT_DELAY  (45)// (9)
 
 #if CFG_HCI
 void hci_enable(void);

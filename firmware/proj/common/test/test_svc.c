@@ -40,7 +40,7 @@ const inb_gatt_att_desc_t g_TestSecondaryAtts[] = {
 	[0] = 
 	{
 		.uuid = "\x03\x28",//INB_ATT_DECL_CHARACTERISTIC,
-		.perm = INB_ATT_PERM_MASK_RD,
+		.prop = ATT_CHAR_PROP_READ,
 		//For Characteristic Declaration, it contains attribute value, which is characteristic UUID.
 		//Other two info will be add by att in rsp pdu
 		//Characteristic Properties = perm & INB_ATT_PERM_MASK_PROP
@@ -48,18 +48,18 @@ const inb_gatt_att_desc_t g_TestSecondaryAtts[] = {
 		//.max_len = 0xAA00,
 		//It's not used as 
 		.max_len = 0,
-		.ext_perm = 0,
+		.ext_prop = 0,
 	},
 	[1] = 
 	{
 		.uuid = "\x00\xBA",//Need to be changed in different services
-		.perm = INB_ATT_PERM_MASK_RD | INB_ATT_PERM_MASK_WRITE_COMMAND | INB_ATT_PERM_MASK_WRITE_REQ,
+		.prop = ATT_CHAR_PROP_READ | ATT_CHAR_PROP_WRITE_NO_RSP | ATT_CHAR_PROP_WRITE,
 		//it is max length of value.
 		//If ext_perm has RI set, read request indication will be triggered to get value, 
 		//or else, value present in database, put data at end of memory block. Attm will allocate memory 
 		//for having value in "service memory block". Ensure that size can be allocated into a 16 bits boundary ??
 		.max_len = 24,
-		.ext_perm = INB_ATT_PERM_MASK_RI,
+		.ext_prop = ATT_EXT_PROP_RI,
 	},
 };
 
@@ -67,18 +67,18 @@ const inb_gatt_att_desc_t g_TestPrimaryAtts[] = {
 	[TEST_ATT_DECL_INCLUDE] = 
 	{
 		.uuid = "\x02\x28",//INB_ATT_DECL_INCLUDE,
-		.perm = INB_ATT_PERM_MASK_RD,
+		.prop = ATT_CHAR_PROP_READ,
 		//For Include Declaration, it contains the attribute value, which is include service start handler
 		//Other two info will be add by att in rsp pdu
 		//End Group Handle = include service end handler
 		//Service UUID = get by service start handler
 		.max_len = 0,
-		.ext_perm = 0,
+		.ext_prop = 0,
 	},
 	[TEST_ATT_DECL_CHARACTERISTIC_AA] = 
 	{
 		.uuid = "\x03\x28",//INB_ATT_DECL_CHARACTERISTIC,
-		.perm = INB_ATT_PERM_MASK_RD,
+		.prop = ATT_CHAR_PROP_READ,
 		//For Characteristic Declaration, it contains attribute value, which is characteristic UUID.
 		//Other two info will be add by att in rsp pdu
 		//Characteristic Properties = perm & INB_ATT_PERM_MASK_PROP
@@ -86,83 +86,83 @@ const inb_gatt_att_desc_t g_TestPrimaryAtts[] = {
 		//.max_len = 0xAA00,
 		//It's not used as 
 		.max_len = 0,
-		.ext_perm = INB_ATT_PERM_MASK_EXT,
+		.ext_prop = ATT_EXT_PROP_EKS,
 	},
 	[TEST_ATT_CHAR_VAL_AA] = 
 	{
 		.uuid = "\x00\xAA",//Need to be changed in different services
-		.perm = INB_ATT_PERM_MASK_RD |INB_ATT_PERM_MASK_WRITE_COMMAND | INB_ATT_PERM_MASK_WRITE_REQ | INB_ATT_PERM_MASK_IND | INB_ATT_PERM_MASK_NTF,
+		.prop = ATT_CHAR_PROP_READ | ATT_CHAR_PROP_WRITE_NO_RSP | ATT_CHAR_PROP_WRITE | ATT_CHAR_PROP_INDICATE | ATT_CHAR_PROP_NOTIFY,
 		//it is max length of value.
 		//If ext_perm has RI set, read request indication will be triggered to get value, 
 		//or else, value present in database, put data at end of memory block. Attm will allocate memory 
 		//for having value in "service memory block". Ensure that size can be allocated into a 16 bits boundary ??
 		.max_len = 10,
-		.ext_perm = INB_ATT_PERM_MASK_RI,
+		.ext_prop = ATT_EXT_PROP_RI,
 	},
 	[TEST_ATT_DESC_CHAR_EXT_PROPERTIES] = 
 	{
 		.uuid = "\x00\x29",//INB_ATT_DESC_CHAR_EXT_PROPERTIES,
-		.perm = INB_ATT_PERM_MASK_RD,
+		.prop = ATT_CHAR_PROP_READ,
 		//For Characteristic Extended Properties, this field contains 2 byte value
 		.max_len = 0x55aa,
-		.ext_perm = 0,
+		.ext_prop = 0,
 	},
 	[TEST_ATT_DESC_CHAR_USER_DESCRIPTION] = 
 	{
 		.uuid = "\x01\x29",//INB_ATT_DESC_CHAR_USER_DESCRIPTION,
-		.perm = INB_ATT_PERM_MASK_RD | INB_ATT_PERM_MASK_WRITE_COMMAND | INB_ATT_PERM_MASK_WRITE_REQ,
+		.prop = ATT_CHAR_PROP_READ | ATT_CHAR_PROP_WRITE_NO_RSP | ATT_CHAR_PROP_WRITE,
 		//Same as "Characteristic Value Declaration"
 		.max_len = 24,
-		.ext_perm = INB_ATT_PERM_MASK_RI,
+		.ext_prop = ATT_EXT_PROP_RI,
 	},
 	[TEST_ALL_DESC_CLIENT_CHAR_CFG] = 
 	{
 		.uuid = "\x02\x29",//INB_ATT_DESC_SERVER_CHAR_CFG,
-		.perm = INB_ATT_PERM_MASK_RD | INB_ATT_PERM_MASK_WRITE_COMMAND | INB_ATT_PERM_MASK_WRITE_REQ,
+		.prop = ATT_CHAR_PROP_READ | ATT_CHAR_PROP_WRITE_NO_RSP | ATT_CHAR_PROP_WRITE,
 		// Not used Client Characteristic Configuration and Server Characteristic Configuration,
 		// this field is not used.
 		// Value is get always by RI. 
 		.max_len = 0,
-		.ext_perm = 0,
+		.ext_prop = 0,
 	},
 	[TEST_ATT_DESC_SERVER_CHAR_CFG] = 
 	{
 		.uuid = "\x03\x29",//INB_ATT_DESC_SERVER_CHAR_CFG,
-		.perm = INB_ATT_PERM_MASK_RD | INB_ATT_PERM_MASK_WRITE_REQ,
+		.prop = ATT_CHAR_PROP_READ | ATT_CHAR_PROP_WRITE,
 		// Not used Client Characteristic Configuration and Server Characteristic Configuration,
 		// this field is not used.
 		// Value is get always by RI. Same as "DESC_CLIENT_CHAR_CFG"
 		.max_len = 0,
-		.ext_perm = 0,
+		.ext_prop = 0,
 	},
 	[TEST_ATT_DESC_CHAR_PRES_FORMAT] = 
 	{
 		.uuid = "\x04\x29",//INB_ATT_DESC_CHAR_PRES_FORMAT,
-		.perm = INB_ATT_PERM_MASK_RD,
+		.prop = ATT_CHAR_PROP_READ,
 		//Same as "Characteristic Value Declaration"
 		.max_len = 2,
-		.ext_perm = INB_ATT_PERM_MASK_RI,
+		.ext_prop = ATT_EXT_PROP_RI,
 	},	
 	[TEST_ATT_DESC_CHAR_AGGREGATE_FORMAT] = 
 	{
 		.uuid = "\x05\x29",//INB_ATT_DESC_CHAR_AGGREGATE_FORMAT,
-		.perm = INB_ATT_PERM_MASK_RD,
+		.prop = ATT_CHAR_PROP_READ,
 		//Same as "Characteristic Value Declaration"
 		.max_len = 2,
-		.ext_perm = INB_ATT_PERM_MASK_RI,
+		.ext_prop = ATT_EXT_PROP_RI,
 	},
 };
 
 const inb_gatt_svc_desc_t g_TestSecondarySvc = {
 	.start_hdl = 0,
-	.perm = INB_ATT_PERM_MASK_SVC_SECONDARY,
+	.prop = ATT_SVC_PROP_SECONDARY,
 	.uuid = "\x00\xB0",
 	.nb_att = 2,
 };
 
 const inb_gatt_svc_desc_t g_TestPrimarySvc = {
 	.start_hdl = 0,
-	.perm = 0,//(0x02 << INB_ATT_PERM_POS_SVC_AUTH) & INB_ATT_PERM_MASK_SVC_AUTH,
+	.prop = 0,//(0x02 << INB_ATT_PERM_POS_SVC_AUTH) & INB_ATT_PERM_MASK_SVC_AUTH,
 	.uuid = "\x00\xA0",
 	.nb_att = 8,
 };

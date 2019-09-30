@@ -395,16 +395,22 @@ typedef struct
 
 typedef struct 
 {
+	///If the service is multi-instance
+	bool multi_instance;
+
+	/*The following params are for HOGPD only*/
+	
+	///If let the service check whether encryption key size is 16bytes (more security).
+	bool check_enc_key_size;
+
 	/// Security Level, @see enum inb_att_svc_perm_mask
-    uint8_t  sec_lvl;
-    /// Service start handle
-    /// 0: dynamically allocated in Attribute database
-    uint16_t start_hdl;
-    /// Number of HIDS to add
-    uint8_t hids_nb;
-    /// Initial configuration for each HIDS instance
-    inb_hogpd_cfg_t cfg[INB_HOGPD_NB_HIDS_INST_MAX];
-} inb_hogpd_prf_t;
+	enum inb_att_perm sec_lvl;
+
+	/// Number of HIDS to add
+	uint8_t hids_nb;
+	/// Initial configuration for each HIDS instance
+	inb_hogpd_cfg_t cfg[INB_HOGPD_NB_HIDS_INST_MAX];
+} inb_hogp_prf_t;
 
 /// HID Report Info
 typedef struct 
@@ -634,12 +640,12 @@ typedef struct
  * @note Add it after device configuration, but before any activity starts
  *
  *
- * @param[in] p_prf					Pointer to profile attributes, no paramters
+ * @param[in] p_prf					Pointer to profile attributes, @see inb_hogp_prf_t
  *
  * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
  ****************************************************************************************
  */
-int inb_hogpbh_add(inb_add_prf_t *p_prf);
+int inb_hogpbh_add(inb_hogp_prf_t *p_prf);
 
 /**
  ****************************************************************************************
@@ -704,12 +710,12 @@ int inb_hogpbh_write_req(int conidx, int hid_idx, int info, int wr_cmd, inb_hogp
  * @note Add it after device configuration, but before any activity starts
  *
  *
- * @param[in] p_prf					Pointer to profile attributes, @see inb_hogpd_prf_t
+ * @param[in] p_prf					Pointer to profile attributes, @see inb_hogp_prf_t
  *
  * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
  ****************************************************************************************
  */
-int inb_hogpd_add(inb_add_prf_t *p_prf)	;
+int inb_hogpd_add(inb_hogp_prf_t *p_prf);
 
 /**
  ****************************************************************************************
@@ -783,12 +789,12 @@ int inb_hogpd_proto_mode_req_cfm(int conidx, int status, int hid_idx, int proto_
  * @note Add it after device configuration, but before any activity starts
  *
  *
- * @param[in] p_prf					Pointer to profile attributes, no parameters
+ * @param[in] p_prf					Pointer to profile attributes, @see inb_hogp_prf_t
  *
  * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
  ****************************************************************************************
  */
-int inb_hogprh_add(inb_add_prf_t *p_prf);
+int inb_hogprh_add(inb_hogp_prf_t *p_prf);
 
 /**
  ****************************************************************************************

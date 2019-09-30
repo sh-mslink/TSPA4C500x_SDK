@@ -33,6 +33,9 @@
 
 #include "..\bootloader\inc\boot_share.h"
 
+#include "..\rf\rf_int.h"
+
+
 /*
  * Global Variables
  ****************************************************************************************
@@ -41,18 +44,61 @@
 typedef struct {
 	int rtc_ready;
 	uint32_t rtc_clk;	
+	//uint32_t rtc_clk0;	
+	float rtc_clk0;	
 } clk_dev_t;
 
 static clk_dev_t g_clk = {0};
 
-static void aon_reg_slp_opt()
+/*
+ * Isr
+ ****************************************************************************************
+ */
+
+__irq void Calib_Handler()
 {
-// sleep current optimization
-#define value_for_0x1080 0x407415
-	aon_write(0x1080, (value_for_0x1080 |(1U<<31)));
-	aon_write(0x1084,0x402413);	
-	aon_write(0x1088,0x637);
+	uint32_t val, cal_result;
+
+	val = RD_WORD(0x44125004);
+	cal_result = val & 0x3fffffff;
+	val &= ~(0x1 << 30);
+	WR_WORD(0x44125004, val); // clear the cal result
+
+#if 1
+	__nop();
+	__nop();
+	__nop();
+	__nop();
+	__nop();
+	__nop();
+	__nop();
+	__nop();
+	__nop();
+	__nop();
+	__nop();
+	__nop();
+	__nop();
+	__nop();
+	__nop();
+	__nop();
+#endif
+
+	uint32_t freq=((uint32_t)(32000000.0 / (cal_result/524288.)));
+	if (g_clk.rtc_clk0 == 0)
+		g_clk.rtc_clk0 = freq;
+	else 
+		g_clk.rtc_clk0=  g_clk.rtc_clk0 *3.0/4.0 + freq/4.0;
+
+	g_clk.rtc_clk = (((uint32_t) (g_clk.rtc_clk0*(1+1*760.0/1e6))) + 8) >> 4 ;
+
+	//g_clk.rtc_clk = ((uint32_t)(32000000.0 / (cal_result/32768.)));
+	g_clk.rtc_ready = 1;
+
+	// kick start calibration again
+	hal_clk_calib_rc(6);
+	
 }
+
 
 /*
  * Call Back
@@ -64,14 +110,15 @@ static void rtc_call_back(void *arg)
 	/// This is a call back from timer (after 1 second) which indicate RTC should be ready.
 	pd->rtc_ready = 1; 
 
-	/// Sleep current optimized
-	aon_reg_slp_opt();
+	/// RTC Sleep current optimized
+	rf_int_aon_reg_slp_opt(1);
 
 	/// Switch to RTC
 	aon_rc_rtc_sw(1);
+
 	/// Change Timer 2 clock source to Rtc
-	if (CFG_TIM2_CLK_RTC)
-		hal_clk_tim2_set(CFG_TIM2_CLK_RTC);
+	if (CFG_RTC_EN)
+		hal_clk_tim2_set(CFG_RTC_EN);
 }
 
 /*
@@ -156,9 +203,11 @@ uint32_t hal_clk_d0_get(void)
 		clk /= 4;
 	else
 		clk /= 8;
-       #if CFG_FPGA	
-        clk = 32000000;
-       #endif
+
+#if CFG_FPGA	
+	clk = 32000000;
+#endif
+
 	return clk;
 }
 
@@ -206,9 +255,10 @@ uint32_t hal_clk_d1_get(void)
 		clk /= 4;
 	else
 		clk /= 8;
-       #if CFG_FPGA	
-        clk = 16000000;
-       #endif
+
+#if CFG_FPGA	
+	clk = 16000000;
+#endif
 	return clk;
 }
 
@@ -260,9 +310,9 @@ uint32_t hal_clk_d2_get(void)
 		clk /= 4;
 	else 
 		clk /= 8;
-       #if CFG_FPGA	
-        clk = 32000000;
-       #endif
+#if CFG_FPGA	
+	clk = 32000000;
+#endif
 	return clk;
 }
 
@@ -676,11 +726,17 @@ void hal_clk_calib_xo(void)
 
 }
 
-void hal_clk_calib_rtc(void)
+void hal_clk_calib_rc(int cycles)
 {
-	/// TODO: RC calibration
+	uint32_t val;
 
-	g_clk.rtc_clk = CFG_RTC_CLK;
+	WR_WORD(0x44125004, 0);
+	val = cycles | (1<<4); // Number of slow clk cycles to be calibrated (2 to the power this number);      
+	WR_WORD(0x44125000, val); // start the calibration
+
+	/// Result in the interrupt service routine
+
+	return;
 }
 
 void hal_clk_rtc_en(int en)
@@ -695,7 +751,6 @@ void hal_clk_rtc_en(int en)
 		/// Set the RTC calue
 		if (efuse_get_rtc_installed()) {
 			if (efuse_rtc_32khz_clk()) {
-		
 				g_clk.rtc_clk = 32000;
 			} else {
 				g_clk.rtc_clk = 32768;
@@ -706,10 +761,22 @@ void hal_clk_rtc_en(int en)
 			} 
 		}
 	} else {
-		/// RC - TODO
-		/// Sleep current optimized
-		aon_reg_slp_opt();
-		hal_clk_calib_rtc();
+		/// Turn on calibration clock
+		clk_calib_en(1);
+
+		/// RC Sleep current optimized
+		rf_int_aon_reg_slp_opt(0);
+
+		/// Calib rc			
+		hal_clk_calib_rc(8);
+		/// Enable RC calibration interrupt
+		NVIC_ClearPendingIRQ(Calib_IRQn);
+		NVIC_SetPriority(Calib_IRQn, IRQ_PRI_Normal);	
+		NVIC_EnableIRQ(Calib_IRQn);
+
+		/// Wait for end of calibration
+		while (!g_clk.rtc_ready);
+		
 	}
 }
 

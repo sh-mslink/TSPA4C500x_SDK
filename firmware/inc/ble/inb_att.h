@@ -43,6 +43,7 @@
  */
 
 /**
+ * Attributes properties
  *
  * Bit [0-1]  : Read Permission         (0 = NO_AUTH, 1 = UNAUTH, 2 = AUTH, 3 = SEC_CON)
  * Bit [2-3]  : Write Permission        (0 = NO_AUTH, 1 = UNAUTH, 2 = AUTH, 3 = SEC_CON)
@@ -58,81 +59,81 @@
  * Bit [14]   : Write Signed accepted
  * Bit [15]   : Extended properties present (only relevant for a characteristic value)
  */
-enum inb_att_perm_mask
-{
-    /// retrieve all permission info
-    INB_ATT_PERM_MASK_ALL            = 0x0000,
-    /// Read Permission Mask
-    INB_ATT_PERM_MASK_RP             = 0x0003,
-    INB_ATT_PERM_POS_RP              = 0,
-    /// Write Permission Mask
-    INB_ATT_PERM_MASK_WP             = 0x000C,
-    INB_ATT_PERM_POS_WP              = 2,
-    /// Indication Access Mask
-    INB_ATT_PERM_MASK_IP            = 0x0030,
-    INB_ATT_PERM_POS_IP             = 4,
-    /// Notification Access Mask
-    INB_ATT_PERM_MASK_NP            = 0x00C0,
-    INB_ATT_PERM_POS_NP             = 6,
-    /// Broadcast descriptor present
-    INB_ATT_PERM_MASK_BROADCAST     = 0x0100,
-    INB_ATT_PERM_POS_BROADCAST      = 8,
-    /// Read Access Mask
-    INB_ATT_PERM_MASK_RD            = 0x0200,
-    INB_ATT_PERM_POS_RD             = 9,
-    /// Write Command Enabled attribute Mask
-    INB_ATT_PERM_MASK_WRITE_COMMAND = 0x0400,
-    INB_ATT_PERM_POS_WRITE_COMMAND  = 10,
-    /// Write Request Enabled attribute Mask
-    INB_ATT_PERM_MASK_WRITE_REQ     = 0x0800,
-    INB_ATT_PERM_POS_WRITE_REQ      = 11,
-    /// Notification Access Mask
-    INB_ATT_PERM_MASK_NTF           = 0x1000,
-    INB_ATT_PERM_POS_NTF            = 12,
-    /// Indication Access Mask
-    INB_ATT_PERM_MASK_IND           = 0x2000,
-    INB_ATT_PERM_POS_IND            = 13,
-    /// Write Signed Enabled attribute Mask
-    INB_ATT_PERM_MASK_WRITE_SIGNED  = 0x4000,
-    INB_ATT_PERM_POS_WRITE_SIGNED   = 14,
-    /// Extended properties descriptor present
-    INB_ATT_PERM_MASK_EXT           = 0x8000,
-    INB_ATT_PERM_POS_EXT            = 15,
 
-    /// Properties
-    INB_ATT_PERM_MASK_PROP          = 0xFF00,
-    INB_ATT_PERM_POS_PROP           = 8,
+enum inb_att_perm
+{
+	ATT_PERM_NO_AUTH,
+	ATT_PERM_UNAUTH,
+	ATT_PERM_AUTH,
+	ATT_PERM_SEC_CON,
 };
 
+enum inb_att_perm_prop
+{
+	/// Read Permission Mask
+	ATT_PERM_READ_MASK             = 0x0003,
+	ATT_PERM_READ_SHIFT              = 0,
+	/// Write Permission Mask
+	ATT_PERM_WRITE_MASK            = 0x000C,
+	ATT_PERM_WRITE_SHIFT             = 2,
+	/// Indication Access Mask
+	ATT_PERM_IND_MASK            = 0x0030,
+	ATT_PERM_IND_SHIFT             = 4,
+	/// Notification Access Mask
+	ATT_PERM_NTF_MASK           = 0x00C0,
+	ATT_PERM_NTF_SHIFT             = 6,
+};
+
+enum inb_att_char_prop
+{
+	/// Broadcast descriptor present
+	ATT_CHAR_PROP_BROADCAST     = 0x0100,
+	/// Read Access Mask
+	ATT_CHAR_PROP_READ            = 0x0200,
+	/// Write Command Enabled attribute Mask
+	ATT_CHAR_PROP_WRITE_NO_RSP = 0x0400,
+	/// Write Request Enabled attribute Mask
+	ATT_CHAR_PROP_WRITE     = 0x0800,
+	/// Notification Access Mask
+	ATT_CHAR_PROP_NOTIFY           = 0x1000,
+	/// Indication Access Mask
+	ATT_CHAR_PROP_INDICATE           = 0x2000,
+	/// Write Signed Enabled attribute Mask
+	ATT_CHAR_PROP_WRITE_SIGNED  = 0x4000,
+	/// Extended properties descriptor present
+	ATT_CHAR_PROP_EXT           = 0x8000,
+};
+
+
 /**
- * Value permission bit field
+ * Extended properties bit field
  *
  * Bit [0-11] : Maximum Attribute Length or Value Offset pointer
  * Bit [12]   : Encryption key Size must be 16 bytes
  * Bit [14-13]: UUID Length             (0 = 16 bits, 1 = 32 bits, 2 = 128 bits, 3 = RFU)
  * Bit [15]   : Trigger Read Indication (0 = Value present in Database, 1 = Value not present in Database)
  */
-enum inb_att_value_perm_mask
+enum inb_att_ext_prop
 {
-    /// Maximum Attribute Length
-    INB_ATT_PERM_MASK_MAX_LEN     = 0x0FFF,
-    INB_ATT_PERM_POS_MAX_LEN      = 0,
-    /// Attribute value Offset
-    INB_ATT_PERM_MASK_VAL_OFFSET  = 0x0FFF,
-    INB_ATT_PERM_POS_VAL_OFFSET   = 0,
-    /// Check Encryption key size Mask
-    INB_ATT_PERM_MASK_EKS         = 0x1000,
-    INB_ATT_PERM_POS_EKS          = 12,
-    /// UUID Length
-    INB_ATT_PERM_MASK_UUID_LEN    = 0x6000,
-    INB_ATT_PERM_POS_UUID_LEN     = 13,
-    /// Read trigger Indication
-    INB_ATT_PERM_MASK_RI          = 0x8000,
-    INB_ATT_PERM_POS_RI           = 15,
+	/// Maximum Attribute Length
+	ATT_EXT_PROP_MAX_LEN     = 0x0FFF,
+	ATT_EXT_PROP_MAX_LEN_SHIFT      = 0,
+	/// Attribute value Offset
+	ATT_EXT_PROP_VAL_OFFSET  = 0x0FFF,
+	ATT_EXT_PROP_VAL_OFFSET_SHIFT   = 0,
+	/// Check Encryption key size Mask
+	ATT_EXT_PROP_EKS         = 0x1000,
+	ATT_EXT_PROP_EKS_SHIFT          = 12,
+	/// UUID Length
+	ATT_EXT_PROP_UUID_LEN    = 0x6000,
+	ATT_EXT_PROP_UUID_LEN_SHIFT     = 13,
+	/// Read trigger Indication
+	ATT_EXT_PROP_RI          = 0x8000,
+	ATT_EXT_PROP_RI_SHIFT           = 15,
 };
 
 /**
- * Service permissions
+ * Service properties
  *
  * Bit [1]  : Encryption key Size must be 16 bytes
  * Bit [2-3]: Service Permission      (0 = NO_AUTH, 1 = UNAUTH, 2 = AUTH, 3 = Secure Connect)
@@ -140,23 +141,23 @@ enum inb_att_value_perm_mask
  * Bit [5-6]: UUID Length             (0 = 16 bits, 1 = 32 bits, 2 = 128 bits, 3 = RFU)
  * Bit [7]  : Secondary Service       (0 = Primary Service, 1 = Secondary Service)
  */
-enum inb_att_svc_perm_mask
+enum inb_att_svc_prop
 {
     /// Check Encryption key size for service Access
-    INB_ATT_PERM_MASK_SVC_EKS       = 0x02,
-    INB_ATT_PERM_POS_SVC_EKS        = 1,
+    ATT_SVC_PROP_EKS       = 0x02,
+    ATT_SVC_PROP_EKS_SHIFT        = 1,
     /// Service Permission authentication
-    INB_ATT_PERM_MASK_SVC_AUTH      = 0x0C,
-    INB_ATT_PERM_POS_SVC_AUTH       = 2,
+    ATT_SVC_PROP_AUTH      = 0x0C,
+    ATT_SVC_PROP_AUTH_SHIFT       = 2,
     /// Disable the service
-    INB_ATT_PERM_MASK_SVC_DIS       = 0x10,
-    INB_ATT_PERM_POS_SVC_DIS        = 4,
+    ATT_SVC_PROP_DIS       = 0x10,
+    ATT_SVC_PROP_DIS_SHIFT        = 4,
     /// Service UUID Length
-    INB_ATT_PERM_MASK_SVC_UUID_LEN  = 0x60,
-    INB_ATT_PERM_POS_SVC_UUID_LEN   = 5,
+    ATT_SVC_PROP_UUID_LEN  = 0x60,
+    ATT_SVC_PROP_UUID_LEN_SHIFT   = 5,
     /// Service type Secondary
-    INB_ATT_PERM_MASK_SVC_SECONDARY = 0x80,
-    INB_ATT_PERM_POS_SVC_SECONDARY  = 7,
+    ATT_SVC_PROP_SECONDARY = 0x80,
+    ATT_SVC_PROP_SECONDARY_SHIFT  = 7,
 };
 
 /// Common 16-bit Universal Unique Identifier

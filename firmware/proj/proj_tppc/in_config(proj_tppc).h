@@ -22,8 +22,10 @@
 /// [0:3]: Pin number
 /// [4:7]: Port number
 /// [8:11]: mux number
-/// [12:15]: oe/ie
-/// [16:19]: pu/pd
+/// [12]: oe
+/// [13]: ie
+/// [16]: pd
+/// [17]: pu
 /// [20]: Output
 /// [21]: wup
 /// [22]: Latch
@@ -47,9 +49,9 @@
 #define BOARD_GPIO_2_0	0x00022020
 #define BOARD_GPIO_2_1	0x00121021
 #define BOARD_GPIO_2_2	0x00022022
-#define BOARD_GPIO_2_3	0x00121123
+#define BOARD_GPIO_2_3	0x00021123
 #define BOARD_GPIO_2_4	0x00111424
-#define BOARD_GPIO_2_5	0x00122125
+#define BOARD_GPIO_2_5	0x00022125
 #define BOARD_GPIO_2_6	0x00022026
 #define BOARD_GPIO_2_7	0x00022427
 #define BOARD_GPIO_2_8	0x00022628
@@ -82,9 +84,9 @@
 #define BOARD_GPIO_2_0	0x00121020
 #define BOARD_GPIO_2_1	0x00022021
 #define BOARD_GPIO_2_2	0x00022022
-#define BOARD_GPIO_2_3	0x00121123
+#define BOARD_GPIO_2_3	0x00021123
 #define BOARD_GPIO_2_4	0x00111424
-#define BOARD_GPIO_2_5	0x00122125
+#define BOARD_GPIO_2_5	0x00022125
 #define BOARD_GPIO_2_6	0x00022026
 #define BOARD_GPIO_2_7	0x00022427
 #define BOARD_GPIO_2_8	0x00022628
@@ -101,11 +103,13 @@
 /// @Misc::TSPA4C500x
 #define CFG_TSPA4C500x	1
 #define CFG_FPGA	0
+/// @Misc::OTA
+#define CFG_FW_UPD_EN	0
 /// @Misc::PM
 #define CFG_PM_EN	1
 #define CFG_PM_DEEP_SLEEP_THRD	5
 #define CFG_PM_DEEP_SLEEP_COMP_TIME	2000
-#define CFG_PM_WUP_SLP_TMR	0
+#define CFG_PM_WUP_SLP_TMR	1
 #define CFG_PM_WUP_BLE	1
 #define CFG_PM_WUP_BROWN_OUT	0
 #define CFG_PM_WUP_MIX_SIGNAL	0
@@ -135,7 +139,6 @@
 #define CFG_D1_CLK	32000000
 #define CFG_D2_CLK	32000000
 #define CFG_TIM1_CLK	16000000
-#define CFG_TIM2_CLK_RTC	1
 #define CFG_HWACC_CLK	32000000
 #define CFG_SADC_CLK	1000000
 #define CFG_EFUSE_CLK	8000000
@@ -152,13 +155,13 @@
 #define CFG_SMEM_BLE_RETN_EN	1
 #define CFG_SMEM_ANT_RX_DATA	0
 #define CFG_SMEM_ANT_RX_DATA_RETN_EN	0
-#define CFG_SMEM_AUDIO_RX	0x80400800
+#define CFG_SMEM_AUDIO_RX	0
 #define CFG_SMEM_AUDIO_RX_RETN_EN	0
-#define CFG_SMEM_AUDIO_TX	0x88400800
+#define CFG_SMEM_AUDIO_TX	0
 #define CFG_SMEM_AUDIO_TX_RETN_EN	0
 #define CFG_SMEM_HW_ACCEL_INST	0
 #define CFG_SMEM_HW_ACCEL_INST_RETN_EN	0
-#define CFG_SMEM_SADC	0x90400040
+#define CFG_SMEM_SADC	0
 #define CFG_SMEM_SADC_RETN_EN	0
 #define CFG_SMEM_AHB_TRIG	0x00000040
 #define CFG_SMEM_AHB_TRIG_RETN_EN	1
@@ -196,6 +199,7 @@
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+#define CFG_BRAM_RAM_APP_EN	0
 #define CFG_BRAM_RAM_APP_FLASH_ADDR	0x0
 #define CFG_BRAM_RAM_APP_RAM_ADDR	0x0
 #define CFG_BRAM_RAM_APP_SIZE	0x0
@@ -232,8 +236,10 @@
 /// [0:3]: Pin number
 /// [4:7]: Port number
 /// [8:11]: mux number
-/// [12:15]: oe/ie
-/// [16:19]: pu/pd
+/// [12]: oe
+/// [13]: ie
+/// [16]: pd
+/// [17]: pu
 /// [20]: Output
 /// [21]: wup
 /// [22]: Latch
@@ -287,6 +293,7 @@
 #define CFG_BLE_PARAM_LPC_32K_EN	0
 #define CFG_BLE_PARAM_CODED_PHY_500_EN	0
 #define CFG_BLE_PARAM_SLEEP_EN	1
+#define CFG_BLE_ADV_NO_DELAY_EN	1
 #define CFG_BLE_PARAM_WL_MAX	4
 #define CFG_BLE_PARAM_RAL_MAX	3
 #define CFG_BLE_PARAM_DUP_FILT_MAX	10
@@ -300,20 +307,20 @@
 #define CFG_BLE_ADV_BUF_NB_TX	(CFG_CON)
 #define CFG_BLE_PARAM_P256_PUB_KEY_VALID	0
 #define CFG_BLE_PARAM_P256_PUB_KEY	\
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
 #define CFG_BLE_PARAM_P256_PRIV_KEY_VALID	0
 #define CFG_BLE_PARAM_P256_PRIV_KEY	\
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
 #define CFG_BLE_PARAM_TRACE_EN	0
 #define CFG_BLE_PARAM_TRACE_FLAG	0
 #define CFG_BLE_STK_MEM_EN	1
@@ -334,10 +341,8 @@
 /// @BLE::DEV
 #define CFG_BLE_DEV_PRIVACY	0x00
 #define CFG_BLE_DEV_RENEW_DURATION	41400
+#define CFG_BLE_DEV_IDENTITY_ADDR	0	///Public address
 #define CFG_BLE_DEV_STATIC_ADDR	0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-#define CFG_BLE_DEV_IRK	\
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
 #define CFG_BLE_DEV_PAIR_MODE	0x01
 #define CFG_BLE_DEV_GAP_START_HANDLE	0
 #define CFG_BLE_DEV_GATT_START_HANDLE	0
@@ -359,6 +364,8 @@
 #define CFG_BLE_DEV_SLV_PREF_LATENCY	0x00f9
 #define CFG_BLE_DEV_SLV_PREF_SUP_TO	0x0258
 #define CFG_BLE_DEV_WL_NB	0
+#define CFG_BLE_DEV_PSM_NB	0
+#define CFG_BLE_DEV_PSM_PARAMSS	
 #define CFG_PRF_ANPC	0
 #define CFG_PRF_ANPS	0
 #define CFG_PRF_BASC	0

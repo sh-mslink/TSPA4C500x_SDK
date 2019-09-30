@@ -277,7 +277,7 @@ static void i2c_dma_callback(int id, void *arg, int status)
 {
 	i2c_dev_t *pd = (i2c_dev_t *)arg;
 
-	if (status == DMA_STATUS_COMPLETE) {
+	if (status & DMA_IT_STATUS_TFR) {
 		pd->error = I2C_ERR_OK;
 	} else {
 		pd->error = I2C_ERR_DMA_FAIL;

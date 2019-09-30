@@ -149,18 +149,24 @@ typedef struct
 /// Parameters for the database creation
 typedef struct 
 {
+	///If the service is multi-instance
+	bool multi_instance;
+
+	/*The following params are for ANPS only*/
+	
+	///If let the service check whether encryption key size is 16bytes (more security).
+	bool check_enc_key_size;
+
 	/// Security Level, @see enum inb_att_svc_perm_mask
-    uint8_t  sec_lvl;
-    /// Service start handle
-    /// 0: dynamically allocated in Attribute database
-    uint16_t start_hdl;
-    /// Number of BAS to add
-    uint8_t bas_nb;
-    /// Features of each BAS instance, @see enum inb_bass_features
-    uint8_t features[INB_BASS_INSTANCES_MAX];
-    /// Battery Level Characteristic Presentation Format - Should not change during connection
-    inb_char_pres_fmt_t batt_level_pres_format[INB_BASS_INSTANCES_MAX];
-} inb_bass_prf_t;
+	enum inb_att_perm sec_lvl;
+
+	/// Number of BAS to add
+	uint8_t bas_nb;
+	/// Features of each BAS instance, @see enum inb_bass_features
+	uint8_t features[INB_BASS_INSTANCES_MAX];
+	/// Battery Level Characteristic Presentation Format - Should not change during connection
+	inb_char_pres_fmt_t batt_level_pres_format[INB_BASS_INSTANCES_MAX];
+} inb_bas_prf_t;
 
 /// Parameters of the @ref BASS_ENABLE_REQ message
 typedef struct 
@@ -184,12 +190,12 @@ typedef struct
  * @note Add it after device configuration, but before any activity starts
  *
  *
- * @param[in] p_prf					Pointer to profile attributes, no paramters. 
+ * @param[in] p_prf					Pointer to profile attributes, @see  inb_bas_prf_t
  *
  * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
  ****************************************************************************************
  */
-int inb_basc_add(inb_add_prf_t *p_prf);
+int inb_basc_add(inb_bas_prf_t *p_prf);
 
 /**
  ****************************************************************************************
@@ -245,12 +251,12 @@ int inb_basc_ntf_req(uint8_t conidx, uint8_t bas_nb, uint16_t ntf_cfg);
  * @note Add it after device configuration, but before any activity starts
  *
  *
- * @param[in] p_prf					Pointer to profile attributes, @see inb_bass_prf_t
+ * @param[in] p_prf					Pointer to profile attributes, @see inb_bas_prf_t
  *
  * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
  ****************************************************************************************
  */
-int inb_bass_add(inb_add_prf_t *p_prf);
+int inb_bass_add(inb_bas_prf_t *p_prf);
 
 /**
  ****************************************************************************************

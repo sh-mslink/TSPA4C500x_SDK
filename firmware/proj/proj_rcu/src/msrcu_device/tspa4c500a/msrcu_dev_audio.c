@@ -253,7 +253,7 @@ static void msrcu_dev_audio_task(const void *arg)
             
             case AUDIO_ATV_AUDIO_START://ATVV_CHAR_CTL_AUDIO_START
             {
-                if( BLE_STATE_READY == msrcu_dev_ble_get_state())
+                if(BLE_STATE_READY == msrcu_dev_ble_get_state())
                 {
                     uint8_t cmd[ATVV_CHAR_CTL_AUDIO_START_LEN] = {0};
                     cmd[0] = ATVV_CHAR_CTL_AUDIO_START_CMD;

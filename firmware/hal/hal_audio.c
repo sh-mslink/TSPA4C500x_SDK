@@ -54,6 +54,7 @@ typedef enum {
 #define AUDIO_I2S_CLK									16000000
 #define CTLT_AUTX_CLK_RATE						2000000.0f
 #define AUDIO_TX_CLK_RATE							16000000.0f
+#define AUDIO_ENC_
 //static const int RX_PDM_CIC_DEC_FACTOR[7] = {20, 16, 10, 8, 5, 4, 2};
 static const uint32_t RX_PDM_CIC_DEC_OFFSET[7] = {80000, 32768, 5000, 2048, 313, 128, 8};
 static const uint8_t RX_PDM_CIC_DEC_SHIFT[7] = {0, 1, 4, 5, 8, 9, 13};
@@ -141,6 +142,7 @@ typedef struct {
 	// User status control
 	uint8_t enc_used;
 	audio_status_t status;
+	uint8_t isCalibrated;
 	
 	osMutexId mutex;
 	osSemaphoreId semaphore; 
@@ -188,8 +190,6 @@ osMutexDef(rx_mutex);
 osSemaphoreDef(rx_semaphore);
 osMutexDef(tx_mutex);
 osSemaphoreDef(tx_semaphore);
-
-
 static int audio_rx_set_filterpath(int is_pdm, float in_rate, float out_rate);
 /*
  ****************************************************************************************
@@ -248,6 +248,124 @@ static uint32_t hal_audio_calc_tx_num(float in_rate) {
 	float result = AUDIO_TX_CLK_RATE / in_rate;
 	return ((uint32_t)(result*1000) == ((uint32_t)result*1000)) ? 1 : (uint32_t)in_rate;			// account for float precision
 }
+static void hal_audio_enc_pdm_dc_offset_cal_get_samples(int num_bytes_per_frame, int isStereo, uint8_t *bufL, uint8_t *bufR) {
+	if(isStereo) {
+		uint8_t buf[512];
+		for(int i = 0; i < num_bytes_per_frame; i++)
+			buf[i] = audio_rx_dma_read();		
+		
+		int x = 0;
+		int indL = 0, indR = 0;
+		for(int i = 0; i < 3; i++)
+			bufL[indL++] = buf[x++];
+		for(int i = 0; i < 3; i++)
+			bufR[indR++] = buf[x++];
+		for(int i = 0; i < num_bytes_per_frame - 6; i++) {
+			if(i % 2 == 0)
+				bufL[indL++] = buf[x++];
+			else
+				bufR[indR++] = buf[x++];			
+		}
+	}
+	else {
+		for(int i = 0; i < num_bytes_per_frame; i++)
+			bufL[i] = audio_rx_dma_read();
+	}
+}
+
+static float hal_audio_enc_pdm_dc_offset_cal_calc(int num_bytes_per_frame, uint8_t *buf) {	
+	float sum = 0;
+	int i = 0;
+	char tmp_data;	
+
+	long step; /* Quantizer step size */
+	signed long predsample; /* Output of ADPCM predictor */
+	signed long diffq; /* Dequantized predicted difference */
+	int index; /* Index into step size table */
+
+	int Samp;
+	unsigned char inCode;
+	static int indexTable[16] = { -1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4,	6, 8, };
+
+	static int stepsizeTable[89] = { 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 21,
+	23, 25, 28, 31, 34, 37, 41, 45, 50, 55, 60, 66, 73, 80, 88, 97, 107,
+	118, 130, 143, 157, 173, 190, 209, 230, 253, 279, 307, 337, 371, 408,
+	449, 494, 544, 598, 658, 724, 796, 876, 963, 1060, 1166, 1282, 1411,
+	1552, 1707, 1878, 2066, 2272, 2499, 2749, 3024, 3327, 3660, 4026, 4428,
+	4871, 5358, 5894, 6484, 7132, 7845, 8630, 9493, 10442, 11487, 12635,
+	13899, 15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794, 32767 }; 
+
+	predsample = buf[0] + buf[1] * 256;	
+	index = buf[2];
+	int numSamples = (num_bytes_per_frame - 3) * 2;
+
+	if (predsample > 32767)
+			predsample -= 65536;
+	sum += predsample;
+
+	for (i = 0; i < numSamples; i++) {
+			tmp_data = buf[(i / 2) + 3];
+			if (i % 2 == 1)
+					inCode = (tmp_data & 0xf0) >> 4;
+			else
+					inCode = tmp_data & 0x0f;
+
+			step = stepsizeTable[index];
+
+			diffq = step >> 3;
+			if (inCode & 4)
+					diffq += step;
+			if (inCode & 2)
+					diffq += step >> 1;
+			if (inCode & 1)
+					diffq += step >> 2;
+
+			if (inCode & 8)
+					predsample -= diffq;
+			else
+					predsample += diffq;
+			/* Check for overflow of the new predicted sample */
+			if (predsample > 32767)
+					predsample = 32767;
+			else if (predsample < -32768)
+					predsample = -32768;
+			/* Find new quantizer stepsize index by adding the old index
+			 to a table lookup using the ADPCM code */
+			index += indexTable[inCode];
+			/* Check for overflow of the new quantizer step size index */
+			if (index < 0)
+					index = 0;
+			if (index > 88)
+					index = 88;
+			/* Return the new ADPCM code */
+			Samp = predsample;
+			sum += Samp;
+	}
+	sum /= (float)(numSamples + 1);
+
+	return sum;
+}
+
+static float hal_audio_enc_pdm_dc_offset_cal_calc_mean(int num_bytes_per_frame, int isStereo) {
+	uint8_t bufL[512], bufR[512];	
+	hal_audio_enc_pdm_dc_offset_cal_get_samples(num_bytes_per_frame, isStereo, bufL, bufR);
+	if(isStereo) {
+		float left = hal_audio_enc_pdm_dc_offset_cal_calc(num_bytes_per_frame/2, bufL);
+		float right = hal_audio_enc_pdm_dc_offset_cal_calc(num_bytes_per_frame/2, bufR);
+		return (left + right) / 2;
+	}
+	else
+		return hal_audio_enc_pdm_dc_offset_cal_calc(num_bytes_per_frame, bufL);
+}
+
+static void hal_audio_enc_pdm_dc_offset_feedback(uint32_t error) {	
+	uint8_t shift = audio_rx_get_cic_shift();	
+	uint32_t old_offset = audio_rx_get_dc_off();
+	uint16_t gain = audio_rx_get_gain_left();
+	uint32_t new_offset = old_offset + (2 * error * 64 / pow(2, shift) / gain);
+	audio_rx_set_dc_off(new_offset);
+}
+	
 #if 0
 // Separate memory locations of RX/TX buffers
 static void hal_audio_rx_tx_mem_setup() {
@@ -429,7 +547,8 @@ static int audio_enc_pin_mux_disable() {
 	}
 	else return AUDIO_ERR_DEV_BAD_STATE;
 	
-	hal_clk_audio_en(0);
+	if(audio_rx_dev.enc_used == 0 && audio_tx_dev.dec_used == 0 && audio_tx_dev.resample_used == 0)
+		clk_audio_en(0);
 	
 	return AUDIO_ERR_OK;
 }
@@ -558,7 +677,8 @@ static int audio_dec_pin_mux_disable() {
 	}
 	else return AUDIO_ERR_DEV_BAD_STATE;
 	
-	hal_clk_audio_en(0);
+	if(audio_rx_dev.enc_used == 0 && audio_tx_dev.dec_used == 0 && audio_tx_dev.resample_used == 0)
+		clk_audio_en(0);
 	
 	return AUDIO_ERR_OK;
 }
@@ -630,6 +750,10 @@ static int hal_audio_rx_apply_config() {
 		audio_rx_pdm_init_clk1(pd->pdm_clk_period, pd->pdm_l_core, pd->pdm_r_core);		
 		//audio_rx_pdm_enable();//move to hal_audio_encode_start, don't sleep in power up function.
 		//osDelay(500);
+	
+		/* aurx_ctrl0: config RX PDM filtering */
+		if(!pd->isCalibrated)													// Only apply default DC Offset values if user has not calibrated
+			audio_rx_pdm_cic_init(pd->pdm_cic_dec, RX_PDM_CIC_DEC_OFFSET[pd->pdm_cic_dec], RX_PDM_CIC_DEC_SHIFT[pd->pdm_cic_dec]);
 	}
 	else {
 		audio_rx_in_format_i2s();		
@@ -656,9 +780,6 @@ static int hal_audio_rx_apply_config() {
 		audio_rx_i2s_byp_all_disable();
 	else
 		audio_rx_i2s_byp_all_enable();
-	
-	/* aurx_ctrl0: config RX filtering */
-	audio_rx_pdm_cic_init(pd->pdm_cic_dec, RX_PDM_CIC_DEC_OFFSET[pd->pdm_cic_dec], RX_PDM_CIC_DEC_SHIFT[pd->pdm_cic_dec]);
 	
 	audio_rx_set_aenc_max_addr();
 	
@@ -912,6 +1033,7 @@ int hal_audio_enc_open() {
 	// User status control
 	pd->enc_used = 1;	
 	pd->status = AUDIO_ERR_OK;
+	pd->isCalibrated = 0;
 	
 	//RX Path control
 	pd->in_format = ENC_INPUT_PDM;
@@ -1112,7 +1234,8 @@ int hal_audio_enc_close() {
 #endif
 	
 	audio_enc_pin_mux_disable();
-    clk_audio_en(0);
+	if(audio_rx_dev.enc_used == 0 && audio_tx_dev.dec_used == 0 && audio_tx_dev.resample_used == 0)
+		clk_audio_en(0);
 
 
 	return AUDIO_ERR_OK;
@@ -1140,7 +1263,8 @@ int hal_audio_dec_close() {
 #endif
 	
 	audio_dec_pin_mux_disable();
-       clk_audio_en(0);
+	if(audio_rx_dev.enc_used == 0 && audio_tx_dev.dec_used == 0 && audio_tx_dev.resample_used == 0)
+		clk_audio_en(0);
 
 	return AUDIO_ERR_OK;
 }
@@ -1170,7 +1294,8 @@ int hal_audio_resample_close() {
 #endif
 	
 	audio_dec_pin_mux_disable();
-        clk_audio_en(0);
+	if(audio_rx_dev.enc_used == 0 && audio_tx_dev.dec_used == 0 && audio_tx_dev.resample_used == 0)
+		clk_audio_en(0);
 
 	return AUDIO_ERR_OK;
 }
@@ -1246,6 +1371,8 @@ int hal_audio_enc_set_config(int is_pdm, int is_I2S_master, float in_rate, float
 	//RX Path control
 	pd->in_format = (is_pdm) ? ENC_INPUT_PDM : ENC_INPUT_I2S;
 	pd->i2s_core = (is_I2S_master) ? MASTER : SLAVE;
+	if(is_pdm)		
+		pd->pdm_clk_period = (64000000 / in_rate) - 1;
 	//audio_rx_set_filterpath(is_pdm, in_rate, out_rate);//move to hal_audio_rx_apply_config
 	
 	//RX Path control - PDM Mic CLK - User must set separately
@@ -1352,6 +1479,44 @@ int hal_audio_resample_set_config(float in_rate, float out_rate, int is_stereo, 
 	return AUDIO_ERR_OK;
 }
 
+int hal_audio_enc_pdm_dc_offset_cal(int bytes_per_frame, int is_stereo, int num_frames_skip, int num_frames_samp) {
+	audio_rx_dev_t* pd = &audio_rx_dev;
+	if(!pd->enc_used)
+		return AUDIO_ERR_NOT_INIT;
+
+	osMutexWait(pd->mutex, osWaitForever);	
+	
+	pd->isCalibrated = 1;
+	
+	float error = 0;
+	int loops = 0;
+	int sum = 0;
+	int done = 0;
+	
+	hal_audio_encode_start();	
+	while(!done) {
+		while(audio_get_aenc_bytes_in_ram() < bytes_per_frame);
+		uint32_t num_bytes_encoded = audio_get_aenc_bytes_in_ram();
+		error = hal_audio_enc_pdm_dc_offset_cal_calc_mean(bytes_per_frame, is_stereo);
+		
+		if(loops >= num_frames_skip) {
+			sum += error;
+			if(loops >= num_frames_skip + num_frames_samp) {
+				sum /= num_frames_samp;
+				hal_audio_enc_pdm_dc_offset_feedback(sum);
+				done = 1;
+			}
+		}
+		loops++;
+	}
+	
+	hal_audio_encode_stop();	
+	
+	osMutexRelease(pd->mutex);	
+	
+	return AUDIO_ERR_OK;
+}
+
 // START 
 int hal_audio_encode_start() {
 	audio_rx_dev_t* pd = &audio_rx_dev;
@@ -1371,7 +1536,7 @@ int hal_audio_encode_start() {
     //audio_rx_enable_clk();
     if (pd->in_format == ENC_INPUT_PDM) {
         audio_rx_pdm_enable();
-        osDelay(500);	
+        //osDelay(500);	
     }
     audio_rx_enable_rd_dma_ack();
 

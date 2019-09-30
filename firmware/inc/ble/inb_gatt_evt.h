@@ -31,9 +31,11 @@
 
 /// Events defines for GATT
 enum inb_gatt_evt{
+	/// GATT MTU exchange indicator	
+	GATT_EVT_MTU_XCHG_IND = GATT_EVT_CODE +1,
 	
 	/// GATT service found indication	
-	GATT_EVT_DISC_SVC = GATT_EVT_CODE +1,
+	GATT_EVT_DISC_SVC,
 
 	/// GATT include service found indication	
 	GATT_EVT_DISC_INCL_SVC,
@@ -64,8 +66,19 @@ enum inb_gatt_evt{
 
 	/// GATT SDP Service indication
 	GATT_EVT_SDP_SVC,
+
+	/// GATT Read Response indication
+	GATT_EVT_RD_RSP_IND,
 };
 
+/// Discover Service indication Structure
+typedef struct 
+{
+	/// Connection index
+	uint8_t conidx;
+    /// exchange mtu value
+    uint16_t mtu;
+} inb_evt_mtu_xchg_ind_t;
 
 /// Discover Service indication Structure
 typedef struct 
@@ -267,6 +280,20 @@ typedef struct
     sdp_att_info_t info[];
 } inb_evt_sdp_svc_ind_t;
 
+/// Gatt read response indicator
+typedef struct
+{
+	/// Connection index
+	uint8_t conidx;
+    /// Attribute handle
+    uint16_t handle;
+    /// Read offset
+    uint16_t offset;
+    /// Read length
+    uint16_t length;
+    /// Read value
+    uint8_t value[];
+} inb_evt_read_rsp_ind_t;
 
 /// @} INB_GATT
 

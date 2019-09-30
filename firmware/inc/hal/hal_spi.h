@@ -820,6 +820,13 @@ int hal_spi_rx_dma(void *h, int cs, int speed, int phase, int polarity, int dfs,
 int hal_spi_trx_dma(void *h, int cs, int speed, int phase, int polarity, int dfs, void *wbuf, void *rbuf, uint16_t buffer_len);
 
 
+/**
+ * Experimental slave SPI API 
+ */
+int hal_spi_slv_tx(void *hdl, int cs, int speed, int phase, int polarity, int dfs, void *buffer, uint16_t buffer_len, uint16_t *tx_len);
+int hal_spi_slv_rx(void *hdl, int cs, int speed, int phase, int polarity, int dfs, void *buffer, uint16_t buffer_len, uint16_t *rx_len);
+int hal_spi_slv_stop(void *hdl);
+int hal_spi_busy(void *hdl);
 /// @} HAL_SPI
 
 #endif	// HAL_SPI_H

@@ -13,7 +13,7 @@
 #ifndef IN_VERSION_H
 #define IN_VERSION_H
 
-#define IN_SDK_VER	"1.0.14"
+#define IN_SDK_VER	"1.0.16"
 
 
 #endif

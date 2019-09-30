@@ -162,6 +162,10 @@ enum i2s_error {
 	I2S_ERR_RX_OV = -4,
 	/// Error. I2S channel TX overflow.
 	I2S_ERR_TX_OV = -5,
+	/// Error. DMA is not available.
+	I2S_ERR_DMA_NOT_AVAIL = -6,
+	/// Error. DMA tranfer.
+	I2S_ERR_DMA_TRAN = -7,
 } ;
 
 /*
@@ -397,6 +401,11 @@ static __inline void i2s_sd_oe(int id, int ch_id, int oe)
 	WR_WORD(GLOBAL_REG_I2S_OEN_CTRL, reg); 
 }
 
+static __inline void i2s_txdma_start(uint32_t base)
+{
+	WR_WORD((base + I2S_REG_TXDMA_OFS), 0);
+}
+
 /*
  * APIs 
  ****************************************************************************************
@@ -457,7 +466,6 @@ int hal_i2s_close(void *hdl) ;
  *											only 1 channel.
  * @param[in] dir 					Direction, @see enum i2s_ch_dir.  Each channel can be either TX or RX.  
  * @param[in] ch_word_sz		Each channel's left and right word size, @see enum i2s_ch_word_sz.
- * @param[in] type				Data type, @see enum i2s_type.
  * @param[in] buffer0			Pointer to the first buffer. Can be either 16 or 32 bits buffer depends on the 
  *											word size. 
  * @param[in] buffer1			Pointer to the second buffer. The same as buffer 0.
@@ -472,7 +480,7 @@ int hal_i2s_close(void *hdl) ;
  *
  ****************************************************************************************
  */
-int hal_i2s_ch_en(void *hdl, int ch_id, int dir, int ch_word_sz, int type, void *buffer0, void *buffer1, uint16_t buffer_len, void *arg, void (*callback)(void * arg, int id, int status) );
+int hal_i2s_ch_en(void *hdl, int ch_id, int dir, int ch_word_sz, void *buffer0, void *buffer1, uint16_t buffer_len, void *arg, void (*callback)(void * arg, int id, int status) );
 
 /**
  ****************************************************************************************
@@ -486,4 +494,5 @@ int hal_i2s_ch_en(void *hdl, int ch_id, int dir, int ch_word_sz, int type, void 
  ****************************************************************************************
  */
 int hal_i2s_ch_dis(void *hdl, int ch_id);
+
 #endif

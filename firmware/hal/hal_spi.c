@@ -79,6 +79,7 @@ typedef struct {
 	uint16_t rxbuf_len;
 	uint16_t rxbuf_ofs;
 
+	char slv_stop;
 #if CFG_PM_EN
 	int pm_state;
 	struct pm_module pmd;
@@ -344,6 +345,7 @@ static void spi_isr(spi_dev_t *pd)
 		if (pd->rxbuf_ofs >= pd->rxbuf_len) {	
 			// we are done...
 			spi_intr_mask(pd->base, SPI_IT_RXF|SPI_IT_RXO|SPI_IT_RXU);
+			pd->slv_stop = 1;
 			osSemaphoreRelease(pd->h_sma);
 		} else {
 			// Handle left over
@@ -360,6 +362,7 @@ static void spi_isr(spi_dev_t *pd)
 
 		spi_intr_mask(pd->base, SPI_IT_RXF|SPI_IT_RXO|SPI_IT_RXU);
 		pd->error = SPI_ERR_RX_OV;
+		pd->slv_stop = 1;
 		osSemaphoreRelease(pd->h_sma);
 	}
 
@@ -370,6 +373,7 @@ static void spi_isr(spi_dev_t *pd)
 
 		spi_intr_mask(pd->base, SPI_IT_RXF|SPI_IT_RXO|SPI_IT_RXU);
 		pd->error = SPI_ERR_RX_UN;
+		pd->slv_stop = 1;
 		osSemaphoreRelease(pd->h_sma);
 	}
 
@@ -379,6 +383,7 @@ static void spi_isr(spi_dev_t *pd)
 
 		spi_intr_mask(pd->base, SPI_IT_TXE);
 		pd->error = SPI_ERR_TX_OV;
+		pd->slv_stop = 1;
 		osSemaphoreRelease(pd->h_sma);
 	}
 
@@ -388,6 +393,7 @@ static void spi_isr(spi_dev_t *pd)
 			spi_intr_mask(pd->base, SPI_IT_TXE|SPI_IT_TXO);
 
 			if (!pd->rxbuf) {	// Not a TRX 
+				pd->slv_stop = 1;
 				osSemaphoreRelease(pd->h_sma);
 			}
 		} else {
@@ -454,7 +460,7 @@ void spi_dma_isr_cb(int id, void *arg,  int status)
 {
 	spi_dev_t *pd = (spi_dev_t *)arg;
 
-	if (status == DMA_STATUS_ERROR)
+	if (status & DMA_IT_STATUS_ERR)
 		pd->error = SPI_ERR_DMA_ERROR;
 
 	osSemaphoreRelease(pd->h_sma);
@@ -1189,6 +1195,242 @@ out:
 
 		spi_rxdma_disable(pd->base);	
 	}
+
+#if CFG_PM_EN
+	pd->pm_state = PM_DEEP_SLEEP;
+#endif
+
+	osMutexRelease(pd->h_mu);
+
+	return pd->error;
+}
+
+
+static void spi_slv_finish(spi_dev_t *pd)
+{
+	int poll_count = 0; 										
+
+	// Done, wait for not busy
+	while(1) {
+		uint32_t status = spi_sr(pd->base);
+		if ( !(status & SPI_SR_BUSY))
+			break;
+		osDelay(1);
+		poll_count += 1;
+		if (poll_count > 5) {
+			pd->error = SPI_ERR_RESET;
+			break;
+		}	
+	}
+	spi_disable(pd->base);		
+
+	if (pd->error == SPI_ERR_RESET) {
+		spi_reset(pd->id);
+	}
+}
+int hal_spi_slv_tx(void *hdl, int cs, int speed, int phase, int polarity, int dfs, void *buffer, uint16_t buffer_len, uint16_t *tx_len)
+{
+	spi_dev_t *pd = (spi_dev_t *)hdl;
+
+	if (!pd)
+		return SPI_ERR_INVALID_PARAM;	
+	
+	if (!pd->used)
+		return SPI_ERR_INVALID_OPER;
+
+	if (!buffer)
+		return SPI_ERR_INVALID_PARAM;	
+
+	if (buffer_len == 0)
+		return SPI_ERR_INVALID_PARAM;	
+
+	if (cs == 1)
+		cs = 3;
+
+	osMutexWait(pd->h_mu, osWaitForever);
+
+	// Configure SPI	
+	spi_disable(pd->base);
+	spi_ctl0(pd->base, SPI_STD_FMT, SPI_TMOD_TX_ONLY, dfs, phase, polarity);
+	if (pd->id == MSPI_ID) {
+		spi_baud_rate(pd->base, hal_clk_d0_get(), speed); 
+		spi_ser(pd->base, 0, cs);
+	}
+	spi_intr_clr(pd->base);
+	spi_intr_mask(pd->base, SPI_IT_ALL);
+	int tx_tl;
+	if (buffer_len < SPI_TX_TL)
+		tx_tl = buffer_len;
+	else
+		tx_tl = SPI_TX_TL;
+	spi_txftl(pd->base, tx_tl);
+	spi_enable(pd->base);	
+
+	pd->dfs = dfs;
+
+	pd->rxbuf = NULL;
+	pd->rxbuf_len = 0;
+	pd->rxbuf_ofs = 0;
+
+	pd->txbuf = buffer;
+	pd->txbuf_len = buffer_len;
+	pd->txbuf_ofs = 0;
+	pd->error = SPI_ERR_OK;
+	pd->slv_stop = 0;
+	// Unmask interrupt
+	spi_intr_unmask(pd->base, SPI_IT_TXE|SPI_IT_TXO);
+	NVIC_SetPriority(pd->irq, IRQ_PRI_High);	
+	NVIC_EnableIRQ(pd->irq);
+
+	// Select Slave...Start transfer
+	if (pd->id == MSPI_ID) 
+		spi_ser(pd->base, 1, cs);
+
+#if CFG_PM_EN
+	pd->pm_state = PM_SLEEP;
+#endif
+
+	//osSemaphoreWait(pd->h_sma, osWaitForever);
+	while(!(spi_sr(pd->base) & SPI_SR_BUSY)  &&  (pd->slv_stop == 0));
+	while((spi_sr(pd->base) & SPI_SR_BUSY) && (pd->slv_stop == 0));
+	// Disable interrupt
+	spi_intr_mask(pd->base, SPI_IT_TXE|SPI_IT_TXO);
+	NVIC_DisableIRQ(pd->irq);
+	if (tx_len) {
+		*tx_len = pd->txbuf_ofs - spi_txfl(pd->base);
+	}
+	// Done, disable SPI
+	spi_slv_finish(pd);
+
+#if CFG_PM_EN
+	pd->pm_state = PM_DEEP_SLEEP;
+#endif
+
+	osMutexRelease(pd->h_mu);
+
+	return pd->error;
+}
+int hal_spi_busy(void *hdl)
+{
+	spi_dev_t *pd = (spi_dev_t *)hdl;
+	if (!pd)
+		return 0;
+	uint32_t status = spi_sr(pd->base);
+
+	return RD_WORD(pd->base + SPI_REG_SSIEN_OFS) && ((status & SPI_SR_BUSY) )  ; 
+}
+int hal_spi_slv_stop(void *hdl)
+{
+	spi_dev_t *pd = (spi_dev_t *)hdl;
+	pd->slv_stop = 1;
+}
+int hal_spi_slv_rx(void *hdl, int cs, int speed, int phase, int polarity, int dfs, void *buffer, uint16_t buffer_len, uint16_t *rx_len)
+{
+	spi_dev_t *pd = (spi_dev_t *)hdl;
+
+	if (!pd)
+		return SPI_ERR_INVALID_PARAM;	
+
+	if (!pd->used)
+		return SPI_ERR_INVALID_OPER;
+
+	if (!buffer)
+		return SPI_ERR_INVALID_PARAM;	
+
+	if (buffer_len == 0)
+		return SPI_ERR_INVALID_PARAM;	
+
+	if (cs == 1)
+		cs = 3;
+
+	osMutexWait(pd->h_mu, osWaitForever);
+
+	// Configure SPI		
+	spi_disable(pd->base);
+	spi_ctl0(pd->base, SPI_STD_FMT, SPI_TMOD_RX_ONLY, dfs, phase, polarity);
+	if (pd->id == MSPI_ID) {
+		spi_baud_rate(pd->base, hal_clk_d0_get(), speed); 
+		spi_ndf(pd->base, (buffer_len - 1));
+		spi_ser(pd->base, 0, cs);
+	}
+	spi_intr_clr(pd->base);
+	spi_intr_mask(pd->base, SPI_IT_ALL);
+	int rx_tl;
+	if (buffer_len < SPI_RX_TL)
+		rx_tl = buffer_len;
+	else
+		rx_tl = SPI_RX_TL;
+	spi_rxftl(pd->base, (rx_tl-1));
+	spi_enable(pd->base);	
+
+	pd->dfs = dfs;
+
+	pd->rxbuf = buffer;
+	pd->rxbuf_len = buffer_len;
+	pd->rxbuf_ofs = 0;
+
+	pd->txbuf = NULL;
+	pd->txbuf_len = 0;
+	pd->txbuf_ofs = 0;
+	pd->error = SPI_ERR_OK;
+	pd->slv_stop = 0;
+	// Unmask interrupt
+	spi_intr_unmask(pd->base, SPI_IT_RXU|SPI_IT_RXO|SPI_IT_RXF);
+	NVIC_SetPriority(pd->irq, IRQ_PRI_High);	
+	NVIC_EnableIRQ(pd->irq);
+
+	/// Select Slave...Start transfer
+	if (pd->id == MSPI_ID) {
+		spi_dr_write(pd->base, 0);
+		spi_ser(pd->base, 1, cs);
+	}
+
+#if CFG_PM_EN
+	pd->pm_state = PM_SLEEP;
+#endif
+	
+	while(!(spi_sr(pd->base) & SPI_SR_BUSY)  &&  (pd->slv_stop == 0));
+	while((spi_sr(pd->base) & SPI_SR_BUSY) && (pd->slv_stop == 0));
+	// Disable interrupt
+	spi_intr_mask(pd->base, SPI_IT_RXU|SPI_IT_RXO|SPI_IT_RXF);
+	NVIC_DisableIRQ(pd->irq);
+
+
+	if (pd->rxbuf_ofs < buffer_len) {
+		uint32_t ofs = pd->rxbuf_ofs;
+		uint32_t rxfl = spi_rxfl(pd->base); 
+
+		// Read the FIFO
+		if (pd->dfs <= SPI_DFS_8_BITS) {
+			uint8_t *buf = (uint8_t *)pd->rxbuf;
+			for (int i = 0; i < rxfl; i++) {
+				buf[ofs++] = (uint8_t)spi_dr_read(pd->base);
+				if (ofs >= pd->rxbuf_len)
+					break;								
+			}
+		} else if (pd->dfs <= SPI_DFS_16_BITS) {
+			uint16_t *buf = (uint16_t *)pd->rxbuf;
+			for (int i = 0; i < rxfl; i++) {
+				buf[ofs++] = (uint16_t)spi_dr_read(pd->base);
+				if (ofs >= pd->rxbuf_len)
+					break;								
+			}
+		} else {
+			uint32_t *buf = (uint32_t *)pd->rxbuf;
+			for (int i = 0; i < rxfl; i++) {
+				buf[ofs++] = spi_dr_read(pd->base);
+				if (ofs >= pd->rxbuf_len)
+					break;								
+			}
+		}		
+		pd->rxbuf_ofs = ofs;
+	}
+	if (rx_len != NULL) {
+		*rx_len = pd->rxbuf_ofs;
+	}	
+	/// Done, disable SPI
+	spi_slv_finish(pd);
+
 
 #if CFG_PM_EN
 	pd->pm_state = PM_DEEP_SLEEP;

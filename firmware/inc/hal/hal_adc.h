@@ -331,5 +331,20 @@ int hal_adc_auto_mode_stop(adc_dev_t* dev);
  * @return @see enum adc_error for return code.
  * */
 int hal_adc_set_ref(adc_dev_t* dev, int ref);//todo 
+
+/** 
+ * @brief read temperature. Need burn calibration value to efuse first.
+ * @param[in] dev   ADC device struct.
+ * @param[in] pval  temperature
+ * @return @see enum adc_error for return code.
+ * */
+int hal_adc_measure_temp(adc_dev_t* dev, int32_t* pval);
+/** 
+ * @brief read VBAT. Need burn calibration value to efuse first.
+ * @param[in] dev   ADC device struct.
+ * @param[in] pval  VBAT
+ * @return @see enum adc_error for return code.
+ * */
+int hal_adc_measure_vbat(adc_dev_t* dev, int32_t* pval);
 #endif
 

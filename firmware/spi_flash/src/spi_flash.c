@@ -7,7 +7,7 @@
  *
  * @brief Platform SPI Flash functions  
  *
- * Copyright (C) Inplay Technologies Inc. 2018-2020
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
  *
  ****************************************************************************************
  */
@@ -56,7 +56,11 @@
 #define SPI_PROG_SPEED		2000000
 #define SPI_READ_SIZE			64	// avoid overflow
 #define SPI_PROG_SIZE			64	// avoid overflow
+#if CFG_FPGA
+#define SPI_SS						1
+#else
 #define SPI_SS						0
+#endif
 #define FLASH_MANU_ID			0x85
 #define FLASH_DEVICE_ID		0x12
 #define FLASH_PAGE_SIZE		256
@@ -641,13 +645,16 @@ void spi_flash_read(uint32_t addr, uint8_t *data, uint32_t data_len)
 {
 	int nbytes;
 
+	// note: assume data_len is 4 bytes align
+
 	while (data_len) {
 		if (data_len >= SPI_READ_SIZE)
 			nbytes = SPI_READ_SIZE;
 		else
 			nbytes = data_len;				
-		
+
 		read_data(addr, data, nbytes);
+
 		addr += nbytes;
 		data += nbytes;
 		data_len -= nbytes;
@@ -657,6 +664,8 @@ void spi_flash_read(uint32_t addr, uint8_t *data, uint32_t data_len)
 int spi_flash_prog_page(uint32_t addr, uint8_t *data, uint32_t data_len)
 {
 	int nbytes;
+
+	// note: assume data_len is 4 bytes align
 
 	while (data_len) {
 		if (data_len >= SPI_PROG_SIZE)
@@ -678,6 +687,8 @@ uint32_t spi_flash_verify(uint32_t addr, int size, uint8_t *data)
 {
 	int nbytes, ok = 1;
 	uint32_t offset = 0, saddr = addr;
+
+	// note: assume size is 4 bytes align
 
 	while (size) {
 		/// By initialized below to 0 cuases linker to link in the C library "memset" function which

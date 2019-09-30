@@ -568,9 +568,6 @@ int hal_mi2c_read_dma(void *hdl, int speed, uint8_t tar, uint8_t *buffer, uint16
 int hal_mi2c_write(void *hdl, int speed, uint8_t tar, uint8_t *buffer, uint16_t buffer_len, uint32_t tmo);	
 int hal_mi2c_write_dma(void *hdl, int speed, uint8_t tar, uint8_t *buffer, uint16_t buffer_len, uint32_t tmo);
 
-
-int hal_mi2c_write_read(void *hdl, int speed, uint8_t tar, uint8_t *wr_buf, uint16_t wr_len, uint8_t *rd_buf, uint16_t rd_len, uint32_t tmo);
-
 /**
  ****************************************************************************************
  * @brief I2c slave read function.
@@ -609,6 +606,23 @@ int hal_si2c_write(void *hdl, int speed, uint8_t sar, uint8_t *buffer, uint16_t 
 int hal_si2c_write_dma(void *hdl, int speed, uint8_t sar, uint8_t *buffer, uint16_t buffer_len, uint32_t tmo);
 
 
+/**
+ ****************************************************************************************
+ * @brief I2c master write and read function.
+ * @note This function write wr_len bytes, then read rd_len bytes. It doesn't send STOP after write.
+ * @param[in] hdl					The handle from the previous "open" function.   
+ * @param[in] speed				The I2c serial clock rate, @see enum i2c_scl.   
+ * @param[in] tar					The slave address.
+ * @param[in] wr_buf			The pointer to the write buffer.
+ * @param[in] wr_len		    The write buffer length.
+ * @param[out] rd_buf			The pointer to the read buffer.
+ * @param[in] rd_len		    The read buffer length.
+ * @param[in] tmo				The time out value in millisecond for the master to wait for slave.
+ *
+ * @return @see enum i2c_error for the possible return code. 
+ ****************************************************************************************
+ */
+int hal_mi2c_write_read(void *hdl, int speed, uint8_t tar, uint8_t *wr_buf, uint16_t wr_len, uint8_t *rd_buf, uint16_t rd_len, uint32_t tmo);
 /// @} HAL_I2C
 
 #endif	// HAL_I2C_H

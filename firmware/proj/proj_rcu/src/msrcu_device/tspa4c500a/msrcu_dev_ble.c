@@ -284,8 +284,22 @@ msrcuErr_t msrcu_dev_ble_adv_stop(void)
 
 msrcuErr_t msrcu_dev_ble_disconnect(void)
 {
-    if(inb_conn_disconnect(BLE_CON_IDX, BLE_ERROR_REMOTE_USER_TERM_CON))
+    if(inb_conn_disconnect(BLE_CON_IDX, BLE_ERROR_CON_TERM_BY_LOCAL_HOST))
 		return ERR_OTHERS;
+    
+    msrcu_dev_ble_set_state(BLE_STATE_IDLE);
+    
+    inb_evt_disc_ind_t *p_para = malloc(sizeof(p_para));
+    if(p_para == NULL)
+        return ERR_NO_MEMORY;
+    
+    p_para->conidx = BLE_CON_IDX;
+    p_para->reason = BLE_ERROR_CON_TERM_BY_LOCAL_HOST;
+    
+    msrcu_dev_ble_gap_evt(GAP_EVT_DISCONNECT, p_para, NULL);
+    
+    if(p_para)
+        free(p_para);
     
     return ERR_NO_ERROR;
 }

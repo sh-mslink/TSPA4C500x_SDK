@@ -206,7 +206,7 @@ int handle_default_gap_evt(uint16_t eid, void *pv, void *param)
 		case GAP_EVT_DISCONNECT:
 			{
 #ifdef CFG_PROJ_RCU
-#if MSRCU_BLE_VOICE_ATV_ENABLE
+#if (MSRCU_VOICE_ENABLE && MSRCU_BLE_VOICE_ATV_ENABLE)
                 atvIsConnected = false;
 #endif
 #endif
@@ -235,7 +235,7 @@ int handle_default_gap_evt(uint16_t eid, void *pv, void *param)
 		case GAP_EVT_CONN_REQ:
 			{
 #ifdef CFG_PROJ_RCU
-#if MSRCU_BLE_VOICE_ATV_ENABLE
+#if (MSRCU_VOICE_ENABLE && MSRCU_BLE_VOICE_ATV_ENABLE)
                 atvIsConnected = true;
 #endif
 #endif
@@ -588,6 +588,10 @@ int handle_default_gap_evt(uint16_t eid, void *pv, void *param)
 				inb_evt_phy_upd_t *ind = (inb_evt_phy_upd_t *)pv;
 				PRINTD(DBG_TRACE, "PHY for transmission:%d,PHY for reception:%d\r\n",ind->phy.tx_phy,ind->phy.rx_phy);
 			}
+			break;
+        case GAP_EVT_LE_PKT_SIZE_IND:
+			{
+            }
 			break;
 		default:
 			return -1;

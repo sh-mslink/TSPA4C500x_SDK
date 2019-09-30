@@ -331,16 +331,50 @@ static __inline void audio_rx_in_format_pdm()
 	WR_WORD(AUDIO_REGS_AURX_CTRL0, reg);
 }
 
-static __inline void audio_rx_pdm_cic_init(uint8_t audio_pdm_aurx_cic_dec, uint32_t audio_pdm_aurx_cic_dec_offset, uint8_t audio_pdm_aurx_cic_dec_shift)
+static __inline void audio_rx_set_cic_dec(uint8_t val)
 {
 	uint32_t reg = RD_WORD(AUDIO_REGS_AURX_CTRL0);
 	reg &= ~AUDIO_REGS_AURX_CTRL0_CTLQ_AURX_CIC_DEC;
-	reg &= ~AUDIO_REGS_AURX_CTRL0_CTLQ_AURX_DC_OFF;
-	reg &= ~AUDIO_REGS_AURX_CTRL0_CTLQ_AURX_CIC_SHIFT;
-	reg |= ((audio_pdm_aurx_cic_dec) << AUDIO_REGS_AURX_CTRL0_CTLQ_AURX_CIC_DEC_SHIFT);
-	reg |= ((audio_pdm_aurx_cic_dec_offset) << AUDIO_REGS_AURX_CTRL0_CTLQ_AURX_DC_OFF_SHIFT);
-	reg |= ((audio_pdm_aurx_cic_dec_shift) << AUDIO_REGS_AURX_CTRL0_CTLQ_AURX_CIC_SHIFT_SHIFT);
+	reg |= ((val & AUDIO_REGS_AURX_CTRL0_CTLQ_AURX_CIC_DEC_MASK) << AUDIO_REGS_AURX_CTRL0_CTLQ_AURX_CIC_DEC_SHIFT);
 	WR_WORD(AUDIO_REGS_AURX_CTRL0, reg);
+}
+
+static __inline uint8_t audio_rx_get_cic_dec()
+{
+	return ((RD_WORD(AUDIO_REGS_AURX_CTRL0) >> AUDIO_REGS_AURX_CTRL0_CTLQ_AURX_CIC_DEC_SHIFT) & AUDIO_REGS_AURX_CTRL0_CTLQ_AURX_CIC_DEC_MASK);
+}
+
+static __inline void audio_rx_set_dc_off(uint32_t val)
+{
+	uint32_t reg = RD_WORD(AUDIO_REGS_AURX_CTRL0);
+	reg &= ~AUDIO_REGS_AURX_CTRL0_CTLQ_AURX_DC_OFF;
+	reg |= ((val & AUDIO_REGS_AURX_CTRL0_CTLQ_AURX_DC_OFF_MASK) << AUDIO_REGS_AURX_CTRL0_CTLQ_AURX_DC_OFF_SHIFT);
+	WR_WORD(AUDIO_REGS_AURX_CTRL0, reg);
+}
+
+static __inline uint32_t audio_rx_get_dc_off()
+{
+	return ((RD_WORD(AUDIO_REGS_AURX_CTRL0) >> AUDIO_REGS_AURX_CTRL0_CTLQ_AURX_DC_OFF_SHIFT) & AUDIO_REGS_AURX_CTRL0_CTLQ_AURX_DC_OFF_MASK);
+}
+
+static __inline void audio_rx_set_cic_shift(uint8_t val)
+{
+	uint32_t reg = RD_WORD(AUDIO_REGS_AURX_CTRL0);
+	reg &= ~AUDIO_REGS_AURX_CTRL0_CTLQ_AURX_CIC_SHIFT;
+	reg |= ((val & AUDIO_REGS_AURX_CTRL0_CTLQ_AURX_CIC_SHIFT_MASK) << AUDIO_REGS_AURX_CTRL0_CTLQ_AURX_CIC_SHIFT_SHIFT);
+	WR_WORD(AUDIO_REGS_AURX_CTRL0, reg);
+}
+
+static __inline uint8_t audio_rx_get_cic_shift()
+{
+	return ((RD_WORD(AUDIO_REGS_AURX_CTRL0) >> AUDIO_REGS_AURX_CTRL0_CTLQ_AURX_CIC_SHIFT_SHIFT) & AUDIO_REGS_AURX_CTRL0_CTLQ_AURX_CIC_SHIFT_MASK);
+}	
+
+static __inline void audio_rx_pdm_cic_init(uint8_t audio_pdm_aurx_cic_dec, uint32_t audio_pdm_aurx_cic_dec_offset, uint8_t audio_pdm_aurx_cic_dec_shift)
+{
+	audio_rx_set_cic_dec(audio_pdm_aurx_cic_dec);
+	audio_rx_set_dc_off(audio_pdm_aurx_cic_dec_offset);
+	audio_rx_set_cic_shift(audio_pdm_aurx_cic_dec_shift);
 }
 
 static __inline void audio_rx_i2s_master_core()
@@ -401,12 +435,20 @@ static __inline void audio_rx_set_gain_left(uint16_t val)
 	WR_WORD(AUDIO_REGS_AURX_CTRL1, reg);
 }
 
+static __inline uint16_t audio_rx_get_gain_left() {
+	return (RD_WORD(AUDIO_REGS_AURX_CTRL1) >> AUDIO_REGS_AURX_CTRL1_CTLQ_AURX_GAINL_SHIFT) & AUDIO_REGS_AURX_CTRL1_CTLQ_AURX_GAINL_MASK;
+}
+
 static __inline void audio_rx_set_gain_right(uint16_t val)
 {
 	uint32_t reg = RD_WORD(AUDIO_REGS_AURX_CTRL1);
 	reg &= ~AUDIO_REGS_AURX_CTRL1_CTLQ_AURX_GAINR;
 	reg |= ((val & AUDIO_REGS_AURX_CTRL1_CTLQ_AURX_GAINR_MASK) << AUDIO_REGS_AURX_CTRL1_CTLQ_AURX_GAINR_SHIFT);
 	WR_WORD(AUDIO_REGS_AURX_CTRL1, reg);
+}
+
+static __inline uint16_t audio_rx_get_gain_right() {
+	return (RD_WORD(AUDIO_REGS_AURX_CTRL1) >> AUDIO_REGS_AURX_CTRL1_CTLQ_AURX_GAINR_SHIFT) & AUDIO_REGS_AURX_CTRL1_CTLQ_AURX_GAINR_MASK;
 }
 
 static __inline void audio_rx_set_i2s_delay(uint8_t val)
@@ -497,6 +539,11 @@ static __inline void audio_rx_clr_aenc_predic_end()
 	uint32_t reg = RD_WORD(AUDIO_REGS_AENC_CTRL0);
 	reg &= ~AUDIO_REGS_AENC_CTRL0_CTLQ_AENC_PREDIC_END;
 	WR_WORD(AUDIO_REGS_AENC_CTRL0, reg);
+}
+
+static __inline uint8_t audio_rx_get_aenc_predic_end()
+{
+	return ((RD_WORD(AUDIO_REGS_AENC_CTRL0) & AUDIO_REGS_AENC_CTRL0_CTLQ_AENC_PREDIC_END) > 0) ? 1 : 0;
 }
 
 static __inline void audio_rx_set_aenc_lsb4first()
@@ -930,13 +977,17 @@ static __inline void audio_rx_pdm_init_clk0(uint8_t audio_pdm_clk_period, uint8_
 	reg |= audio_pdm_clk_period;
 	uint32_t val = (reg + 1) / 2;
 	reg |= (val << AUDIO_REGS_PDM_CTRL0_CTLQ_PDM_FALL_SHIFT);
+	val = val / 2;
+	uint8_t x = 0xFF;
+	reg &= ~(x << AUDIO_REGS_PDM_CTRL0_CTLQ_PDM_LCNT_SHIFT);
+	reg &= ~(x << AUDIO_REGS_PDM_CTRL0_CTLQ_PDM_RCNT_SHIFT);
 	if(wss_l_low) {
-		reg |= ((val - 3) << AUDIO_REGS_PDM_CTRL0_CTLQ_PDM_LCNT_SHIFT);
-		reg |= ((reg - 3) << AUDIO_REGS_PDM_CTRL0_CTLQ_PDM_RCNT_SHIFT);
+		reg |= ((val) << AUDIO_REGS_PDM_CTRL0_CTLQ_PDM_LCNT_SHIFT);
+		reg |= ((val * 3) << AUDIO_REGS_PDM_CTRL0_CTLQ_PDM_RCNT_SHIFT);
 	}
 	else {
-		reg |= ((val - 3) << AUDIO_REGS_PDM_CTRL0_CTLQ_PDM_RCNT_SHIFT);
-		reg |= ((reg - 3) << AUDIO_REGS_PDM_CTRL0_CTLQ_PDM_LCNT_SHIFT);
+		reg |= ((val) << AUDIO_REGS_PDM_CTRL0_CTLQ_PDM_RCNT_SHIFT);
+		reg |= ((val * 3) << AUDIO_REGS_PDM_CTRL0_CTLQ_PDM_LCNT_SHIFT);
 	}
 	WR_WORD(AUDIO_REGS_PDM_CTRL0, reg);
 }
@@ -1247,7 +1298,6 @@ int hal_audio_dec_set_predict_endianness(int is_little_end);
  ****************************************************************************************
  * @brief Configure audio_control encode function settings.
  *
- * @param[in] is_MSB								1 if output data is to be written in MSB (), 0 if LSB()
  * @param[in] is_pdm								1 if audio encode input is PDM mic, 0 if input is I2S mic.
  * @param[in] is_I2S_master					1 if audio encode input is I2S mic connected to I2S master core, 0 if input is I2S mic connected to I2S slave core, otherwise don't care.
  * @param[in] in_rate								Audio encode microphone input sampling rate in float format. 
@@ -1291,6 +1341,21 @@ int hal_audio_dec_set_config(int is_I2S_master, float in_rate, float out_rate, i
  ****************************************************************************************
  */
 int hal_audio_resample_set_config(float in_rate, float out_rate, int is_stereo, int gain);
+
+/**
+ ****************************************************************************************
+ * @brief Calibrate PDM Encoder DC Offset. Must be called after hal_audio_enc_set_config. 
+ * 				Once called, user must execute function again to re-calibrate.
+ *
+ * @param[in] bytes_per_frame				Number of total bytes per encoded audio frame. Max 512 bytes. 
+ * @param[in] is_stereo							1 if audio sample format is stereo, 0 if format is mono.
+ * @param[in] num_frames_skip				Number of initial frames to skip when sampling dc offset
+ * @param[in] num_frames_samp				Number of frames to measure when sampling dc offset
+ *
+ * @return AUDIO_ERR_OK if successful, error otherwise. @see enum audio_status_t.
+ ****************************************************************************************
+ */
+int hal_audio_enc_pdm_dc_offset_cal(int bytes_per_frame, int is_stereo, int num_frames_skip, int num_frames_samp);
 
 // START
 /**

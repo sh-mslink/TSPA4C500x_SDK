@@ -370,3 +370,38 @@ uint32_t get_em_ble_advdatatxbuf_size(void)
 
 }
 
+uint8_t get_em_ble_txdesc_index(int act_id, int idx)
+{
+	return EM_BLE_TXDESC_INDEX(act_id, idx);	
+}
+
+uint32_t get_ble_prefetch_time_us(void)
+{
+	return BLE_PREFETCH_TIME_US/*CFG_BLE_PREFETCH_TIME_US*/;
+}
+
+uint32_t get_ble_prefetchabort_time_us(void)
+{
+	return BLE_PREFETCHABORT_TIME_US/*CFG_BLE_PREFETCHABORT_TIME_US*/;
+}
+
+uint32_t get_ble_reservation_time_margin_hus(void)
+{
+	return BLE_RESERVATION_TIME_MARGIN_HUS;
+}
+
+uint32_t get_lld_prog_delay(void)
+{
+	return LLD_PROG_DELAY/*CFG_LLD_PROG_DELAY*/;
+}
+
+uint32_t get_llc_proc_switch_instant_delay(void)
+{
+	return LLC_PROC_SWITCH_INSTANT_DELAY/*CFG_LLC_PROC_SWITCH_INSTANT_DELAY*/;
+}
+
+int get_ble_adv_no_delay(void)
+{
+	return CFG_BLE_ADV_NO_DELAY_EN;
+}
+

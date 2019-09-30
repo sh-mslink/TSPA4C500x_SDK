@@ -21,6 +21,8 @@
 #include "boot_share.h"
 
 #include "in_arm.h"
+#include "in_fw_upd.h"
+
 #include ".\hal\hal_power.h"
 #include ".\hal\hal_gpio.h"
 #include ".\hal\hal_spi.h"
@@ -341,6 +343,58 @@ static void qspi_set_up(int cold_boot)
 }
 #endif	// CFG_EXT_SPI_FLASH
 
+#if CFG_FW_UPD_EN
+void boot_fw_update(void) __attribute__((section("FW_UPD")));
+static uint8_t fw_data[1024] __attribute__((section("FW_UPD")));
+void boot_fw_update(void)
+{
+	fw_upd_info_t info;
+	spi_flash_read(FW_UPD_INFO_ADDR, (uint8_t *)&info, sizeof(fw_upd_info_t));
+	if (info.upd_magic == FW_UPD_MAGIC_WORD) {
+		uint32_t from_addr = info.load_addr;
+		uint32_t to_addr = info.copy_addr;
+		uint32_t size = info.size;
+
+		// erase
+		spi_flash_sector_erase(to_addr, size);
+
+		while (size) {
+			int nbytes;
+
+			if (size < 1024)
+				nbytes = size;
+			else
+				nbytes = 1024;
+
+			spi_flash_read(from_addr, fw_data, nbytes);
+			spi_flash_prog_page(to_addr, fw_data, nbytes);
+
+			from_addr += nbytes;
+			to_addr += nbytes;
+			size -= nbytes;
+		}
+	
+		// clear control
+		memset((void *)&info, 0, sizeof(fw_upd_info_t));	
+		spi_flash_prog_page(FW_UPD_INFO_ADDR, (uint8_t *)&info, sizeof(fw_upd_info_t));
+
+		// cold boot
+		//aon_reset_chip();
+	
+	}
+}
+
+void boot_load_fw_upd_code(void)
+{
+	// Load from flash to rom
+	spi_flash_read(0x1000, (uint8_t *)FW_UPD_CODE_START, FW_UPD_CODE_SIZE);
+
+	// call it
+	boot_fw_update();
+
+}	
+#endif	// CFG_FW_UPD_EN
+
 static void boot_cold(void)
 {
 	/// Clock configure
@@ -353,6 +407,10 @@ static void boot_cold(void)
 	clk_force_spiflash_ctl_clk();
 
 #if CFG_EXT_SPI_FLASH
+#if CFG_FW_UPD_EN
+	boot_load_fw_upd_code();
+#endif	// CFG_OTA_EN
+
 	/// QSPI set up and enable XIP mode
 	qspi_set_up(1);
 
@@ -420,6 +478,9 @@ static void boot_warm(uint32_t addr)
 }
 
 #if CFG_EXT_SPI_FLASH
+#if CFG_FW_UPD_EN
+static void spi_flash_rt_prog_page(void *pv) __attribute__((section("FW_UPD")));
+#endif
 static void spi_flash_rt_prog_page(void *pv)
 {
 	// disable XIP 
@@ -477,9 +538,9 @@ void boot_ram_entry(int reason, void *pv)
 			}	
 			break;
 		case COLD_BOOT:
-//#ifdef DEBUG
-//			while(!g_test);
-//#endif
+#ifdef DEBUG
+			while(!g_test);
+#endif
 			boot_cold();
 			break;
 		case WARM_BOOT:

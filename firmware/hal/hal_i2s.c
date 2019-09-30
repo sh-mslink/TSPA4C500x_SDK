@@ -32,6 +32,7 @@
 #include ".\hal\hal_clk.h"
 #include ".\hal\hal_gpio.h"
 #include ".\hal\hal_i2s.h"
+#include ".\hal\hal_dma.h"
 
 #if CFG_PM_EN
 #include ".\hal\hal_power.h"
@@ -57,20 +58,18 @@ typedef struct {
 	char used;
 	char buffer_idx;
 	char dir;
-	char ch_ws;
-
-	char type;
-	char pad[3];
+	char pad[1];
 
 	uint32_t base;
 
 	void *buffer[2];
-	uint16_t buffer_oft;
 	uint16_t buffer_len;
+	uint16_t pad1;
 
 	void *arg;
 	void (*callback)(void *arg, int id, int status) ;	
 
+	void *h_dma;
 } i2s_ch_t;
 
 typedef struct {
@@ -289,163 +288,103 @@ static void i2s_pm_up(void *arg)
  * ISR
  ****************************************************************************************
  */
-static void i2s_isr(i2s_dev_t *pd)
+static void i2s_isr(i2s_ch_t *pch)
 {
-	int i, ii;
+	if (pch->used) {
 
-	for (i = 0; i < I2S_CH_MAX; i++) {
-		i2s_ch_t *pch = &pd->ch[i];
+		uint32_t status = i2s_chx_intr_status(pch->base);
 
-		if (pch->used) {
-			uint32_t base = pch->base;
-			uint32_t status = i2s_chx_intr_status(base);
-
-			if (status & I2S_CHx_IT_RXFO) {
+		if (status & I2S_CHx_IT_RXFO) {
 //PRINTD(DBG_TRACE, "I2S: RXFO\r\n");
-				i2s_chx_rov_clr(base);
+			i2s_chx_rov_clr(pch->base);
+		}
 
-				if ((pch->dir == I2S_DIR_RX) && pch->callback)
-					pch->callback(pch->arg, pch->buffer_idx, I2S_ERR_RX_OV);
-			}
+		if (status & I2S_CHx_IT_RXDA) {
+			// RX FIFO full, ask dma to transfer data out of RX FIFO 
+			hal_dma_src_req(pch->h_dma);
+			
+			// Don't want interrupt while DMA moving data
+			i2s_chx_intr_mask(pch->base, I2S_CHx_IT_RXDA);
+		}
 
-			if (status & I2S_CHx_IT_RXDA) {
-				/// Read data out first
-				uint32_t data1[I2S_RX_FIFO_TL], data2[I2S_RX_FIFO_TL];
-				
-				for (ii = 0; ii < I2S_RX_FIFO_TL; ii++) {
-					data1[ii] = i2s_chx_lrx_data(base);		// left channel
-					data2[ii] = i2s_chx_rrx_data(base);		// right channel
-				}
+		if (status & I2S_CHx_IT_TXFE) {
+//PRINTD(DBG_TRACE, "1");
 
-				/// Copy to the buffer
-				int idx = pch->buffer_idx;
-				uint16_t oft = pch->buffer_oft;
+			// TX FIFO empty, ask dma to transfer data from memory to TX FIFO 
+			hal_dma_dst_req(pch->h_dma);
 
-				if (pch->ch_ws <= I2S_CH_WS_16_BITS) {
-					uint16_t *data = (uint16_t *)pch->buffer[idx];
-					for (int ii = 0; ii < I2S_RX_FIFO_TL; ii++) {
-						if (pch->type == I2S_MONO) {
-							*data++ = data1[ii];		
-							oft += 1;
-						} else {
-							*data++ = data1[ii];		
-							*data++ = data2[ii];		
-							oft += 2;
-						}
-						if (oft >= pch->buffer_len) {
-							if ((pch->dir == I2S_DIR_RX) && pch->callback)
-								pch->callback(pch->arg, idx, I2S_ERR_OK);
-
-							idx ^= 1;
-							data = (uint16_t *)pch->buffer[idx];
-							oft = 0;
-						}
-					}
-				} else {
-					uint32_t *data = (uint32_t *)pch->buffer[idx];
-					for (int ii = 0; ii < I2S_RX_FIFO_TL; ii++) {
-						if (pch->type == I2S_MONO) {
-							*data++ = data1[ii];		
-							oft += 1;
-						} else {
-							*data++ = data1[ii];		
-							*data++ = data2[ii];		
-							oft += 2;
-						}
-						if (oft >= pch->buffer_len) {
-							if ((pch->dir == I2S_DIR_RX) && pch->callback)
-								pch->callback(pch->arg, idx, I2S_ERR_OK);
-
-							idx ^= 1;
-							data = (uint32_t *)pch->buffer[idx];
-							oft = 0;
-						}
-					}
-				}
-				pch->buffer_idx = idx;
-				pch->buffer_oft = oft;
-			}
-
-			if (status & I2S_CHx_IT_TXFE) {
-				int idx = pch->buffer_idx;
-				uint16_t oft = pch->buffer_oft;
-
-				if (pch->ch_ws <= I2S_CH_WS_16_BITS) {
-					uint16_t *data = (uint16_t *)pch->buffer[idx];
-					for (int ii = 0; ii < I2S_TX_FIFO_TL; ii++) {
-						if (pch->type == I2S_MONO) {
-							i2s_chx_ltx_data(base, *data);
-							i2s_chx_rtx_data(base, *data++);
-							oft += 1;
-						} else {
-							i2s_chx_ltx_data(base, *data++);
-							i2s_chx_rtx_data(base, *data++);
-							oft += 2;
-						}
-
-						if (oft >= pch->buffer_len) {
-							if ((pch->dir == I2S_DIR_TX) && pch->callback)
-								pch->callback(pch->arg, idx, I2S_ERR_OK);
-
-							idx ^= 1;
-							data = (uint16_t *)pch->buffer[idx];
-							oft = 0;
-						}
-					}
-				} else {
-					uint32_t *data = (uint32_t *)pch->buffer[idx];
-					for (int ii = 0; ii < I2S_TX_FIFO_TL; ii++) {
-						if (pch->type == I2S_MONO) {
-							i2s_chx_ltx_data(base, *data);
-							i2s_chx_rtx_data(base, *data++);
-							oft += 1;
-						} else {
-							i2s_chx_ltx_data(base, *data++);
-							i2s_chx_rtx_data(base, *data++);
-							oft += 2;
-						}
-
-						if (oft >= pch->buffer_len) {
-							if ((pch->dir == I2S_DIR_TX) && pch->callback)
-								pch->callback(pch->arg, idx, I2S_ERR_OK);
-
-							idx ^= 1;
-							data = (uint32_t *)pch->buffer[idx];
-							oft = 0;
-						}
-					}
-				}
-				pch->buffer_idx = idx;
-				pch->buffer_oft = oft;
-			}
+			// Don't want interrupt while DMA moving data
+			i2s_chx_intr_mask(pch->base, I2S_CHx_IT_TXFE);
+		}
 						
-			if (status & I2S_CHx_IT_TXFO) {
+		if (status & I2S_CHx_IT_TXFO) {
 //PRINTD(DBG_TRACE, "I2S: TXFO\r\n");
-				i2s_chx_tov_clr(base);		
-				if ((pch->dir == I2S_DIR_TX) && pch->callback)
-					pch->callback(pch->arg, pch->buffer_idx, I2S_ERR_TX_OV);
-			}
+			i2s_chx_tov_clr(pch->base);		
 		}
 	}
+
 }
 
 __irq void I2S_Master_Handler(void)
 {
-	for (int i = 0; i < CFG_NB_I2S; i++)  {
-		if (i2s_dev[i].id == MI2S_ID) {
-			i2s_isr(&i2s_dev[i]);
-			break;
-		}
+	i2s_dev_t *pd = &i2s_dev[0];
+
+	for (int i = 0; i < I2S_CH_MAX; i++) {
+		i2s_isr(&pd->ch[i]);
 	}
 }
 
 __irq void I2S_Slave_Handler(void)
 {
-	for (int i = 0; i < CFG_NB_I2S; i++)  {
-		if (i2s_dev[i].id == SI2S_ID) {
-			i2s_isr(&i2s_dev[i]);
-			break;
+#if CFG_MI2S_EN
+	i2s_dev_t *pd = &i2s_dev[1];
+#else
+	i2s_dev_t *pd = &i2s_dev[0];
+#endif
+
+	for (int i = 0; i < I2S_CH_MAX; i++) {
+		i2s_isr(&pd->ch[i]);
+	}
+}
+
+/*
+ * DMA ISR Callback
+ ****************************************************************************************
+ */
+void i2s_dma_isr_cb(int id, void *arg,  int status)
+{
+	i2s_ch_t *pch = (i2s_ch_t *) arg;
+
+	if (status & DMA_IT_STATUS_SRCT) {
+		// Data move from i2s RX to the memory completed, 
+		// Enable RX full interrupt
+		i2s_chx_intr_unmask(pch->base, I2S_CHx_IT_RXDA);
+	}
+
+	if (status & DMA_IT_STATUS_DSTT) {
+		// Data move from memory to the i2s TX completed, 
+		// Enable TX empty interrupt
+		i2s_chx_intr_unmask(pch->base, I2S_CHx_IT_TXFE);
+
+	}
+
+	if (status & DMA_IT_STATUS_TFR) {
+		// Current user's buffer completed
+		// Switch buffer
+		int sa_da = (pch->dir == I2S_DIR_RX) ? 0 : 1;
+		int idx = pch->buffer_idx ^ 1;
+		hal_dma_switch_buffer(pch->h_dma, sa_da,  (uint32_t)pch->buffer[idx]);
+
+		// call back to user 
+		int res = I2S_ERR_OK;
+		if (status & DMA_IT_STATUS_ERR)
+			res = I2S_ERR_DMA_TRAN;
+
+		if (pch->callback) {
+			pch->callback(pch->arg, pch->buffer_idx, res);
 		}
+
+		pch->buffer_idx = idx;
 	}
 
 }
@@ -514,7 +453,13 @@ void *hal_i2s_open(int id, int sr, int word_sz)
 	if (id == MI2S_ID)
 		i2s_sclk_enable(pd->base);
 
-	/// Enable it
+	/// disable channel
+	i2s_chx_rx_disable(pd->ch[0].base);
+	i2s_chx_rx_disable(pd->ch[1].base);
+	i2s_chx_tx_disable(pd->ch[0].base);
+	i2s_chx_tx_disable(pd->ch[1].base);
+
+	/// Enable block
 	i2s_rx_enable(pd->base);
 	i2s_tx_enable(pd->base);
 	i2s_enable(pd->base);	
@@ -568,11 +513,12 @@ int hal_i2s_close(void *hdl)
 	return I2S_ERR_OK;
 }
 
-int hal_i2s_ch_en(void *hdl, int ch_id, int dir, int ch_word_sz, int type, void *buffer0, void *buffer1, uint16_t buffer_len, void *arg, void (*callback)(void * arg, int id, int status) )
+int hal_i2s_ch_en(void *hdl, int ch_id, int dir, int ch_word_sz, void *buffer0, void *buffer1, uint16_t buffer_len, void *arg, void (*callback)(void * arg, int id, int status) )
 {
 	i2s_dev_t *pd = (i2s_dev_t *)hdl;
 	i2s_ch_t *pch = NULL;
-	uint32_t base;
+	uint32_t ch_base;
+	int res = I2S_ERR_OK;
 
 	if (pd == NULL)
 		return I2S_ERR_INVALID_PARAM;
@@ -592,64 +538,109 @@ int hal_i2s_ch_en(void *hdl, int ch_id, int dir, int ch_word_sz, int type, void 
 
 	osMutexWait(pd->h_mu, osWaitForever);
 
+	// i2s use dma; otherwise it will not work
+	int tr_width;
+
+	if (ch_word_sz <= I2S_CH_WS_16_BITS) {
+		tr_width = DMA_CTL_TR_WIDTH_16BITS;
+	} else if (ch_word_sz <= I2S_CH_WS_32_BITS) {
+		tr_width = DMA_CTL_TR_WIDTH_32BITS;
+	} else {
+		res = I2S_ERR_INVALID_PARAM;
+		goto out;
+	}
+
+	if (dir == I2S_DIR_RX) {
+		for (int i = 0; i < 2; i++) {
+			pch->h_dma = hal_dma_soft_open(i,	// DMA Id 
+																	(pd->base + I2S_REG_RXDMA_OFS),  	// Source Address
+																		(uint32_t)buffer0,  							// Destination Address
+																			buffer_len, 									// Total buffer length 
+																				tr_width, tr_width,						// Single transfer size
+																					DMA_ADDR_SAME, DMA_ADDR_INC, 	// Address 
+																						DMA_CTL_TR_MSIZE_8, DMA_CTL_TR_MSIZE_8, 	// Burst transfer size (left and right together)
+																							DMA_AHB_MASTER_PERIPH, DMA_AHB_MASTER_MEM, // AHB master
+																								DMA_TT_PERF_TO_MEM_FC_DMAC);	// Transfer control
+			if (pch->h_dma)
+				break;
+		}
+
+	} else {
+		for (int i = 0; i < 2; i++) {
+			pch->h_dma = hal_dma_soft_open(i,	// DMA Id 
+																	(uint32_t)buffer0,  									// Source Address
+																		(pd->base + I2S_REG_TXDMA_OFS),	// Destination Address
+																			buffer_len, 										// Total buffer length 
+																				tr_width, tr_width,							// Single transfer size
+																					DMA_ADDR_INC, DMA_ADDR_SAME, 	// Address 
+																						DMA_CTL_TR_MSIZE_8, DMA_CTL_TR_MSIZE_8, 	// Burst transfer size (left and right together)
+																							DMA_AHB_MASTER_MEM, DMA_AHB_MASTER_PERIPH, // AHB master
+																								DMA_TT_MEM_TO_PERF_FC_DMAC);	// Transfer control
+			if (pch->h_dma)
+				break;
+		}
+	}
+
+	if (pch->h_dma) {
+		hal_dma_soft_ch_enable(pch->h_dma, (void *)pch, i2s_dma_isr_cb);
+	}else {
+		res = I2S_ERR_DMA_NOT_AVAIL;
+		goto out;
+	}	   
+
 	pch->used = 1;
 	pch->dir = dir;
-	pch->ch_ws = ch_word_sz;
-	pch->type = type;
 
-	base = pch->base;
+	ch_base = pch->base;
 	/// Disable channel
-	i2s_chx_tx_disable(base);
-	i2s_chx_rx_disable(base);
+	i2s_chx_tx_disable(ch_base);
+	i2s_chx_rx_disable(ch_base);
 	if (dir == I2S_DIR_RX) {
-		i2s_chx_rfifo_flush(base);
-		i2s_chx_rx_wlen(base, ch_word_sz);
-		i2s_chx_rfifo_tl(base, I2S_RX_FIFO_TL);
-		i2s_chx_rx_enable(base);
+		i2s_chx_rfifo_flush(ch_base);
+		i2s_chx_rx_wlen(ch_base, ch_word_sz);
+		i2s_chx_rfifo_tl(ch_base, (I2S_RX_FIFO_TL-1));
+		i2s_chx_rx_enable(ch_base);
 		i2s_sd_oe(pd->id, ch_id, 0);	 
 		//i2s_rx_enable(pd->base);		
 	} else {
-		i2s_chx_tfifo_flush(base);
-		i2s_chx_tx_wlen(base, ch_word_sz);
-		i2s_chx_tfifo_tl(base, I2S_TX_FIFO_TL);
-		i2s_chx_tx_enable(base);	
+		i2s_chx_tfifo_flush(ch_base);
+		i2s_chx_tx_wlen(ch_base, ch_word_sz);
+		i2s_chx_tfifo_tl(ch_base, (I2S_TX_FIFO_TL-1));
+		i2s_chx_tx_enable(ch_base);	
 		//i2s_tx_enable(pd->base);		
 		i2s_sd_oe(pd->id, ch_id, 1);
 	}
 
-	if (buffer0 && buffer1 && buffer_len) {
-		pch->buffer_idx = 0;
-		pch->buffer_oft = 0;
-		pch->buffer[0] = buffer0;
-		pch->buffer[1] = buffer1;
-		pch->buffer_len = buffer_len;
-		pch->arg = arg;
-		pch->callback = callback;
+	pch->buffer_idx = 0;
+	pch->buffer[0] = buffer0;
+	pch->buffer[1] = buffer1;
+	pch->buffer_len = buffer_len;
+	pch->arg = arg;
+	pch->callback = callback;
 
-		/// Unmask interrupt to let isr handle it
-		if (dir == I2S_DIR_RX) {
-			i2s_chx_intr_unmask(base, I2S_CHx_IT_RXDA|I2S_CHx_IT_RXFO);
-		} else {
-			i2s_chx_intr_unmask(base, I2S_CHx_IT_TXFE|I2S_CHx_IT_TXFO);
-		}
-		NVIC_SetPriority(pd->irq, IRQ_PRI_Highest);	
-		NVIC_EnableIRQ(pd->irq);
+	/// Unmask interrupt to let dma handle it
+	if (dir == I2S_DIR_RX) {
+		i2s_chx_intr_unmask(ch_base, I2S_CHx_IT_RXDA|I2S_CHx_IT_RXFO);
+	} else {
+		i2s_chx_intr_unmask(ch_base, I2S_CHx_IT_TXFE|I2S_CHx_IT_TXFO);
 	}
+	NVIC_SetPriority(pd->irq, IRQ_PRI_Normal);	
+	NVIC_EnableIRQ(pd->irq);
 
 #if CFG_PM_EN
 	pd->power_state = PM_SLEEP;
 #endif
 
+out:
 	osMutexRelease(pd->h_mu);
-
-	return I2S_ERR_OK;
+	return res;
 }
 
 int hal_i2s_ch_dis(void *hdl, int ch_id)
 {
 	i2s_dev_t *pd = (i2s_dev_t *)hdl;
 	i2s_ch_t *pch;
-	uint32_t base;
+	uint32_t ch_base;
 	int res = I2S_ERR_OK;
 
 	if (pd == NULL)
@@ -667,15 +658,21 @@ int hal_i2s_ch_dis(void *hdl, int ch_id)
 
 	osMutexWait(pd->h_mu, osWaitForever);
 
-	base = pch->base;
+	if (pch->h_dma) {
+		hal_dma_ch_disable(pch->h_dma);
+		hal_dma_close(pch->h_dma);	
+	}
+
+	ch_base = pch->base;
 	if (pch->dir == I2S_DIR_RX) {
-		i2s_chx_rx_disable(base);													
-		i2s_chx_intr_mask(base, I2S_CHx_IT_RXDA|I2S_CHx_IT_RXFO);
+		i2s_chx_rx_disable(ch_base);													
+		i2s_chx_intr_mask(ch_base, I2S_CHx_IT_RXDA|I2S_CHx_IT_RXFO);
 	} else {
-		i2s_chx_tx_disable(base);	
-		i2s_chx_intr_mask(base, I2S_CHx_IT_TXFE|I2S_CHx_IT_TXFO);
+		i2s_chx_tx_disable(ch_base);	
+		i2s_chx_intr_mask(ch_base, I2S_CHx_IT_TXFE|I2S_CHx_IT_TXFO);
 		i2s_sd_oe(pd->id, ch_id, 0);	 
 	}
+	NVIC_DisableIRQ(pd->irq);
 
 	pch->used = 0;
 
@@ -687,5 +684,6 @@ int hal_i2s_ch_dis(void *hdl, int ch_id)
 	
 	return res;
 }
+
 #endif 	// CFG_NB_I2S
 

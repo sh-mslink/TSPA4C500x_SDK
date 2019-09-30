@@ -185,39 +185,16 @@ typedef union
     inb_gatt_read_by_uuid_t by_uuid;
     /// Read Multiple short characteristic (GATT_READ_MULTIPLE)
     inb_gatt_read_multiple_t multiple[1];
-} inb_gatt_read_req_t;
-
-/// Gatt read response
-typedef struct
-{
-    /// Attribute handle
-    uint16_t handle;
-    /// Read offset
-    uint16_t offset;
-    /// Read length
-    uint16_t length;
-    /// Handle value
-    uint8_t value[];
-} inb_gatt_read_rsp_t;
+} inb_gatt_read_t;
 
 /// Read command (Simple, Long, Multiple, or by UUID)
 typedef struct 
 {
     /// number of read (only used for multiple read)
     uint8_t nb;
-
     /// request union according to read type
-    inb_gatt_read_req_t req;
-} inb_gatt_read_t;
-
-typedef struct 
-{
-    /// number of read (only used for multiple read)
-    uint8_t nb;
-
-    /// request union according to read type
-    inb_gatt_read_rsp_t *pRsp;
-} inb_gatt_read_value_t;
+    inb_gatt_read_t req;
+} inb_gatt_read_req_t;
 
 /// Write peer attribute value
 typedef struct 
@@ -242,8 +219,8 @@ typedef struct
     /// Attribute UUID (LSB First) 
     uint8_t uuid[INB_UUID_128_LEN];
 
-     /// Attribute Permission, @see enum inb_att_perm_mask
-    uint16_t perm;
+     /// Attribute Properties, @see enum inb_att_char_prop and @see enum inb_att_perm_prop
+    uint16_t prop;
 
 
     /// Maximum length of the attribute
@@ -259,8 +236,8 @@ typedef struct
     ///
     uint16_t max_len;
 
-	/// Attribute extended permission, @see enum inb_att_value_perm_mask 
-    uint16_t ext_perm;
+	/// Attribute extended properties, @see enum inb_att_ext_prop 
+    uint16_t ext_prop;
 } inb_gatt_att_desc_t;
 
 /// Service description
@@ -269,10 +246,10 @@ typedef struct
     /// Attribute Start Handle (0 = dynamically allocated)
     uint16_t start_hdl;
 
-	/// Service permission, @see inb_svc_perm_mask
-    uint8_t perm;
+	/// Service properties, @see inb_att_svc_prop
+    uint8_t prop;
 
-    /** Service  UUID */
+    /// Service  UUID 
     uint8_t uuid[INB_UUID_128_LEN];
 
     /// Number of attributes
@@ -360,12 +337,11 @@ int inb_gatt_discovery(int conidx, int disc_type, inb_gatt_disc_t *p_disc);
  * @param[in] conidx				Connection index  
  * @param[in] read_type			Attribute read type, @see enum inb_gatt_read_type
  * @param[in] p_read				Pointer to attribute read paramters
- * @param[out] p_readVal			Pointer to attribute read return value
  *
  * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
  ****************************************************************************************
  */
-int inb_gatt_read(int conidx, int read_type, inb_gatt_read_t *p_read, inb_gatt_read_value_t *p_read_ret);
+int inb_gatt_read(int conidx, int read_type, inb_gatt_read_req_t *p_req);
 
 /**
  ****************************************************************************************

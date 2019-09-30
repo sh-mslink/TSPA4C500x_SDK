@@ -138,11 +138,6 @@ static void hal_sleep_timer_start(int id, uint32_t us, int int_en, int wup_en, i
 		uart_write_data(UART0_BASE, 'M');
 #endif
 
-	// disable ext wake up 
-	uint32_t reg = aon_read(0x1288);
-	reg &= ~(1 << 4);
-	aon_write(0x1288, reg); 
-
 	return;
 }
 
@@ -159,13 +154,14 @@ static void hal_sleep_timer_stop(int id)
 
 static uint32_t hal_sleep_timer_read_tick(int id)
 {
-	uint32_t s1, s2;
+	uint32_t s1, s2, s3;
 
 	// inplay: avoid edge...
 	while (1) {
 		s1 = sleep_timer_value(id);		
 		s2 = sleep_timer_value(id);		
-		if (s1 == s2)
+		s3 = sleep_timer_value(id);
+		if ((s1 == s2) && (s1 == s3))
 			break;
 	}	
 
@@ -448,13 +444,8 @@ uint32_t hal_pm_suspend_and_resume(uint32_t os_sleep_ms)
 	int sleep_state = PM_DEEP_SLEEP;
 	uint32_t sleep_time_us, final_sleep_time_us;
 	uint32_t s_tick, e_tick, time_elapse;
-
-	//uint32_t rtc = hal_clk_rtc_get();
-
 	uint32_t pri_mask = __get_PRIMASK();
 	uint32_t fault_mask = __get_FAULTMASK();
-
-//debug_gpio_2_6(1);
 
 	/// mask interrupt 
 	__set_PRIMASK(1);
@@ -502,6 +493,7 @@ uint32_t hal_pm_suspend_and_resume(uint32_t os_sleep_ms)
 		int state;
 		uint32_t slot;
 		state = pd->ble_mod->power_state(pd->ble_mod->arg, &slot);
+
 		if (sleep_state == PM_SLEEP) {
 			if (state == PM_ACTIVE)
 				sleep_state = state;
@@ -514,6 +506,7 @@ uint32_t hal_pm_suspend_and_resume(uint32_t os_sleep_ms)
 
 		if (slot != PM_MAX_SLEEP_TIME) {
 			uint32_t slot_in_us = (uint32_t)((slot * 312.5) + 0.5);
+
 			if (slot_in_us < sleep_time_us)
 				sleep_time_us = slot_in_us;
 		}
@@ -570,12 +563,13 @@ uint32_t hal_pm_suspend_and_resume(uint32_t os_sleep_ms)
 	if (sleep_state == PM_DEEP_SLEEP) 
 	{
 		uint32_t pre_sleep_time_us, post_sleep_time_us;
-		
+
 		e_tick = hal_sleep_timer_read_tick(SLEEP_TIMER1_ID);
 		pre_sleep_time_us = hal_sleep_timer_tick_diff(s_tick, e_tick);
 
 		// sleep time should account for software delays.
 		sleep_time_us -= pd->deep_sleep_comp_time_us;
+
 
 		if (sleep_time_us >= (CFG_PM_DEEP_SLEEP_THRD * 1000)) {
 			/// shut down start...
@@ -608,13 +602,12 @@ uint32_t hal_pm_suspend_and_resume(uint32_t os_sleep_ms)
 			if (pd->slp_wup)
 				hal_sleep_timer_start(SLEEP_TIMER0_ID, sleep_time_us, 0, 1, 0);
 			shutdown_and_resume();
+
 			if (pd->slp_wup)
 				hal_sleep_timer_stop(SLEEP_TIMER0_ID);
 			e_tick = hal_sleep_timer_read_tick(SLEEP_TIMER1_ID);
           //rtc = hal_clk_rtc_get();//shutdown_and_resume doesn't save float register, get rtc again 
 			final_sleep_time_us = hal_sleep_timer_tick_diff(s_tick, e_tick);  
-
-			//debug_gpio_2_4(0);
 
 			/// resume start...
 			s_tick = hal_sleep_timer_read_tick(SLEEP_TIMER1_ID);
@@ -632,7 +625,16 @@ uint32_t hal_pm_suspend_and_resume(uint32_t os_sleep_ms)
 			}				
 			/// restoer global egisters and etc... */
 			hal_global_resume();				
+
+			/// Calibrate RC
+			if (!CFG_RTC_EN) {
+				hal_clk_calib_rc(6);
+				NVIC_ClearPendingIRQ(Calib_IRQn);
+				NVIC_SetPriority(Calib_IRQn, IRQ_PRI_Normal);	
+				NVIC_EnableIRQ(Calib_IRQn);
+			}
 			e_tick = hal_sleep_timer_read_tick(SLEEP_TIMER1_ID);
+
 			post_sleep_time_us = hal_sleep_timer_tick_diff(s_tick, e_tick);
 
 			/// update SW compensation time, if possible
@@ -644,8 +646,6 @@ uint32_t hal_pm_suspend_and_resume(uint32_t os_sleep_ms)
 
 			/// update final sleep time
 			final_sleep_time_us += pre_sleep_time_us + post_sleep_time_us;
-
-//GPIO_3_2_TRX();
 
 		} else {
 			s_tick = hal_sleep_timer_read_tick(SLEEP_TIMER1_ID);

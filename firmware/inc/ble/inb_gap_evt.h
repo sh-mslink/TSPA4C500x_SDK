@@ -93,8 +93,11 @@ enum inb_gap_evt{
 	GAP_EVT_CONN_PARAM_UPD,
 
 	/// PHY updated by peer, @see inb_evt_phy_upd_t
-	GAP_EVT_CONN_PHY_UPD, 
-};
+	GAP_EVT_CONN_PHY_UPD,
+
+	/// LE packet size indication, @see inb_evt_le_pkt_size_t
+	GAP_EVT_LE_PKT_SIZE_IND,
+ };
 
 /// Name of peer device indication
 typedef struct 
@@ -469,6 +472,20 @@ typedef struct
 	inb_phy_ind_t phy;
 } inb_evt_phy_upd_t;
 
+/// Event GAP_EVT_LE_PKT_SIZE_IND params  
+typedef struct
+{
+	/// Connection index
+	uint8_t conidx;
+    ///The maximum number of payload octets in TX
+    uint16_t max_tx_octets;
+    ///The maximum time that the local Controller will take to TX
+    uint16_t max_tx_time;
+    ///The maximum number of payload octets in RX
+    uint16_t max_rx_octets;
+    ///The maximum time that the local Controller will take to RX
+    uint16_t max_rx_time;
+} inb_evt_le_pkt_size_t;
 
 /// @} INB_EVT
 

@@ -512,7 +512,7 @@ int hal_adc_measure_temp(adc_dev_t* dev, int32_t* pval)
     return ADC_ERR_OK;
 }
 
-int hal_adc_measure_vbat(adc_dev_t* dev, int16_t* pval)
+int hal_adc_measure_vbat(adc_dev_t* dev, int32_t* pval)
 {
     if (!dev)
         return ADC_ERR_INVALID_PARAM;

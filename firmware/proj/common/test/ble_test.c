@@ -46,6 +46,26 @@ extern int handle_default_hogp_evt(uint16_t eid, void *pv);
 extern int handle_default_pasp_evt(uint16_t eid, void *pv);
 #endif
 
+#if CFG_PRF_HOGPD
+static const inb_hogpd_cfg_t hogpd_cfg[1] = {
+    {
+        .svc_features =	INB_HOGPD_CFG_PROTO_MODE | INB_HOGPD_CFG_REPORT_NTF_EN,
+        .report_nb = 3,
+        .report_char_cfg = {INB_HOGPD_CFG_REPORT_IN | INB_HOGPD_CFG_REPORT_WR,
+                INB_HOGPD_CFG_REPORT_IN | INB_HOGPD_CFG_REPORT_WR,
+                INB_HOGPD_CFG_REPORT_IN | INB_HOGPD_CFG_REPORT_WR
+                , 0, 0},
+        .report_id = {1, 2, 3, 0, 0},
+        .hid_info = {
+            .bcdHID = 0x1002,
+            .bCountryCode = 0x21,
+            .flags = INB_HIDS_NORM_CONNECTABLE | INB_HIDS_REMOTE_WAKE_CAPABLE,
+        },
+        .ext_ref = {0},
+    }
+};
+#endif
+
 static uint8_t ble_mem_env[CFG_BLE_STK_ENV_MEM_SIZE];
 static uint8_t ble_mem_db[CFG_BLE_STK_DB_MEM_SIZE];
 static uint8_t ble_mem_msg[CFG_BLE_STK_MSG_MEM_SIZE];
@@ -228,7 +248,6 @@ static int create_scan(void)
 	cparam.option= 1;
 	cparam.own_addr_type = 0;
 
-	int actv_idx;
 	res = inb_actv_create(&cparam, &scanActvIdx);
 	if (res != 0) {
 		PRINTD(DBG_ERR, "Failed to create scan activity...0x%x\r\n", res);
@@ -311,10 +330,9 @@ int prof_init(void)
     
 #if (CFG_PRF_BASS==1)
 	{
-		inb_bass_prf_t prf;
-		memset(&prf, 0, sizeof(inb_bass_prf_t));
-		prf.sec_lvl = 0;
-		prf.start_hdl = 0;
+		inb_bas_prf_t prf;
+		memset(&prf, 0, sizeof(inb_bas_prf_t));
+		prf.sec_lvl = ATT_PERM_NO_AUTH;
 		prf.bas_nb = 1;
 		prf.features[0] = INB_BAS_BATT_LVL_NTF_SUP;	
 		prf.batt_level_pres_format[0].unit = INB_ATT_UNIT_PERCENTAGE;
@@ -322,7 +340,7 @@ int prof_init(void)
 		prf.batt_level_pres_format[0].format = INB_ATT_FORMAT_UINT8;
 		prf.batt_level_pres_format[0].exponent = 0;
 		prf.batt_level_pres_format[0].name_space = 1;
-		ret = inb_bass_add((inb_add_prf_t *)&prf);
+		ret = inb_bass_add(&prf);
 		if (ret != INB_ERR_NO_ERROR)
 			PRINTD(DBG_ERR, "inb_bass_add return %d\r\n", ret);
 	}
@@ -372,46 +390,34 @@ int prof_init(void)
 #endif
 #if (CFG_PRF_DISS==1)
 	{/// Add device information profiles
-		inb_diss_prf_t prf;
-		prf.sec_lvl = 0;
-		prf.start_hdl = 0;
+		inb_dis_prf_t prf;
+		prf.sec_lvl = ATT_PERM_NO_AUTH;
 		prf.features = INB_DISS_ALL_FEAT_SUP;
-		ret = inb_diss_add((inb_add_prf_t *)&prf);
+		ret = inb_diss_add(&prf);
 		if (ret != INB_ERR_NO_ERROR)
 			PRINTD(DBG_ERR, "inb_diss_add return %d\r\n", ret);
 	}
 #endif
 #if (CFG_PRF_HOGPD==1)
 	{/// Add HID over GATT
-		inb_hogpd_prf_t prf;
-		prf.sec_lvl = 0;
-		prf.start_hdl = 0;
-		prf.hids_nb = 1;
-//		prf.cfg[0].svc_features = INB_HOGPD_CFG_MOUSE|INB_HOGPD_CFG_PROTO_MODE|INB_HOGPD_CFG_BOOT_MOUSE_WR
-//                |INB_HOGPD_CFG_REPORT_NTF_EN|INB_HOGPD_CFG_BOOT_KB_WR|INB_HOGPD_CFG_KEYBOARD;
-//		prf.cfg[0].svc_features = INB_HOGPD_CFG_KEYBOARD 
-//                                | INB_HOGPD_CFG_PROTO_MODE 
-//                                | INB_HOGPD_CFG_REPORT_NTF_EN;
-//                                | INB_HOGPD_CFG_BOOT_KB_WR;
-		prf.cfg[0].svc_features = INB_HOGPD_CFG_PROTO_MODE | INB_HOGPD_CFG_REPORT_NTF_EN;    
-		prf.cfg[0].report_nb = 3;
-		prf.cfg[0].report_char_cfg[0] = INB_HOGPD_CFG_REPORT_IN|INB_HOGPD_CFG_REPORT_WR;
-		prf.cfg[0].report_id[0] = 1;
-		prf.cfg[0].report_char_cfg[1] = INB_HOGPD_CFG_REPORT_IN|INB_HOGPD_CFG_REPORT_WR;
-		prf.cfg[0].report_id[1] = 2;
-		prf.cfg[0].report_char_cfg[2] = INB_HOGPD_CFG_REPORT_IN|INB_HOGPD_CFG_REPORT_WR;
-		prf.cfg[0].report_id[2] = 3;   
-		prf.cfg[0].hid_info.bcdHID = 0x1002;
-		prf.cfg[0].hid_info.bCountryCode = 0x21;
-		prf.cfg[0].hid_info.flags = INB_HIDS_NORM_CONNECTABLE|INB_HIDS_REMOTE_WAKE_CAPABLE;
-        
-		ret = inb_hogpd_add((inb_add_prf_t *)&prf);
+		inb_hogp_prf_t *p_hogp_prf = NULL;
+		p_hogp_prf = (inb_hogp_prf_t*)malloc(sizeof(inb_hogp_prf_t));
+		p_hogp_prf->multi_instance = 0;
+
+		//Following params are HOGPD only
+		p_hogp_prf->check_enc_key_size = false;
+		p_hogp_prf->sec_lvl = ATT_PERM_NO_AUTH;
+		p_hogp_prf->hids_nb = 1;
+	
+		memcpy(p_hogp_prf->cfg, hogpd_cfg, sizeof(inb_hogpd_cfg_t));
+		
+		ret = inb_hogpd_add(p_hogp_prf);
 		if (ret != INB_ERR_NO_ERROR)
-			PRINTD(DBG_ERR, "inb_hogpd_add return %d\r\n", ret);
+			PRINTD(DBG_ERR, "inb_hogpd_add return %d\r\n", ret);        
 	}
 #endif
-    
-    return ret;
+	
+	return ret;
 }
 
 void handle_default_ble_evt(inb_evt_t *evt, void *param)
@@ -729,6 +735,8 @@ void handle_default_msg(msg_t *p_msg)
 			g_conidx = conidx;
             
 #ifdef CFG_PROJ_RCU
+            osDelay(100);
+            
             uint16_t mtu = 251;
             uint16_t err = inb_gatt_exc_mtu(p->conidx, &mtu);
             if(err)

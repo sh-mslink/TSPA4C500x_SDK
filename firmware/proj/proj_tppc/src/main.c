@@ -27,34 +27,34 @@
 
 int handle_msg(msg_t *p_msg)
 {
-	//PRINTD(DBG_TRACE, "main evt %d...\r\n", p_msg->msg_id);
-	
-	switch (p_msg->msg_id) 
-	{
+    //PRINTD(DBG_TRACE, "main evt %d...\r\n", p_msg->msg_id);
+    
+    switch (p_msg->msg_id) 
+    {
         default:
             handle_default_msg(p_msg);
             break;
-	}
+    }
     return 0;
 }
 
 /*
  * main: This is actually main task. 
- *	Note: The _main_init in the RTX_CM_lib.h is 
- *				main entry routine (OS is initialized 
- *				in there).
+ *  Note: The _main_init in the RTX_CM_lib.h is 
+ *              main entry routine (OS is initialized 
+ *              in there).
  */
 
 int main (void)
 {
-	//Initialize platform.
-	hal_global_post_init();
+    //Initialize platform.
+    hal_global_post_init();
     
-	PRINTD(DBG_TRACE, "----------------\r\n");
-	PRINTD(DBG_TRACE, "main start...\r\n");
-
-	//MessageQ for main thread.
-	msg_init();
+    PRINTD(DBG_TRACE, "----------------\r\n");
+    PRINTD(DBG_TRACE, "main start...\r\n");
+    
+    //MessageQ for main thread.
+    msg_init();
     
     //BLE init
     ble_config(1);
@@ -64,19 +64,16 @@ int main (void)
         return 0;
     
     //Wait for message
-	while(1)
-    {        
-		msg_t *p_msg;
+    while(1)
+    {
+        msg_t *p_msg;
         
         p_msg = msg_get(osWaitForever);
-		if(!p_msg)
-			break;
-
-		handle_msg(p_msg);
-		
-		p_msg = msg_free(p_msg);
-	}	
+        if(!p_msg)
+            break;
+        
+        handle_msg(p_msg);
+        
+        p_msg = msg_free(p_msg);
+    }
 }
-
-
-

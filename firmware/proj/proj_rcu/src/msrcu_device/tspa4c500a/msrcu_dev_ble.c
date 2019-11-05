@@ -41,15 +41,15 @@ static int actAdvIdx = 0;
  ****************************************************************************************
  */
 msrcuBleState_t msrcu_dev_ble_get_state(void)
-{    
+{
     return bleSt;
 }
 
 static void msrcu_dev_ble_set_state(msrcuBleState_t state)
-{    
+{
     if(bleSt != state)
     {
-        bleSt = state;    
+        bleSt = state;
         MSPRINT("MSRCU BLE STATE: %d\r\n", bleSt);
         
         if(bleSt == BLE_STATE_READY)
@@ -61,7 +61,7 @@ static void msrcu_dev_ble_set_state(msrcuBleState_t state)
                 return;
             }
             
-            msBleEvt->code = EVT_BLE_RCU_READY;  
+            msBleEvt->code = EVT_BLE_RCU_READY;
             
             msrcuBleRcuReady_t *rcuReady = &msBleEvt->param.rcuReady;
             rcuReady->conIndex = BLE_CON_IDX;
@@ -71,7 +71,7 @@ static void msrcu_dev_ble_set_state(msrcuBleState_t state)
 }
 
 static void msrcu_dev_ble_gap_evt(uint16_t eid, void *pv, void *param)
-{                                 	
+{
     msrcuEvtBle_t* msBleEvt = malloc(sizeof(msrcuEvtBle_t));
     if(!msBleEvt)
     {
@@ -79,16 +79,16 @@ static void msrcu_dev_ble_gap_evt(uint16_t eid, void *pv, void *param)
         return;
     }
     
-	switch(eid) 
-	{        
-		case GAP_EVT_CONN_REQ:		
-        {                     
+    switch(eid) 
+    {
+        case GAP_EVT_CONN_REQ:
+        {
             msrcu_dev_ble_set_state(BLE_STATE_CONNECTED);
-                        
-            msBleEvt->code = EVT_BLE_CONNETED;  
             
-			inb_evt_conn_req_t *p_para = (inb_evt_conn_req_t *)pv;
-            msrcuBleConInd_t* conInd = &msBleEvt->param.conInd;            
+            msBleEvt->code = EVT_BLE_CONNETED;
+            
+            inb_evt_conn_req_t *p_para = (inb_evt_conn_req_t *)pv;
+            msrcuBleConInd_t* conInd = &msBleEvt->param.conInd;
             conInd->conIndex = p_para->conidx;
             conInd->conInterval = p_para->con_interval;
             conInd->conLatency = p_para->con_latency;
@@ -100,14 +100,14 @@ static void msrcu_dev_ble_gap_evt(uint16_t eid, void *pv, void *param)
         break;
         
         case GAP_EVT_DISCONNECT:
-        {            
+        {
             msrcu_dev_ble_set_state(BLE_STATE_IDLE);
             
-            msBleEvt->code = EVT_BLE_DISCONNETED;  
+            msBleEvt->code = EVT_BLE_DISCONNETED;
             
-			inb_evt_disc_ind_t *p_para = (inb_evt_disc_ind_t *)pv;
-            msrcuBleDisconInd_t* disconInd = &msBleEvt->param.disconInd;            
-            disconInd->conIndex = p_para->conidx;          
+            inb_evt_disc_ind_t *p_para = (inb_evt_disc_ind_t *)pv;
+            msrcuBleDisconInd_t* disconInd = &msBleEvt->param.disconInd;
+            disconInd->conIndex = p_para->conidx;
             disconInd->reason = (bleError_t)p_para->reason;
             
             msrcu_evt_ble_cb(msBleEvt);
@@ -116,10 +116,10 @@ static void msrcu_dev_ble_gap_evt(uint16_t eid, void *pv, void *param)
         
         case GAP_EVT_CONN_PARAM_UPD:
         {
-            msBleEvt->code = EVT_BLE_CON_PRAM_UPD;  
+            msBleEvt->code = EVT_BLE_CON_PRAM_UPD;
             
             inb_evt_conn_param_upd_t *p_para = (inb_evt_conn_param_upd_t *)pv;
-            msrcuBleConParamUpd_t *conParamUpd = &msBleEvt->param.conParamUpd;  
+            msrcuBleConParamUpd_t *conParamUpd = &msBleEvt->param.conParamUpd;
             conParamUpd->conIndex = p_para->conidx;
             conParamUpd->conInterval = p_para->con_interval;
             conParamUpd->conLatency = p_para->con_latency;
@@ -127,11 +127,13 @@ static void msrcu_dev_ble_gap_evt(uint16_t eid, void *pv, void *param)
             
             msrcu_evt_ble_cb(msBleEvt);
         }
+        break;
         
         case GAP_EVT_ENCRYPT_IND:
         {
             msrcu_dev_ble_set_state(BLE_STATE_READY);
         }
+        break;
         
         default:
         break;
@@ -142,7 +144,7 @@ static void msrcu_dev_ble_gap_evt(uint16_t eid, void *pv, void *param)
 }
 
 static void msrcu_dev_ble_hogp_evt(uint16_t eid, void *pv)
-{          
+{
     inb_evt_hogpd_ntf_cfg_ind_t *param = (inb_evt_hogpd_ntf_cfg_ind_t *)pv;
     msrcuEvtBle_t* msBleEvt = malloc(sizeof(msrcuEvtBle_t));
     if(!msBleEvt)
@@ -151,10 +153,10 @@ static void msrcu_dev_ble_hogp_evt(uint16_t eid, void *pv)
         return;
     }
     
-	switch(eid) 
-	{   
+    switch(eid)
+    {
         case HOGPD_EVT_NTF_CFG_IND:
-        {            
+        {
             if((param->ntf_cfg[param->conidx] & INB_HOGPD_CFG_REPORT_NTF_EN) != 0)
             {
                 if(param->ntf_cfg[param->conidx] == 
@@ -163,58 +165,58 @@ static void msrcu_dev_ble_hogp_evt(uint16_t eid, void *pv)
                         | (INB_HOGPD_CFG_REPORT_NTF_EN << 2)))
                 {
                     msrcu_dev_ble_set_state(BLE_STATE_READY);
-                                      
                 }
             }
         }
+        break;
         
         default:
         break;
-    }      
+    }
 }
 
 void msrcu_dev_ble_evt_cb(inb_evt_t *evt, void *param)
 {
-	switch(evt->evt_id & 0xFF00)
+    switch(evt->evt_id & 0xFF00)
     {
         case GAP_EVT_CODE:
             msrcu_dev_ble_gap_evt(evt->evt_id, (void *)&evt->param, param);
-		break;
+        break;
         
         case GATT_EVT_CODE:
-		break;
+        break;
         
         case L2CAP_EVT_CODE:
-		break;
+        break;
         
         case BAS_EVT_CODE:
-		break;
+        break;
         
         case DIS_EVT_CODE:
-		break;
+        break;
         
         case HOGP_EVT_CODE:
             msrcu_dev_ble_hogp_evt(evt->evt_id, (void *)&evt->param);
-		break;
+        break;
         
         default:
-		break;
-	}
+        break;
+    }
 }
 
 msrcuErr_t msrcu_dev_ble_init(void (*cb)(msrcuEvtBle_t *evt))
-{    
+{
     msrcu_evt_ble_cb = cb;
-        
+    
     msrcu_dev_ble_set_state(BLE_STATE_IDLE);
     
     return ERR_NO_ERROR;
-}    
-    
-msrcuErr_t msrcu_dev_ble_adv_start(msrcuBleAdv_t* adv)
-{             
-	inb_actv_create_t inbAdv = {0};
+}
 
+msrcuErr_t msrcu_dev_ble_adv_start(msrcuBleAdv_t* adv)
+{
+    inb_actv_create_t inbAdv = {0};
+    
     switch(adv->pduType)
     {
         case ADV_IND:
@@ -228,8 +230,8 @@ msrcuErr_t msrcu_dev_ble_adv_start(msrcuBleAdv_t* adv)
         break; 
             
         default:
-            return ERR_VALID_INPUT;            
-    }        
+            return ERR_VALID_INPUT;
+    }
     
     if(adv->channel & ADV_CHANNEL_37)
         inbAdv.adv_param.prim_cfg.chnl_map |= CHANNEL_37;
@@ -238,19 +240,19 @@ msrcuErr_t msrcu_dev_ble_adv_start(msrcuBleAdv_t* adv)
     if(adv->channel & ADV_CHANNEL_39)
         inbAdv.adv_param.prim_cfg.chnl_map |= CHANNEL_39;
     
-	inbAdv.option = 0;
-	inbAdv.own_addr_type = 0;
-	inbAdv.adv_param.type = ADV_TYPE_LEGACY;
-	inbAdv.adv_param.max_tx_pwr = 0;
-	inbAdv.adv_param.filter_pol = ADV_FILT_ALLOW_SCAN_ANY_CON_ANY;
+    inbAdv.option = 0;
+    inbAdv.own_addr_type = 0;
+    inbAdv.adv_param.type = ADV_TYPE_LEGACY;
+    inbAdv.adv_param.max_tx_pwr = 0;
+    inbAdv.adv_param.filter_pol = ADV_FILT_ALLOW_SCAN_ANY_CON_ANY;
     inbAdv.adv_param.peer_addr.addr_type = adv->peerAddrType;
     memcpy(inbAdv.adv_param.peer_addr.addr.addr, adv->peerAddr.addr, BLE_ADDR_LEN);
-	inbAdv.adv_param.prim_cfg.adv_intv_min = adv->intvMin;
-	inbAdv.adv_param.prim_cfg.adv_intv_max = adv->intvMax;
-	inbAdv.adv_param.prim_cfg.phy = PHY_LE_1MBPS;
+    inbAdv.adv_param.prim_cfg.adv_intv_min = adv->intvMin;
+    inbAdv.adv_param.prim_cfg.adv_intv_max = adv->intvMax;
+    inbAdv.adv_param.prim_cfg.phy = PHY_LE_1MBPS;
     
-	if(inb_actv_create(&inbAdv, &actAdvIdx) != INB_ERR_NO_ERROR)
-		return ERR_OTHERS;
+    if(inb_actv_create(&inbAdv, &actAdvIdx) != INB_ERR_NO_ERROR)
+        return ERR_OTHERS;
     
     if(adv->pduType != ADV_DIRECT_IND)
     {
@@ -260,12 +262,12 @@ msrcuErr_t msrcu_dev_ble_adv_start(msrcuBleAdv_t* adv)
             return ERR_OTHERS;
     }
     
-	inb_actv_start_t adv_start = {0};
-	adv_start.option = 0;
-	adv_start.u.adv_param.duration = 0;
-	adv_start.u.adv_param.max_adv_evt = 0;
-	if(inb_actv_start(actAdvIdx, &adv_start) != INB_ERR_NO_ERROR) 
-		return ERR_OTHERS;
+    inb_actv_start_t adv_start = {0};
+    adv_start.option = 0;
+    adv_start.u.adv_param.duration = 0;
+    adv_start.u.adv_param.max_adv_evt = 0;
+    if(inb_actv_start(actAdvIdx, &adv_start) != INB_ERR_NO_ERROR)
+        return ERR_OTHERS;
     
     msrcu_dev_ble_set_state(BLE_STATE_ADVERTISING);
     
@@ -273,10 +275,10 @@ msrcuErr_t msrcu_dev_ble_adv_start(msrcuBleAdv_t* adv)
 }
 
 msrcuErr_t msrcu_dev_ble_adv_stop(void)
-{        
+{
     if(inb_actv_stop(actAdvIdx) != INB_ERR_NO_ERROR) 
-		return ERR_OTHERS;
-            
+        return ERR_OTHERS;
+    
     msrcu_dev_ble_set_state(BLE_STATE_IDLE);
     
     return ERR_NO_ERROR;
@@ -285,7 +287,7 @@ msrcuErr_t msrcu_dev_ble_adv_stop(void)
 msrcuErr_t msrcu_dev_ble_disconnect(void)
 {
     if(inb_conn_disconnect(BLE_CON_IDX, BLE_ERROR_CON_TERM_BY_LOCAL_HOST))
-		return ERR_OTHERS;
+        return ERR_OTHERS;
     
     msrcu_dev_ble_set_state(BLE_STATE_IDLE);
     
@@ -305,7 +307,7 @@ msrcuErr_t msrcu_dev_ble_disconnect(void)
 }
 
 msrcuErr_t msrcu_dev_ble_hid_send(msrcuBleHidReport_t *param)
-{    
+{
     msg_hogpd_ntf_t *msg = malloc(sizeof(msg_hogpd_ntf_t));
     if(!msg)
         return ERR_NO_MEMORY;
@@ -319,7 +321,7 @@ msrcuErr_t msrcu_dev_ble_hid_send(msrcuBleHidReport_t *param)
     msg_put(msg);
     
     return ERR_NO_ERROR;
-}     
+}
 
 msrcuErr_t msrcu_dev_ble_hid_send2(msrcuBleHidReport_t *param)
 {
@@ -327,7 +329,7 @@ msrcuErr_t msrcu_dev_ble_hid_send2(msrcuBleHidReport_t *param)
         return ERR_NOT_SUPPORT;
     
     if(!param)
-        return ERR_VALID_INPUT;  
+        return ERR_VALID_INPUT;
     
     inb_hogpd_report_info_t *report = malloc(sizeof(inb_hogpd_report_info_t) + param->length);
     if(!report)
@@ -342,15 +344,15 @@ msrcuErr_t msrcu_dev_ble_hid_send2(msrcuBleHidReport_t *param)
     //MSPRINT("%d,%d,%d,%d, ", report->hid_idx, report->length, report->idx, report->type);
     //MSPRINT("%d,%d,%d,%d\r\n", report->value[0], report->value[1],report->value[2], report->value[5]);
     int err = inb_hogpd_report_upd_req(param->conIndex, report);
-    free(report);   
+    free(report);
     if(!err)
     {
-        //MSPRINT("h"); 
+        //MSPRINT("h");
         return ERR_NO_ERROR;
     }
     else
     {
-        MSPRINT("hogpd send error: 0x%X\r\n", err); 
-        return ERR_OTHERS;  
-    }        
-}      
+        MSPRINT("hogpd send error: 0x%X\r\n", err);
+        return ERR_OTHERS;
+    }
+}

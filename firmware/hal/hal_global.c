@@ -223,7 +223,10 @@ void hal_global_post_init(void)
 
 	/// Disable BLE external wakeup (Software will wake it up)
 	aon_ble_ext_wup(0);
-	
+
+	/// Assign data ram access priority
+	data_ram_access_prio(DATA_RAM_ACCESS_PRIO_3, DATA_RAM_ACCESS_PRIO_2, DATA_RAM_ACCESS_PRIO_1);
+
 #if !CFG_HCI
     hal_global_debug_uart_init();
 #endif

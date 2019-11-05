@@ -405,3 +405,7 @@ int get_ble_adv_no_delay(void)
 	return CFG_BLE_ADV_NO_DELAY_EN;
 }
 
+int get_ble_nb_tx_desc_per_con(void)
+{
+	return BLE_NB_TX_DESC_PER_CON;
+}

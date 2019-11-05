@@ -181,9 +181,9 @@ adc_dev_t* hal_adc_open(void)
     adc_ref_sel(ADC_REF_V1P0);
 
     size = CFG_SMEM_SADC & 0xFFFF;
-    if (size > 0) {
-        adc_fifo_size(size * 2 - 1); //count in samples. One word have two sample.
-        adc_fifo_almost_full(size - 1);
+    if (size > 2) {
+        adc_fifo_size(size - 1); //count in samples. One word have two sample.
+        adc_fifo_almost_full(size / 2 - 1);
         pd->auto_mode = 1;
     } else {
         pd->auto_mode = 0;
@@ -394,6 +394,44 @@ int hal_adc_auto_mode_start(adc_dev_t* dev, uint16_t sample_num)
 
     return ADC_ERR_OK;
 }
+
+int hal_adc_stream_mode_start(adc_dev_t* dev)
+{
+    if (!dev)
+        return ADC_ERR_INVALID_PARAM;
+    if (!dev->auto_mode)
+        return ADC_ERR_SMEM;
+    osMutexWait(dev->mutex, osWaitForever);
+    adc_force_disable();
+    adc_enable();
+    //adc_read_fifo(dev);
+    //memset(dev->buf_pos, 0, sizeof(dev->buf_pos));
+    adc_num_sample(0);
+    adc_intr_mask_clear(0xf);
+    adc_intr_mask_set(ADC_INTR_FIFO_EMPTY);
+
+#if CFG_PM_EN
+    dev->power_state = PM_SLEEP;
+#endif
+
+    /* 
+     * Only use semaphore as a binary sem. osSemaphoreRelease will add sem count without check init count.
+     * So here we make sure the count is 0 using osSemaphoreWait(0) , then call  osSemaphoreWait(millisec).   
+     */
+    int ret;
+
+    adc_clean_fifo();
+    adc_start(0);
+    osDelay(10);
+    adc_start(1);
+    //osSemaphoreWait(dev->semaphore, osWaitForever);
+    adc_start(0);
+    //adc_disable();
+    osMutexRelease(dev->mutex);
+
+    return ADC_ERR_OK;
+}
+
 int hal_adc_auto_mode_stop(adc_dev_t* dev)
 {
     osSemaphoreRelease(dev->semaphore);
@@ -758,6 +796,43 @@ int temp_tx_cal_hysteries(int current_temp, int old_temp_range)
 
     return decided_range;
 }
+
+int hal_adc_stream_mode_process(adc_dev_t* dev, uint16_t *data, uint8_t *ch, int len)
+{
+    if (!dev)
+        return ADC_ERR_INVALID_PARAM;
+    osMutexWait(dev->mutex, osWaitForever);
+
+	
+	int cnt = 0;
+	if (len <= 0)
+		return ADC_ERR_INVALID_PARAM;
+	uint32_t status = adc_intr_status();
+	if (status & (ADC_INTR_FIFO_ALMOST_FULL | ADC_INTR_FIFO_FULL)) {
+		cnt = adc_fifo_cnt();
+		cnt++; 
+		if (len < cnt)
+			cnt = len;
+	    for (int i = 0; i < cnt; i++) {
+	        uint16_t val = adc_fifo_data();
+            if (ch) {
+                ch[i] =  val >> 12;;
+            }
+	        if (data) {
+	        	data[i] = val & 0xfff;
+	        }
+	     
+	        int wait = READ_DELAY;
+	        while (wait-- > 0);
+	    }		
+	}
+
+	adc_intr_clear(status);
+	osMutexRelease(dev->mutex);
+    return cnt;
+}
+
+
 static void adc_read_fifo(adc_dev_t* pd)
 {
     int cnt = adc_fifo_cnt();

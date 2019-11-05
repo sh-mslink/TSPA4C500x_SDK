@@ -13,7 +13,7 @@
  */
 #include "msrcu_config.h"
 #if MSRCU_MOTION_ENABLE
-#if MSRCU_DEV == MSRCU_DEV_TSPA4C500A 
+#if MSRCU_DEV == MSRCU_DEV_TSPA4C500X 
 #include "msrcu_dev_system.h"
 #include "msrcu_dev_ble.h"
 #include "msrcu_dev_gpio.h"
@@ -55,7 +55,7 @@ static struct bmi160_dev bm160Dev = {0};
 #if MSRCU_BMI160_I2C
 static bmi160_com_fptr_t bmi160_i2c_write(uint8_t devAddr, uint8_t regAddr, uint8_t *data, uint16_t len)
 {
-#if MSRCU_DEV == MSRCU_DEV_TSPA4C500A
+#if MSRCU_DEV == MSRCU_DEV_TSPA4C500X
     msrcu_dev_i2c_write(devAddr, regAddr, data, len);
 #endif
     return 0;
@@ -63,7 +63,7 @@ static bmi160_com_fptr_t bmi160_i2c_write(uint8_t devAddr, uint8_t regAddr, uint
 
 static bmi160_com_fptr_t bmi160_i2c_read(uint8_t devAddr, uint8_t regAddr, uint8_t *data, uint16_t len)
 {
-#if MSRCU_DEV == MSRCU_DEV_TSPA4C500A
+#if MSRCU_DEV == MSRCU_DEV_TSPA4C500X
     msrcu_dev_i2c_read(devAddr, regAddr, data, len);
 #endif
     return 0;
@@ -71,7 +71,7 @@ static bmi160_com_fptr_t bmi160_i2c_read(uint8_t devAddr, uint8_t regAddr, uint8
 
 static bmi160_delay_fptr_t bmi160_delay_ms(uint32_t millisec)
 {
-#if MSRCU_DEV == MSRCU_DEV_TSPA4C500A
+#if MSRCU_DEV == MSRCU_DEV_TSPA4C500X
     osDelay(millisec);
 #endif
     return 0;
@@ -86,7 +86,7 @@ static msrcuErr_t msrcu_fw_motion_sensor_direction_map(amSensor_t *sensor)
     
     memcpy(p, sensor, sizeof(amSensor_t));
     
-    //acc    
+    //acc
     if(MSRCU_MOTION_SENSOR_ACC_X > 0)
     {
         if     (MSRCU_MOTION_SENSOR_ACC_X == 1) sensor->accX = p->accX;
@@ -175,8 +175,8 @@ static msrcuErr_t msrcu_fw_motion_sensor_direction_map(amSensor_t *sensor)
 static msrcuErr_t msrcu_fw_motion_algorithm_init(void)
 {
     bool result;
-
-    result = airmouseInit(M_SAMPLE_FREQUENCY, M_ACC_1G_COUNT, M_GYRO_1DS_COUNT, M_SENSITIVITY);    
+    
+    result = airmouseInit(M_SAMPLE_FREQUENCY, M_ACC_1G_COUNT, M_GYRO_1DS_COUNT, M_SENSITIVITY);
     if(result == false)
         return ERR_OTHERS;
     
@@ -186,8 +186,8 @@ static msrcuErr_t msrcu_fw_motion_algorithm_init(void)
 static msrcuErr_t msrcu_fw_motion_pin_init(void)
 {
     msrcuErr_t err = ERR_NO_ERROR;
-        
-#if MSRCU_DEV == MSRCU_DEV_TSPA4C500A
+    
+#if MSRCU_DEV == MSRCU_DEV_TSPA4C500X
     msrcu_dev_gpio_motion_sensor_power_pin_init();
     
 #if MSRCU_BMI160_I2C
@@ -211,14 +211,14 @@ static msrcuErr_t msrcu_fw_motion_sensor_init(void)
     
 #if MSRCU_BMI160_I2C
     int8_t rslt = BMI160_OK;
-
+    
     //init
     bm160Dev.id = BMI160_I2C_ADDR;
     bm160Dev.interface = BMI160_I2C_INTF;
     bm160Dev.read = (bmi160_com_fptr_t)bmi160_i2c_read;
     bm160Dev.write = (bmi160_com_fptr_t)bmi160_i2c_write;
     bm160Dev.delay_ms = (bmi160_delay_fptr_t)bmi160_delay_ms;
-
+    
     rslt = bmi160_init(&bm160Dev);
     if(rslt)
         return ERR_PERIPHERAL;
@@ -230,9 +230,9 @@ static msrcuErr_t msrcu_fw_motion_sensor_init(void)
     
 /*    //interrupt config
     struct bmi160_int_settg int_config;
-
+    
     int_config.int_channel = BMI160_INT_CHANNEL_1;// Interrupt channel/pin 1
-
+    
     int_config.int_type = BMI160_ACC_HIGH_G_INT;
     
     int_config.int_pin_settg.output_en = BMI160_ENABLE;// Enabling interrupt pins to act as output pin
@@ -260,7 +260,7 @@ static msrcuErr_t msrcu_fw_motion_sensor_init(void)
     bm160Dev.accel_cfg.range = BMI160_ACCEL_RANGE_8G;
     bm160Dev.accel_cfg.bw = BMI160_ACCEL_BW_NORMAL_AVG4;
     bm160Dev.accel_cfg.power = BMI160_ACCEL_SUSPEND_MODE;
-
+    
     bm160Dev.gyro_cfg.odr = BMI160_GYRO_ODR_100HZ;
     bm160Dev.gyro_cfg.range = BMI160_GYRO_RANGE_2000_DPS;
     bm160Dev.gyro_cfg.bw = BMI160_GYRO_BW_NORMAL_MODE; 
@@ -272,7 +272,7 @@ static msrcuErr_t msrcu_fw_motion_sensor_init(void)
     
 #else
     return ERR_PERIPHERAL;
-#endif    
+#endif
     
     return err;
 }
@@ -291,7 +291,7 @@ msrcuErr_t msrcu_fw_motion_power_off(void)
 msrcuErr_t msrcu_fw_motion_reinit(void)
 {
     msrcuErr_t err = ERR_NO_ERROR;
-            
+    
     msrcu_dev_gpio_motion_sensor_power_on();
     
     err = msrcu_fw_motion_sensor_init();
@@ -306,20 +306,19 @@ msrcuErr_t msrcu_fw_motion_reinit(void)
 }
 #endif
 
-
 msrcuErr_t msrcu_fw_motion_init(void)
 {
     msrcuErr_t err = ERR_NO_ERROR;
-
+    
     err = msrcu_fw_motion_algorithm_init();
     if(err)
-        return err;    
+        return err;
     
     err = msrcu_fw_motion_pin_init();
     if(err)
         return err; 
     
-#if MSRCU_MOTION_SENSOR_POWER_CTRL_ENABLE   
+#if MSRCU_MOTION_SENSOR_POWER_CTRL_ENABLE
     msrcu_dev_gpio_motion_sensor_power_on();
 #endif
     
@@ -327,7 +326,7 @@ msrcuErr_t msrcu_fw_motion_init(void)
     if(err)
         return err;
         
-#if MSRCU_MOTION_SENSOR_POWER_CTRL_ENABLE   
+#if MSRCU_MOTION_SENSOR_POWER_CTRL_ENABLE
     msrcu_dev_gpio_motion_sensor_power_off();
 #endif
     
@@ -344,13 +343,13 @@ bool msrcu_fw_motion_is_stop(void)
 msrcuErr_t msrcu_fw_motion_start(void)
 {
     msrcuErr_t err = ERR_NO_ERROR;
-        
+    
 #if MSRCU_BMI160_I2C
     int8_t rslt = BMI160_OK;
     
     bm160Dev.accel_cfg.power = BMI160_ACCEL_NORMAL_MODE;
     bm160Dev.gyro_cfg.power = BMI160_GYRO_NORMAL_MODE; 
-
+    
     rslt = bmi160_set_sens_conf(&bm160Dev);
     if(rslt)
     {
@@ -372,9 +371,9 @@ msrcuErr_t msrcu_fw_motion_start(void)
 }
 
 msrcuErr_t msrcu_fw_motion_stop(void)
-{        
+{
     msrcuErr_t err = ERR_NO_ERROR;
-        
+    
 #if MSRCU_BMI160_I2C
     int8_t rslt = BMI160_OK;
     
@@ -391,7 +390,7 @@ msrcuErr_t msrcu_fw_motion_stop(void)
         err = ERR_NO_ERROR;
 #else
     err = ERR_PERIPHERAL;
-#endif   
+#endif
     
     if(err)
         isStop = false;
@@ -402,7 +401,7 @@ msrcuErr_t msrcu_fw_motion_stop(void)
 }
 
 msrcuErr_t msrcu_fw_motion_get_data(msrcuMotionAcc_t *acc, msrcuMotionGyro_t *gyro, msrcuMotionMouse_t *mouse)
-{        
+{
     msrcuErr_t err = ERR_NO_ERROR;
     
     if(isStop)
@@ -430,14 +429,14 @@ msrcuErr_t msrcu_fw_motion_get_data(msrcuMotionAcc_t *acc, msrcuMotionGyro_t *gy
         amD.sensor.gyroX = bGyro.x;
         amD.sensor.gyroY = bGyro.y;
         amD.sensor.gyroZ = bGyro.z; 
-           
-//        MSPRINT("accG: %f %f %f, gyro: %d %d %d.\r\n", 
-//                amD.sensor.accX/4096.0, amD.sensor.accY/4096.0, amD.sensor.accZ/4096.0, 
-//                amD.sensor.gyroX, amD.sensor.gyroY, amD.sensor.gyroZ);  
-        msrcu_fw_motion_sensor_direction_map(&amD.sensor);        
-//        MSPRINT("accG: %f %f %f, gyro: %d %d %d.\r\n", 
-//                amD.sensor.accX/4096.0, amD.sensor.accY/4096.0, amD.sensor.accZ/4096.0, 
-//                amD.sensor.gyroX, amD.sensor.gyroY, amD.sensor.gyroZ);  
+        
+//        MSPRINT("accG: %f %f %f, gyro: %d %d %d.\r\n",
+//                amD.sensor.accX/4096.0, amD.sensor.accY/4096.0, amD.sensor.accZ/4096.0,
+//                amD.sensor.gyroX, amD.sensor.gyroY, amD.sensor.gyroZ);
+        msrcu_fw_motion_sensor_direction_map(&amD.sensor);
+//        MSPRINT("accG: %f %f %f, gyro: %d %d %d.\r\n",
+//                amD.sensor.accX/4096.0, amD.sensor.accY/4096.0, amD.sensor.accZ/4096.0,
+//                amD.sensor.gyroX, amD.sensor.gyroY, amD.sensor.gyroZ);
 //        MSPRINT("mouse: %d %d.\r\n", amD.mouse.x, amD.mouse.y);
         
         airmouseConversion(&amD);
@@ -467,7 +466,7 @@ msrcuErr_t msrcu_fw_motion_get_data(msrcuMotionAcc_t *acc, msrcuMotionGyro_t *gy
     {
         mouse->x = amD.mouse.x;
         mouse->y = amD.mouse.y;
-    }  
+    }
 #else
     return ERR_PERIPHERAL;
 #endif
@@ -482,7 +481,7 @@ msrcuErr_t msrcu_fw_motion_mouse_hid_send(uint8_t conIndex, msrcuMouseButton_t b
     
     msrcuErr_t err = ERR_DEVICE;
     
-    msrcuBleHidReport_t report = {0};    
+    msrcuBleHidReport_t report = {0};
     
     report.conIndex = conIndex;
     report.instance = HID_MOUSE_INSTANCE;
@@ -491,9 +490,9 @@ msrcuErr_t msrcu_fw_motion_mouse_hid_send(uint8_t conIndex, msrcuMouseButton_t b
     report.data[MOUSE_HID_PKG_X_IDX] = mouse->x;
     report.data[MOUSE_HID_PKG_Y_IDX] = mouse->y;
     
-#if MSRCU_DEV == MSRCU_DEV_TSPA4C500A
+#if MSRCU_DEV == MSRCU_DEV_TSPA4C500X
     err = msrcu_dev_ble_hid_send(&report);
-#endif  
+#endif
     
     return err;
 }

@@ -1323,6 +1323,7 @@ int hal_spi_slv_stop(void *hdl)
 {
 	spi_dev_t *pd = (spi_dev_t *)hdl;
 	pd->slv_stop = 1;
+    return SPI_ERR_OK;
 }
 int hal_spi_slv_rx(void *hdl, int cs, int speed, int phase, int polarity, int dfs, void *buffer, uint16_t buffer_len, uint16_t *rx_len)
 {

@@ -86,7 +86,7 @@
 #define UART_IER_ELSI				0x00000004UL		/// Receiver Line Status Interrupt
 #define UART_IER_ETBEI				0x00000002UL		/// Transmit Holding Register Empty Interrupt
 #define UART_IER_ERBFI				0x00000001UL		/// Receive Data Available Interrupt
-#define UART_IER_PTIME				0x00000040UL		/// Programmable threshold interrupt mode enable
+#define UART_IER_PTIME				0x00000080UL		/// Programmable threshold interrupt mode enable
 
 #define UART_IT_ID_NONE						0x1
 #define UART_IT_ID_LINE_STATUS			0x6			/* Highest */
@@ -310,7 +310,7 @@ static __inline void uart_set_fcr(uint32_t uart_base, int fifo_enable, int fifo_
 
 	reg |= (fifo_tx_thold & 0x3) << 4;
 	reg |= (fifo_rx_thold & 0x3) << 6;
-	if (dma_mode)
+	if (dma_mode)	// DMA mode is not used
 		reg |= UART_FCR_DMAM;
 	reg |= UART_FCR_XFIFOR;
 	reg |= UART_FCR_RFIFOR;
@@ -318,14 +318,14 @@ static __inline void uart_set_fcr(uint32_t uart_base, int fifo_enable, int fifo_
 	WR_WORD(uart_base + UART_REG_FCR_OFS, reg);		
 }
 
-static __inline void uart_auto_fc(uint32_t uart_base, int fc)			
-{
-	WR_WORD(uart_base + UART_REG_MCR_OFS, (fc ? (RD_WORD(uart_base + UART_REG_MCR_OFS)|UART_MCR_AFCE) : (RD_WORD(uart_base + UART_REG_MCR_OFS)&~UART_MCR_AFCE)));		
-}
-
 static __inline void uart_fifo_disable(uint32_t uart_base)			
 {
 	WR_WORD(uart_base + UART_REG_FCR_OFS, 0);		
+}
+
+static __inline void uart_auto_fc(uint32_t uart_base, int fc)			
+{
+	WR_WORD(uart_base + UART_REG_MCR_OFS, (fc ? (RD_WORD(uart_base + UART_REG_MCR_OFS)|UART_MCR_AFCE) : (RD_WORD(uart_base + UART_REG_MCR_OFS)&~UART_MCR_AFCE)));		
 }
 
 static __inline void uart_xmit_ready(uint32_t uart_base)

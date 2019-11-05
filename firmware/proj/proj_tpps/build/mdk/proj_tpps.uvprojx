@@ -441,6 +441,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\..\hal\hal_timer.c</FilePath>
             </File>
+            <File>
+              <FileName>hal_dma.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\hal\hal_dma.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

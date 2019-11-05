@@ -346,5 +346,25 @@ int hal_adc_measure_temp(adc_dev_t* dev, int32_t* pval);
  * @return @see enum adc_error for return code.
  * */
 int hal_adc_measure_vbat(adc_dev_t* dev, int32_t* pval);
+
+/** 
+ * @brief Start stream mode. This is a special auto mode, it continue sample data, until call hal_adc_auto_mode_stop.
+ * @param[in] dev   ADC device struct.
+ * @return @see enum adc_error for return code.
+ * */
+
+int hal_adc_stream_mode_start(adc_dev_t* dev);
+
+/** 
+ * @brief Get data and channel in stream mode
+ * @param[in] dev   ADC device struct.
+ * @param[in] data   ADC data buffer, all channel data is in this buffer.
+ * @param[in] ch   ADC channel buffer, it indicates channel in data buffer.
+ * @param[in] len   buffer length.
+ * @return @see enum adc_error for return code.
+ * */
+int hal_adc_stream_mode_process(adc_dev_t* dev, uint16_t *data, uint8_t *ch, int len);
+
+
 #endif
 

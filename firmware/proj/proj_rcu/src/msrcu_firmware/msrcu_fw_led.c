@@ -12,7 +12,7 @@
  ****************************************************************************************
  */
 #include "msrcu_config.h"
-#if MSRCU_DEV == MSRCU_DEV_TSPA4C500A
+#if MSRCU_DEV == MSRCU_DEV_TSPA4C500X
 #include "msrcu_dev_gpio.h"
 #endif
 

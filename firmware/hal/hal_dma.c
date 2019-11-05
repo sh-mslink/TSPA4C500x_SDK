@@ -262,7 +262,7 @@ int hal_dma_ch_enable(void *hdl, void *arg, void (*callback)(int id, void *arg, 
 	pch->callback = callback;
 	status[pch->chn] = DMA_IT_STATUS_ALL;
 	dma_intr_clr(pd->base, DMA_MAX_CH_NB, status);
-	dma_intr_unmask(pd->base, pch->chn, DMA_IT_STATUS_TFR|DMA_IT_STATUS_ERR);
+	dma_intr_unmask(pd->base, pch->chn, (DMA_IT_STATUS_TFR|DMA_IT_STATUS_ERR));
 	NVIC_SetPriority(pd->irq, IRQ_PRI_Normal);	
 	NVIC_EnableIRQ(pd->irq);
 
@@ -397,3 +397,17 @@ int hal_dma_dst_req(void *hdl)
 
 	return DMA_ERR_OK;
 }
+
+uint32_t hal_dma_get_tran_len(void *hdl)
+{
+	dma_ch_t *pch = (dma_ch_t *)hdl;
+
+	if (!pch)
+		return DMA_ERR_INVALID_PARA;
+
+	if (!pch->used)	
+		return DMA_ERR_BAD_STATE;
+
+	return dma_ch_get_tran_block_size(pch->base);
+}
+

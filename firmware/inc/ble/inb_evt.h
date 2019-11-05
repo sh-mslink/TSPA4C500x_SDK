@@ -50,6 +50,7 @@ enum
 typedef struct {
 	/// ID of the event
 	uint16_t evt_id;
+	uint8_t pad[2];
 	/// Variable size parameter for this event
 	uint8_t param[];
 } inb_evt_t;

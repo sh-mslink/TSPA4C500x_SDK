@@ -248,7 +248,6 @@ static int boot_spi_flash_erase(uint32_t addr, uint32_t size)
 
 static int boot_spi_flash_prog(uint32_t addr, uint8_t *data, uint32_t data_len)
 {
-
     if (addr == HASH_CMD_ADDR) {
         void (*fun)(uint8_t *hash, void *pbr) = (void (*)(uint8_t *hash, void *pbr))HASH_FUNC;
         bootrom_t *param = (bootrom_t*)HASH_FUNC_PARAM;

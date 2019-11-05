@@ -31,15 +31,9 @@
 #include "airmouse.h"
 
 
-#if defined(BOARD_TSPA4C500A_REMOTER)
-#define LED_R   0
-#define LED_G   LED_R
-#define LED_B   LED_R
-#elif defined(BOARD_TSPA4C500A_EVB_BONE)
 #define LED_R   0
 #define LED_G   1
 #define LED_B   2
-#endif
 
 #if MSRCU_MOTION_ENABLE
 #define MOTION_TIMER_MS     (1000 / M_SAMPLE_FREQUENCY)
@@ -87,6 +81,8 @@ static osTimerId msrcuAppBondTimerId;
 static osTimerDef(msrcuAppBondTimer, user_rcu_bond_timer_callback);
 static msrcuErr_t user_rcu_ble_bond_data_clear(msrcuBleBondData_t* data);
 
+static bool userConParamUpdFlag = false;
+
 static msrcuErr_t user_rcu_ble_adv_start(void);
 static msrcuErr_t user_rcu_ble_adv_stop(void);
 
@@ -110,17 +106,17 @@ static msrcuIrCode_t userIrCode;
 #if MSRCU_IR_LEARN_ENABLE
 static bool userIrLearnIsStop = true;
 #endif
-            
+
 static int handle_msg(msg_t *p_msg)
 {
-	//PRINTD(DBG_TRACE, "main evt %d...\r\n", p_msg->msg_id);
-	
-	switch (p_msg->msg_id) 
-	{
+    //PRINTD(DBG_TRACE, "main evt %d...\r\n", p_msg->msg_id);
+    
+    switch(p_msg->msg_id)
+    {
         default:
             handle_default_msg(p_msg);
             break;
-	}
+    }
     return 0;
 }
 
@@ -145,7 +141,7 @@ static void user_rcu_power_update_battery_level(void)
     }
     
     if(batMv < MSRCU_POWER_BAT_MV_EMPTY)
-    {        
+    {
         userPowerState = POWER_STATE_EMPTY;
         MSPRINT("Battery power empty!!!\r\n");
     }
@@ -267,7 +263,7 @@ static void user_rcu_led_timer_callback(void const *arg)
         case LED_STATE_BOND_SUCCESS:
         case LED_STATE_BOND_FAIL:
             userLedDuration = 0;
-            break; 
+            break;
         
         case LED_STATE_BOND_CLEAR:
         {
@@ -300,7 +296,7 @@ static void user_rcu_led_timer_callback(void const *arg)
         default:
             userLedDuration = 0;
             break;
-    }    
+    }
     
     if(userLedDuration <= 0)
     {
@@ -312,7 +308,7 @@ static void user_rcu_led_timer_callback(void const *arg)
 }
 
 static msrcuErr_t user_rcu_led_set(msrcuLedSt newSt)
-{        
+{
     //function check
     if((newSt & LED_STATE_FUNCTION_MASK) == 0)
         return ERR_VALID_INPUT;
@@ -336,7 +332,7 @@ static msrcuErr_t user_rcu_led_set(msrcuLedSt newSt)
             osTimerStart(msrcuAppLedTimerId, MSRCU_LED_KEY_PRESS_ON_TIME);
             break;
         }
-            
+        
         case LED_STATE_KEY_RELEASE:
         {
             osTimerStop(msrcuAppLedTimerId);
@@ -391,7 +387,7 @@ static msrcuErr_t user_rcu_led_set(msrcuLedSt newSt)
         {
             msrcu_app_led_on(LED_R);
             userLedDuration = MSRCU_LED_BOND_START_DURATION;
-            osTimerStart(msrcuAppLedTimerId, MSRCU_LED_BOND_START_ON_TIME);   
+            osTimerStart(msrcuAppLedTimerId, MSRCU_LED_BOND_START_ON_TIME);
             break;
         }
         
@@ -413,7 +409,7 @@ static msrcuErr_t user_rcu_led_set(msrcuLedSt newSt)
         {
             msrcu_app_led_on(LED_R);
             userLedDuration = MSRCU_LED_BOND_CLEAR_DURATION;
-            osTimerStart(msrcuAppLedTimerId, MSRCU_LED_BOND_CLEAR_ON_TIME);            
+            osTimerStart(msrcuAppLedTimerId, MSRCU_LED_BOND_CLEAR_ON_TIME);
             break;
         }
         
@@ -422,11 +418,11 @@ static msrcuErr_t user_rcu_led_set(msrcuLedSt newSt)
         case LED_STATE_IR_LEARN_FAIL:
         default:
             return ERR_NOT_SUPPORT;
-    }    
+    }
     
     userLedSt = newSt;
     MSPRINT("LED set state: 0x%02X.\r\n", userLedSt);
-            
+    
     return ERR_NO_ERROR;
 }
 
@@ -459,7 +455,7 @@ static void user_rcu_longpress_timer_callback(void const *arg)
             
             osTimerStart(msrcuAppBondTimerId, MSRCU_LED_BOND_START_DURATION);
         }
-    }    
+    }
 }
 
 #if MSRCU_VOICE_ENABLE 
@@ -490,7 +486,7 @@ void user_rcu_voice_start(void)
             MSPRINT("Voice start error.\r\n");
     }
 }
-        
+
 void user_rcu_voice_stop(void)
 {
     if(!userVoiceIsStop)
@@ -533,7 +529,7 @@ static void user_rcu_rf_test_timer_callback(void const *arg)
 static void user_rcu_adv_timer_callback(void const *arg)
 {
     if(BLE_STATE_ADVERTISING == msrcu_app_ble_get_state())
-        user_rcu_ble_adv_stop();    
+        user_rcu_ble_adv_stop();
     osTimerStop(msrcuAppAdvTimerId);
 }
 
@@ -543,12 +539,12 @@ static void user_rcu_connect_timer_callback(void const *arg)
     
     MSPRINT("BLE connection duration time out.\r\n"); 
     
-    msrcu_app_ble_disconnect();    
+    msrcu_app_ble_disconnect();
 }
 
 static void user_rcu_bond_timer_callback(void const *arg)
 {
-    osTimerStop(msrcuAppBondTimerId);  
+    osTimerStop(msrcuAppBondTimerId);
     
     userBondEnable = false;
     MSPRINT("Bond fail: time out.\r\n");
@@ -609,7 +605,7 @@ static void user_rcu_ble_rf_test(void)
         return;
     
     if(testMode == hciMode)
-    {        
+    {
 #if CFG_HCI
         hci_enable();
         ble_stack_init();//wait for HCI communication
@@ -618,7 +614,7 @@ static void user_rcu_ble_rf_test(void)
 #endif
     }
     else if(testMode == inbMode)
-    {        
+    {
         //init timer for rf test
         if(MSRCU_RF_TEST_DURATION)
         {
@@ -633,7 +629,7 @@ static void user_rcu_ble_rf_test(void)
         uint16_t rxPacketNb = 0;
         
         ble_config(0);
-                
+        
         tMode.test_mode = TEST_MODE_TX;
         tMode.channel = 19;//2440MHz
         tMode.tx_data_length = 20;
@@ -642,7 +638,7 @@ static void user_rcu_ble_rf_test(void)
         tMode.modulation_idx = MODULATION_STANDARD;
         inb_test(&tMode, &rxPacketNb);//test start
     }
-        
+    
     while(1);//continue to test forever until chip reset
 }
 
@@ -667,8 +663,8 @@ static msrcuErr_t user_rcu_ble_update_connection_parameter(void)
 }
 
 static msrcuErr_t user_rcu_ble_bond_data_save(msrcuBleBondData_t* data)
-{                    
-    if(hal_spi_flash_prog(BOND_DATA_FLASH_OFFSET, 4096, 
+{
+    if(hal_spi_flash_prog(BOND_DATA_FLASH_OFFSET, 4096,
             BOND_DATA_FLASH_OFFSET, 256, (uint8_t *)data, 0))
         return ERR_DEVICE_DRIVER;
     else
@@ -679,18 +675,18 @@ static msrcuErr_t user_rcu_ble_bond_data_save(msrcuBleBondData_t* data)
 }
 
 static msrcuErr_t user_rcu_ble_bond_data_read(msrcuBleBondData_t* data)
-{                    
+{
     memcpy(data, (uint8_t*)(0x00300000 + BOND_DATA_FLASH_OFFSET), sizeof(msrcuBleBondData_t)); 
     
     return ERR_NO_ERROR;
 }
 
 static msrcuErr_t user_rcu_ble_bond_data_clear(msrcuBleBondData_t* data)
-{                    
+{
     if(data->status)
     {
-        memset(&ble_bond_data, 0, sizeof(ble_bond_data));         
-        memset(data, 0, sizeof(msrcuBleBondData_t)); 
+        memset(&ble_bond_data, 0, sizeof(ble_bond_data));
+        memset(data, 0, sizeof(msrcuBleBondData_t));
         if(hal_spi_flash_prog(BOND_DATA_FLASH_OFFSET, 4096, 
                 BOND_DATA_FLASH_OFFSET, 256, (uint8_t *)data, 0))
             return ERR_DEVICE_DRIVER;
@@ -700,7 +696,7 @@ static msrcuErr_t user_rcu_ble_bond_data_clear(msrcuBleBondData_t* data)
             return ERR_NO_ERROR;
         }
     }
-    else 
+    else
         return ERR_NO_ERROR;
 }
 
@@ -740,7 +736,7 @@ static msrcuErr_t user_rcu_ble_adv_start(void)
     {
         adv->pduType = ADV_IND;
     }
-#else      
+#else
     adv->pduType = ADV_IND;  
 #endif
     adv->channel = ADV_CHANNEL_37_38_39;
@@ -768,13 +764,13 @@ static msrcuErr_t user_rcu_ble_adv_start(void)
             osTimerStart(msrcuAppAdvTimerId, MSRCU_BLE_ADV_DURATION);
     }
     else
-        MSPRINT("Advertising start error.\r\n");    
-        
+        MSPRINT("Advertising start error.\r\n");
+    
     return err;
 }
 
 static msrcuErr_t user_rcu_ble_adv_stop(void)
-{    
+{
     msrcuErr_t err = ERR_NO_ERROR;
     
     if(userBondEnable)
@@ -782,7 +778,7 @@ static msrcuErr_t user_rcu_ble_adv_stop(void)
     
     err = msrcu_app_ble_adv_stop();
     
-    if(!err)        
+    if(!err)
         MSPRINT("Advertising stop.\r\n");
     else
         MSPRINT("Advertising stop error.\r\n");
@@ -802,8 +798,8 @@ static void user_rcu_ble_callback(msrcuEvtBle_t *evt)
                     conInd->peerAddr.addr[0], conInd->peerAddr.addr[1], conInd->peerAddr.addr[2],
                     conInd->peerAddr.addr[3], conInd->peerAddr.addr[4], conInd->peerAddr.addr[5]);
             
-			if(MSRCU_BLE_CNT_DURATION)
-            	osTimerStart(msrcuAppConnectTimerId, MSRCU_BLE_CNT_DURATION);
+            if(MSRCU_BLE_CNT_DURATION)
+                osTimerStart(msrcuAppConnectTimerId, MSRCU_BLE_CNT_DURATION);
             
             msrcuBondData.peerAddrType = conInd->peerAddrType;
             memcpy(msrcuBondData.peerAddr.addr, conInd->peerAddr.addr, BLE_ADDR_LEN);
@@ -812,9 +808,9 @@ static void user_rcu_ble_callback(msrcuEvtBle_t *evt)
                     || (conInd->conInterval > MSRCU_BLE_CNT_INTERVAL_MAX)
                     || (conInd->conLatency != MSRCU_BLE_CNT_LATENCY)
                     || (conInd->conTimeOut != MSRCU_BLE_CNT_TIMEOUT))
-            {
-                user_rcu_ble_update_connection_parameter();
-            }
+                userConParamUpdFlag = true;//wait for BLE_STATE_READY
+            else
+                userConParamUpdFlag = false;
             
             break;
         }
@@ -825,6 +821,8 @@ static void user_rcu_ble_callback(msrcuEvtBle_t *evt)
             MSPRINT("Disconnected, idx:%d, reason:0x%02X.\r\n", disconInd->conIndex, disconInd->reason);
             
             osTimerStop(msrcuAppConnectTimerId);
+            
+            userConParamUpdFlag = false;
             
             msrcuLedSt ledSt = LED_STATE_NULL;
 #if MSRCU_VOICE_ENABLE
@@ -858,10 +856,12 @@ static void user_rcu_ble_callback(msrcuEvtBle_t *evt)
                     MSPRINT("Motion stop error.\r\n"); 
 #if MSRCU_MOTION_SENSOR_POWER_CTRL_ENABLE
                 msrcu_app_motion_power_off();
-#endif                                          
+#endif
             }
-#endif                
-            if(msrcuBondData.status && disconInd->reason != BLE_ERROR_CON_TERM_BY_LOCAL_HOST)
+#endif
+            if(msrcuBondData.status
+                    && disconInd->reason != BLE_ERROR_CON_TERM_BY_LOCAL_HOST
+                    && disconInd->reason != BLE_ERROR_REMOTE_USER_TERM_CON )
                 user_rcu_ble_adv_start();
             
             user_rcu_led_set(ledSt);
@@ -881,12 +881,15 @@ static void user_rcu_ble_callback(msrcuEvtBle_t *evt)
                     || (conParamUpd->conLatency != MSRCU_BLE_CNT_LATENCY)
                     || (conParamUpd->conTimeOut != MSRCU_BLE_CNT_TIMEOUT))
             {
-                user_rcu_ble_update_connection_parameter();
+                if(BLE_STATE_READY == msrcu_app_ble_get_state())
+                    user_rcu_ble_update_connection_parameter();
+                else
+                    userConParamUpdFlag = true;//wait for BLE_STATE_READY
             }
             
             break;
         }
-            
+        
         case EVT_BLE_RCU_READY:
         {
             if(userBondEnable)
@@ -902,7 +905,13 @@ static void user_rcu_ble_callback(msrcuEvtBle_t *evt)
             }
             
             user_rcu_power_update_battery_level();
-                
+            
+            if(userConParamUpdFlag)
+            {
+                user_rcu_ble_update_connection_parameter();
+                userConParamUpdFlag = false;
+            }
+            
             break;
         }
         
@@ -934,23 +943,25 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
                 user_rcu_ble_adv_start();
             
             if((BLE_STATE_IDLE == msrcu_app_ble_get_state()
-                    || BLE_STATE_ADVERTISING == msrcu_app_ble_get_state())
-                    && userIrSendIsStop)
+                    || BLE_STATE_ADVERTISING == msrcu_app_ble_get_state()))
             {
-#if MSRCU_IR_SEND_ENABLE 
-                //IR send start
-                userIrCode.protocol = IR_PROT_NEC;
-                userIrCode.param.necCode.addL = MSRCU_IR_NEC_ADD_L;
-                userIrCode.param.necCode.addH = MSRCU_IR_NEC_ADD_H; 
-                userIrCode.param.necCode.cmd = msrcuKeycodeToIrCmd(param->code); 
-                
-                if(!msrcu_app_ir_send_start(&userIrCode))
+#if MSRCU_IR_SEND_ENABLE
+                if(userIrSendIsStop)
                 {
-                    userIrSendIsStop = false;
-                    MSPRINT("IR send start.\r\n");
+                    //IR send start
+                    userIrCode.protocol = IR_PROT_NEC;
+                    userIrCode.param.necCode.addL = MSRCU_IR_NEC_ADD_L;
+                    userIrCode.param.necCode.addH = MSRCU_IR_NEC_ADD_H; 
+                    userIrCode.param.necCode.cmd = msrcuKeycodeToIrCmd(param->code); 
+                    
+                    if(!msrcu_app_ir_send_start(&userIrCode))
+                    {
+                        userIrSendIsStop = false;
+                        MSPRINT("IR send start.\r\n");
+                    }
+                    else
+                        MSPRINT("IR send start error.\r\n");
                 }
-                else
-                    MSPRINT("IR send start error.\r\n");
 #endif
             }
             else if(BLE_STATE_READY == msrcu_app_ble_get_state()
@@ -962,6 +973,9 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
         case EVT_KEY_RELEASE:
         {
             MSPRINT("Key %02d is released.\r\n", param->code);
+            
+            //stop long press check
+            osTimerStop(msrcuAppLongpressTimerId);
             
             //set LED
             ledSt = LED_STATE_KEY_RELEASE;
@@ -1040,7 +1054,7 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
             else if(param->behavior == EVT_KEY_LONG_PRESS){}
         }
         break; 
-                
+        
         case KEY_CODE_VOICE:
         {
             if(param->behavior == EVT_KEY_PRESS)
@@ -1085,7 +1099,7 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
 #else
                     if(userMotionIsStop)
 #endif
-                    {                
+                    {
 #if MSRCU_MOTION_SENSOR_POWER_CTRL_ENABLE
                         if(msrcu_app_motion_reinit())
                         {
@@ -1222,15 +1236,16 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
         //case other key codes...
         
         default:
-        {            
+        {
             if(param->behavior == EVT_KEY_PRESS){}
             else if(param->behavior == EVT_KEY_RELEASE){}
         }
         break;
     }
     
-    user_rcu_led_set(ledSt);  
+    user_rcu_led_set(ledSt);
 }
+
 #if (MSRCU_IR_SEND_ENABLE || MSRCU_IR_LEARN_ENABLE)
 static void user_rcu_ir_callback(msrcuEvtIr_t *param)
 {   
@@ -1281,7 +1296,7 @@ static void user_rcu_motion_timer_callback(void const *arg)
         uint8_t data[MOUSE_HID_PKG_SIZE] = {0};
 //        data[MOUSE_HID_PKG_KEY_IDX] = MOUSE_BUTTON_NULL;
 //        data[MOUSE_HID_PKG_X_IDX] = mouse.x;
-//        data[MOUSE_HID_PKG_Y_IDX] = mouse.y;         
+//        data[MOUSE_HID_PKG_Y_IDX] = mouse.y;
         memcpy(msg->data, data, msg->length);
         
         msg_put(msg);
@@ -1292,40 +1307,40 @@ static void user_rcu_motion_timer_callback(void const *arg)
 static msrcuErr_t user_rcu_timer_init(void)
 {
     //init timer for key longpress
-	msrcuAppLongpressTimerId = osTimerCreate(osTimer(msrcuAppLongpressTimer), osTimerPeriodic, NULL);
-	if(msrcuAppLongpressTimerId == NULL)
-		return ERR_OS;
+    msrcuAppLongpressTimerId = osTimerCreate(osTimer(msrcuAppLongpressTimer), osTimerPeriodic, NULL);
+    if(msrcuAppLongpressTimerId == NULL)
+        return ERR_OS;
     
     //init timer for LED
-	msrcuAppLedTimerId = osTimerCreate(osTimer(msrcuAppLedTimer), osTimerPeriodic, NULL);
-	if(msrcuAppLedTimerId == NULL)
-		return ERR_OS;
+    msrcuAppLedTimerId = osTimerCreate(osTimer(msrcuAppLedTimer), osTimerPeriodic, NULL);
+    if(msrcuAppLedTimerId == NULL)
+        return ERR_OS;
     
     //init timer for checking battery voltage
-	msrcuAppPowerTimerId = osTimerCreate(osTimer(msrcuAppPowerTimer), osTimerPeriodic, NULL);
-	if(msrcuAppPowerTimerId == NULL)
-		return ERR_OS;
+    msrcuAppPowerTimerId = osTimerCreate(osTimer(msrcuAppPowerTimer), osTimerPeriodic, NULL);
+    if(msrcuAppPowerTimerId == NULL)
+        return ERR_OS;
     
     //init timer for advertising
-	msrcuAppAdvTimerId = osTimerCreate(osTimer(msrcuAppAdvTimer), osTimerPeriodic, NULL);
-	if(msrcuAppAdvTimerId == NULL)
-		return ERR_OS;
+    msrcuAppAdvTimerId = osTimerCreate(osTimer(msrcuAppAdvTimer), osTimerPeriodic, NULL);
+    if(msrcuAppAdvTimerId == NULL)
+        return ERR_OS;
     
     //init timer for conncetion duration
-	msrcuAppConnectTimerId = osTimerCreate(osTimer(msrcuAppConnectTimer), osTimerPeriodic, NULL);
-	if(msrcuAppAdvTimerId == NULL)
-		return ERR_OS;
+    msrcuAppConnectTimerId = osTimerCreate(osTimer(msrcuAppConnectTimer), osTimerPeriodic, NULL);
+    if(msrcuAppAdvTimerId == NULL)
+        return ERR_OS;
     
     //init timer for bond
-	msrcuAppBondTimerId = osTimerCreate(osTimer(msrcuAppBondTimer), osTimerPeriodic, NULL);
-	if(msrcuAppBondTimerId == NULL)
-		return ERR_OS;
+    msrcuAppBondTimerId = osTimerCreate(osTimer(msrcuAppBondTimer), osTimerPeriodic, NULL);
+    if(msrcuAppBondTimerId == NULL)
+        return ERR_OS;
     
 #if MSRCU_MOTION_ENABLE
     //init timer for getting motion sensor data
-	msrcuAppMotionTimerId = osTimerCreate(osTimer(msrcuAppMotionTimer), osTimerPeriodic, NULL);
-	if(msrcuAppMotionTimerId == NULL)
-		return ERR_OS;
+    msrcuAppMotionTimerId = osTimerCreate(osTimer(msrcuAppMotionTimer), osTimerPeriodic, NULL);
+    if(msrcuAppMotionTimerId == NULL)
+        return ERR_OS;
 #endif
     
     return ERR_NO_ERROR;
@@ -1361,14 +1376,14 @@ static msrcuErr_t user_rcu_init(msrcuAppCallback_t *cb)
     err = msrcu_app_init(cb);
     if(err)
         return err;
-            
+    
     //LED check
     msrcu_app_led_on(LED_R);
     msrcu_app_led_on(LED_G);
     msrcu_app_led_on(LED_B);
-    osDelay(1000);  
+    osDelay(1000);
     user_rcu_led_all_off();
-        
+    
     //check battery voltage
     user_rcu_power_update_battery_level();
     //start timer for checking battery voltage
@@ -1382,77 +1397,77 @@ static msrcuErr_t user_rcu_init(msrcuAppCallback_t *cb)
     }
     else
         MSPRINT("Not bonded.\r\n");
-        
+    
     return err;
 }
 
 /*
  * main: This is actually main task.
- *	Note: The _main_init in the RTX_CM_lib.h is
- *				main entry routine (OS is initialized
- *				in there).
+ *  Note: The _main_init in the RTX_CM_lib.h is
+ *              main entry routine (OS is initialized
+ *              in there).
  */
 #if 0
 int main (void)//for test
 {
-	hal_global_post_init();
+    hal_global_post_init();
     
-	PRINTD(DBG_TRACE, "----------------\r\n");
-	PRINTD(DBG_TRACE, "main start...\r\n");
+    PRINTD(DBG_TRACE, "----------------\r\n");
+    PRINTD(DBG_TRACE, "main start...\r\n");
     
     ble_config(0);
     
     user_rcu_ble_adv_start();
     
-	while(1)
+    while(1)
     {
-		osDelay(1000);
-	}
+        osDelay(1000);
+    }
 }
 #else
 int main (void)
 {
-	//Initialize platform.
-	hal_global_post_init();
-	
-	//RF test mode for RCU production
-	user_rcu_ble_rf_test();
-	
-	//Debug UART port init
-	hal_global_debug_uart_init();
-	
-	PRINTD(DBG_TRACE, "----------------\r\n");
-	PRINTD(DBG_TRACE, "main start...\r\n");
-	
-	//MessageQ for main thread.
-	msg_init();
-	
-	//BLE init
-	ble_config(0);
-	
-	//RCU init
-	msrcuErr_t err = user_rcu_init(&userAppCb);
-	if(err)
-	{
-		MSPRINT("RCU init failed, error %d\r\n", err);
-		return 0;
-	}
-	else
-		MSPRINT("RCU init success.\r\n");  
-	
-	//Wait for message
-	while(1)
-	{
-		msg_t *p_msg;
-		
-		p_msg = msg_get(osWaitForever);
-		if(!p_msg)
-			break;
-		
-		handle_msg(p_msg);
-		
-		p_msg = msg_free(p_msg);
-	}
+    //Initialize platform.
+    hal_global_post_init();
+    
+    //RF test mode for RCU production
+    user_rcu_ble_rf_test();
+    
+    //Debug UART port init
+    hal_global_debug_uart_init();
+    
+    PRINTD(DBG_TRACE, "----------------\r\n");
+    PRINTD(DBG_TRACE, "main start...\r\n");
+    
+    //MessageQ for main thread.
+    msg_init();
+    
+    //BLE init
+    ble_config(0);
+    
+    //RCU init
+    msrcuErr_t err = user_rcu_init(&userAppCb);
+    if(err)
+    {
+        MSPRINT("RCU init failed, error %d\r\n", err);
+        return 0;
+    }
+    else
+        MSPRINT("RCU init success.\r\n");
+    
+    //Wait for message
+    while(1)
+    {
+        msg_t *p_msg;
+        
+        p_msg = msg_get(osWaitForever);
+        if(!p_msg)
+            break;
+        
+        handle_msg(p_msg);
+        
+        p_msg = msg_free(p_msg);
+    }
 }
 #endif
 

@@ -300,13 +300,15 @@ extern osThreadId svcThreadGetId (void);
 /// \param[in]   error_code   actual error code that has been detected
 void os_error (uint32_t error_code) {
 
-PRINTD(DBG_ERR, "os thread %d error code = %d\r\n", svcThreadGetId(), error_code);	 
-
+PRINTD(DBG_ERR, "os error code = %d\r\n", error_code);	 
+	uint32_t *p;
   /* HERE: include optional code to be executed on runtime error. */
   switch (error_code) {
     case OS_ERROR_STACK_OVF:
       /* Stack overflow detected for the currently running task. */
       /* Thread can be identified by calling svcThreadGetId().   */
+      p = (uint32_t *)svcThreadGetId();
+      PRINTD(DBG_ERR, "task id = %d\r\n", (*p)>>24);	
       break;
     case OS_ERROR_FIFO_OVF:
       /* ISR FIFO Queue buffer overflow detected. */

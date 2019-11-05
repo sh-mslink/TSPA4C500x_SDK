@@ -81,6 +81,7 @@ typedef struct {
 	char fc;
 
 	/// TX
+	void *h_tx_dma;
 	uint8_t *tx_buffer;
 	uint32_t tx_buffer_len;
 	uint32_t tx_buffer_ofs;
@@ -88,9 +89,11 @@ typedef struct {
 	void (*tx_callback)(void *arg, int length, int error);
 
 	/// RX
+	void *h_rx_dma;
 	uint8_t *rx_buffer;
 	uint32_t rx_buffer_len;
 	uint32_t rx_buffer_ofs;
+	int rx_no_wait;
 	void *rx_callback_arg;
 	void (*rx_callback)(void *arg, int length, int error);
 
@@ -335,6 +338,12 @@ PRINTD(DBG_ERR, "lsr=%08X\r\n", lsr);
 			if (pd->h_bk_sma)
 				osSemaphoreRelease(pd->h_bk_sma);
 		} else {
+			if (pd->h_rx_dma) {
+				// Disable DMA
+				hal_dma_ch_disable(pd->h_rx_dma);
+				hal_dma_close(pd->h_rx_dma);
+				pd->h_rx_dma = NULL;
+			}
 
 			if (lsr & UART_LSR_OE)
 				pd->error = UART_ERR_OE;
@@ -356,37 +365,49 @@ PRINTD(DBG_ERR, "lsr=%08X\r\n", lsr);
 	} 
 
 	if (iid == UART_IT_ID_RCVR_DATA) {
-		uint16_t oft = pd->rx_buffer_ofs;
+		if (!pd->h_rx_dma) {
+			uint16_t oft = pd->rx_buffer_ofs;
 
-		for (int i = 0; i < pd->fifo_rx_thold_nb; i++) {
-			if (oft >= pd->rx_buffer_len)   	
-				break;
-			pd->rx_buffer[oft] = uart_read_data(pd->base);
-			oft += 1;
-		}
+			for (int i = 0; i < pd->fifo_rx_thold_nb; i++) {
+				if (oft >= pd->rx_buffer_len)   	
+					break;
+				pd->rx_buffer[oft] = uart_read_data(pd->base);
+				oft += 1;
+			}
 
-		if (oft < pd->rx_buffer_len) {
-			pd->rx_buffer_ofs = oft;
-		} else {
-			/// Disable UART RX interrupt
-			uart_intr_disable(pd->base, UART_IER_ERBFI);
-
-			/// Call back to user
-			if (pd->rx_callback) { 
-				pd->rx_callback(pd->rx_callback_arg, oft, UART_ERR_OK);
-#if CFG_PM_EN
-				pd->power_state = PM_DEEP_SLEEP;
-#endif
+			if (oft < pd->rx_buffer_len) {
+				pd->rx_buffer_ofs = oft;
 			} else {
-				pd->error = UART_ERR_OK;
-				if (pd->rx_sma)
-					osSemaphoreRelease(pd->h_rx_sma);
+				/// Disable UART RX interrupt
+				uart_intr_disable(pd->base, UART_IER_ERBFI);
+
+				/// Call back to user
+				if (pd->rx_callback) { 
+					pd->rx_callback(pd->rx_callback_arg, oft, UART_ERR_OK);
+#if CFG_PM_EN
+					pd->power_state = PM_DEEP_SLEEP;
+#endif
+				} else {
+					pd->error = UART_ERR_OK;
+					if (pd->h_rx_sma)
+						osSemaphoreRelease(pd->h_rx_sma);
+				}
 			}
 		}
 	}
 
 	if (iid == UART_IT_ID_CHAR_TIME_OUT) {
 		uint16_t oft = pd->rx_buffer_ofs;
+
+		if (pd->h_rx_dma) {
+			// Read the total size that DMA tranfer
+			oft = hal_dma_get_tran_len(pd->h_rx_dma);
+//PRINTD(DBG_TRACE, "Uart Dma: size = %d\n", oft);
+			// Disable DMA
+			hal_dma_ch_disable(pd->h_rx_dma);
+			hal_dma_close(pd->h_rx_dma);
+			pd->h_rx_dma = NULL;
+		}
 
 		while (uart_line_status(pd->base) & UART_LSR_DR) {
 			if (oft >= pd->rx_buffer_len)   	
@@ -395,10 +416,11 @@ PRINTD(DBG_ERR, "lsr=%08X\r\n", lsr);
 			pd->rx_buffer[oft] = uart_read_data(pd->base);
 			oft += 1;
 		}			
+		pd->rx_buffer_ofs = oft;
+		if ((oft >= pd->rx_buffer_len) || pd->rx_no_wait) {
+			
+//PRINTD(DBG_TRACE, "Uart: rx size = %d\n", oft);
 
-		if (oft < pd->rx_buffer_len) {
-			pd->rx_buffer_ofs = oft;
-		} else {
 			/// Disable UART RX interrupt
 			uart_intr_disable(pd->base, UART_IER_ERBFI);
 
@@ -410,7 +432,7 @@ PRINTD(DBG_ERR, "lsr=%08X\r\n", lsr);
 #endif
 			} else {
 				pd->error = UART_ERR_OK;
-				if (pd->rx_sma)
+				if (pd->h_rx_sma)
 					osSemaphoreRelease(pd->h_rx_sma);
 			}
 		}
@@ -440,7 +462,7 @@ PRINTD(DBG_ERR, "lsr=%08X\r\n", lsr);
 #endif
 			} else {
 				pd->error = UART_ERR_OK;
-				if (pd->tx_sma)
+				if (pd->h_tx_sma)
 					osSemaphoreRelease(pd->h_tx_sma);
 			}
 		}
@@ -471,6 +493,66 @@ __irq void UART1_Handler(void)
 	for (int i = 0; i < CFG_NB_UART; i++) {
 		if (uart_dev[i].id == UART1_ID)
 			uart_isr_handler(&uart_dev[i]);		
+	}
+}
+
+/*
+ * Dma
+ ****************************************************************************************
+ */
+static void uart_dma_isr_cb(int id, void *arg, int status)
+{
+	uart_dev_t *pd = (uart_dev_t *)arg;
+	
+	
+	if (status & DMA_IT_STATUS_ERR) {
+PRINTD(DBG_ERR, "Dma Error intr...\n");
+		pd->error = UART_ERR_DMA;
+	}
+
+	if (id == DMA1_ID) {
+//PRINTD(DBG_ERR, "Dma RX intr...\n");
+		//RX dma
+		// This should not happened
+		if (pd->h_rx_dma) {
+			// Disable DMA
+			hal_dma_ch_disable(pd->h_rx_dma);
+			hal_dma_close(pd->h_rx_dma);
+			pd->h_rx_dma = NULL;
+
+			if (pd->rx_callback) { 
+				pd->rx_callback(pd->rx_callback_arg, 0, UART_ERR_DMA);
+#if CFG_PM_EN
+				pd->power_state = PM_DEEP_SLEEP;
+#endif
+			} else {
+				if (pd->h_rx_sma)
+					osSemaphoreRelease(pd->h_rx_sma);
+			}
+		}	
+	}
+
+	if (id == DMA0_ID) {
+		// TX dma completed
+		if (pd->h_tx_dma) {
+			// Disable DMA
+			hal_dma_ch_disable(pd->h_tx_dma);
+			hal_dma_close(pd->h_tx_dma);
+			pd->h_tx_dma = NULL;
+ 
+			// Make sure Uart is not busy before we exit 
+			while (uart_usr(pd->base) & UART_USR_BUSY);
+
+			if (pd->tx_callback) { 
+				pd->tx_callback(pd->tx_callback_arg, pd->tx_buffer_len, pd->error);
+#if CFG_PM_EN
+				pd->power_state = PM_DEEP_SLEEP;
+#endif
+			} else {
+				if (pd->h_tx_sma)
+					osSemaphoreRelease(pd->h_tx_sma);
+			}
+		}
 	}
 }
 
@@ -565,7 +647,7 @@ void *hal_uart_open(int id, int baud_rate, int data_len, int stop_bit, int parit
 	uart_set_lcr(pd->base, stop_bit, parity_en, even_parity, data_len);
 
 	/// Set FIFO control 
-	uart_set_fcr(pd->base, fifo_enable, 0, fifo_rx_thold, 0);
+	uart_set_fcr(pd->base, fifo_enable, 0, fifo_rx_thold, 1);
 
 	/// Set Flow control
 	uart_auto_fc(pd->base, fc);
@@ -577,8 +659,6 @@ void *hal_uart_open(int id, int baud_rate, int data_len, int stop_bit, int parit
 		NVIC_SetPriority(pd->irq, IRQ_PRI_High);	
 		NVIC_EnableIRQ(pd->irq);
 	}	
-
-
 
 	if (fifo_rx_thold == UART_RT_QUARTER_FULL) {
 		pd->fifo_rx_thold_nb = UART_FIFO_DEPTH/4;
@@ -805,7 +885,7 @@ int hal_uart_rcvd_intr(void *hdl, uint8_t *buffer, uint32_t buffer_len, void *cb
 	pd->rx_buffer_ofs = 0;
 	pd->rx_callback_arg = cb_arg;
 	pd->rx_callback = callback;
-
+	pd->rx_no_wait = 0;
 	/// THR empty, Line 
 	uart_intr_enable(pd->base, (UART_IER_ERBFI | UART_IER_ELSI));		
 
@@ -819,6 +899,52 @@ int hal_uart_rcvd_intr(void *hdl, uint8_t *buffer, uint32_t buffer_len, void *cb
 		err = UART_ERR_PEND;
 	}
 
+	osMutexRelease(pd->h_rx_mu);
+	return err;
+}
+int hal_uart_rcvd_intr_tmo(void *hdl, uint8_t *buffer, uint32_t buffer_len, uint32_t *rx_len, uint32_t tmo)
+{
+	uart_dev_t *pd = (uart_dev_t *)hdl;
+	int err = UART_ERR_OK;
+
+	if (!pd)
+		return UART_ERR_INVALID_PARAM; 	
+
+	if (!buffer || !buffer_len)
+		return UART_ERR_INVALID_PARAM; 	
+	
+	if (!tmo)
+		return UART_ERR_INVALID_PARAM; 	
+
+	if (pd->no_intr)
+		return UART_ERR_INVALID_PARAM; 	
+
+	osMutexWait(pd->h_rx_mu, osWaitForever);
+
+#if CFG_PM_EN
+	pd->power_state = PM_SLEEP;
+#endif
+	pd->fifo_rx_thold_nb--;//need left one byte in FIFO to trigger timeout IRQ
+
+	pd->rx_buffer = buffer;
+	pd->rx_buffer_len = buffer_len;
+	pd->rx_buffer_ofs = 0;
+	pd->rx_callback_arg = NULL;
+	pd->rx_callback = NULL;
+	pd->rx_no_wait = 1;
+
+	/// THR empty, Line 
+	uart_intr_enable(pd->base, (UART_IER_ERBFI | UART_IER_ELSI));		
+
+	osSemaphoreWait(pd->h_rx_sma, tmo);
+	uart_intr_disable(pd->base, UART_IER_ERBFI| UART_IER_ELSI);
+
+	pd->fifo_rx_thold_nb++;
+	err = pd->error;
+#if CFG_PM_EN
+		pd->power_state = PM_DEEP_SLEEP;
+#endif
+	*rx_len = pd->rx_buffer_ofs;
 	osMutexRelease(pd->h_rx_mu);
 	return err;
 }
@@ -861,8 +987,7 @@ int hal_uart_wait_break(void *hdl)
 	return UART_ERR_OK;
 }
 
-#if 0
-int hal_uart_xmit_dma(void *hdl, uint8_t *buffer, uint32_t buffer_len, void *cb_arg, void (*callback)(void *arg, int length, int error))
+int hal_uart_xmit_dma(void *hdl, uint8_t *buffer, uint32_t buffer_len, void *arg, void (*callback)(void *arg, int length, int error))
 {
 	uart_dev_t *pd = (uart_dev_t *)hdl;
 	int err = UART_ERR_OK;
@@ -873,36 +998,59 @@ int hal_uart_xmit_dma(void *hdl, uint8_t *buffer, uint32_t buffer_len, void *cb_
 	if (!buffer)
 		return UART_ERR_INVALID_PARAM; 	
 
-	if (pd->no_intr)
+	if (buffer_len == 0)
 		return UART_ERR_INVALID_PARAM; 	
+
+	// DMA burst size	
+	int burst_size;
+	if (pd->fifo_rx_thold_nb == UART_FIFO_DEPTH/4) {
+		burst_size = DMA_CTL_TR_MSIZE_4;
+	} else if (pd->fifo_rx_thold_nb == UART_FIFO_DEPTH/2) {
+		burst_size = DMA_CTL_TR_MSIZE_8;
+	} else if (pd->fifo_rx_thold_nb == UART_FIFO_DEPTH-2) {
+		burst_size = DMA_CTL_TR_MSIZE_8;
+	} else {
+		burst_size = DMA_CTL_TR_MSIZE_1;
+	}
 
 	osMutexWait(pd->h_tx_mu, osWaitForever);
 
+	// Find a available DMA channel
+	pd->h_tx_dma = hal_dma_open(DMA0_ID, 
+												((pd->id == UART0_ID) ? DMA_ID_UART0_TX : DMA_ID_UART1_TX),
+													(uint32_t)buffer,
+														(uint32_t)(pd->base + UART_REG_THR_OFS), 
+															buffer_len,
+																DMA_CTL_TR_WIDTH_8BITS, 
+																	DMA_CTL_TR_WIDTH_8BITS,
+																		DMA_ADDR_INC, 
+																			DMA_ADDR_SAME, 
+																				burst_size, 
+																					burst_size,
+																						DMA_AHB_MASTER_MEM,  
+																							DMA_AHB_MASTER_PERIPH, 
+																								DMA_TT_MEM_TO_PERF_FC_DMAC);
+	if (!pd->h_tx_dma) {
+		err = UART_DMA_NOT_AVAIL;
+		goto out;
+	}												
+
+	// Prepare...
+	pd->tx_buffer = buffer;
+	pd->tx_buffer_len = buffer_len;
+	pd->tx_buffer_ofs = 0;
+	pd->tx_callback_arg = arg;
+	pd->tx_callback = callback;
+	pd->error = err;
 #if CFG_PM_EN
 	pd->power_state = PM_SLEEP;
 #endif
 
-	pd->tx_callback_arg = cb_arg;
-	pd->tx_callback = callback;
-
-	uint32_t dar, sar;
-
-	sar = (uint32_t)buffer;
-	if (pd->id == UART0_ID)
-		dar = UART0_BASE + UART_REG_THR_OFS;
-	else
-		dar = UART1_BASE + UART_REG_THR_OFS;
-
-	pd->tx_dma_hdl = hal_dma_open(DMA0_ID, sar, dar, DMA_CTL_TR_WIDTH_8BITS, DMA_CTL_TR_WIDTH_8BITS,
-									DMA_ADDR_INC, DMA_ADDR_SAME, DMA_CTL_TR_MSIZE_4, DMA_CTL_TR_MSIZE_4,
-										DMA_AHB_MASTER_MEM, DMA_AHB_MASTER_PERIPH, DMA_TT_MEM_TO_PERF_FC_DMAC, buffer_len);
-	if (!pd->tx_dma_hdl) {
-		osMutexRelease(pd->h_tx_mu);
-		return UART_DMA_NOT_AVAIL;
-	}												
-	hal_dma_ch_enable(pd->tx_dma_hdl, (void *)pd, hal_uart_tx_dma_callback);
+	// DMA channel enable
+	hal_dma_ch_enable(pd->h_tx_dma, (void *)pd, uart_dma_isr_cb);
 
 	if (!callback) {
+		// Block call	
 		osSemaphoreWait(pd->h_tx_sma, osWaitForever);
 		err = pd->error;
 #if CFG_PM_EN
@@ -912,9 +1060,107 @@ int hal_uart_xmit_dma(void *hdl, uint8_t *buffer, uint32_t buffer_len, void *cb_
 		err = UART_ERR_PEND;
 	}
 
+out:
+
 	osMutexRelease(pd->h_tx_mu);
+
 	return err;
 }
+
+int hal_uart_rcvd_dma(void *hdl, uint8_t *buffer, uint32_t buffer_len, uint32_t *actual_rx_len, void *arg, void (*callback)(void *arg, int length, int error))
+{
+	uart_dev_t *pd = (uart_dev_t *)hdl;
+	int err = UART_ERR_OK;
+
+	if (!pd)
+		return UART_ERR_INVALID_PARAM; 	
+
+	if (!buffer)
+		return UART_ERR_INVALID_PARAM; 	
+
+	if (buffer_len == 0)
+		return UART_ERR_INVALID_PARAM; 	
+
+	//
+	// DMA burst size needs to be less than the uart's threshold value.  This is to make sure that we always have data
+	//			in the FIFO to trigger the time out for the case where actual RX length is not the same as the user's request.
+	//.	
+	int burst_size;
+	if (pd->fifo_rx_thold_nb == UART_FIFO_DEPTH/4) {
+		burst_size = DMA_CTL_TR_MSIZE_1;
+	} else if (pd->fifo_rx_thold_nb == UART_FIFO_DEPTH/2) {
+		burst_size = DMA_CTL_TR_MSIZE_4;
+	} else if (pd->fifo_rx_thold_nb == UART_FIFO_DEPTH-2) {
+		burst_size = DMA_CTL_TR_MSIZE_8;
+	} else {
+		// This will not satisfy the time out condition
+		return UART_ERR_INVALID_PARAM; 	
+	}
+
+	osMutexWait(pd->h_rx_mu, osWaitForever);
+
+	if (actual_rx_len)
+		*actual_rx_len = 0;
+
+	// Find a available DMA channel
+	pd->h_rx_dma = hal_dma_open(DMA1_ID, 
+												((pd->id == UART0_ID) ? DMA_ID_UART0_RX : DMA_ID_UART1_RX),
+													(uint32_t)(pd->base + UART_REG_RBR_OFS),
+														(uint32_t)buffer, 
+															buffer_len,
+																DMA_CTL_TR_WIDTH_8BITS, 
+																	DMA_CTL_TR_WIDTH_8BITS,
+																		DMA_ADDR_SAME, 
+																			DMA_ADDR_INC, 
+																				burst_size, 
+																					burst_size,
+																						DMA_AHB_MASTER_PERIPH,  
+																							DMA_AHB_MASTER_MEM, 
+																								DMA_TT_PERF_TO_MEM_FC_DMAC);
+	if (!pd->h_rx_dma) {
+		err = UART_DMA_NOT_AVAIL;
+		goto out;
+	}						
+
+	// Prepare...
+	pd->rx_buffer = buffer;
+	pd->rx_buffer_len = buffer_len;
+	pd->rx_buffer_ofs = 0;
+	pd->rx_callback_arg = arg;
+	pd->rx_callback = callback;
+	pd->rx_no_wait = 1;
+	pd->error = err;						
+
+#if CFG_PM_EN
+	pd->power_state = PM_SLEEP;
 #endif
+
+	// Uart: enable RX interrupt (including time out) and line status 
+	uart_intr_enable(pd->base, (UART_IER_ERBFI | UART_IER_ELSI));		
+
+	// DMA channel enable 
+	hal_dma_ch_enable(pd->h_rx_dma, (void *)pd, uart_dma_isr_cb);
+
+	if (!callback) {		
+		// Block call 
+		osSemaphoreWait(pd->h_rx_sma, osWaitForever);
+		err = pd->error;
+		if (actual_rx_len)
+			*actual_rx_len = pd->rx_buffer_ofs;
+#if CFG_PM_EN
+		pd->power_state = PM_DEEP_SLEEP;
+#endif
+	} else {
+		// Non-block call
+		err = UART_ERR_PEND;
+	}
+
+out:
+
+	osMutexRelease(pd->h_rx_mu);
+
+	return err;
+}
+
 
 #endif	/* CFG_NB_UART */ 

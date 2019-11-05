@@ -52,7 +52,7 @@
 #define VOICE_BLE_PKG_HEAD      (0x0A)
 #endif
 
-#define AUDIO_HAL_BUF_LENGTH    8192
+#define AUDIO_HAL_BUF_LENGTH    (CFG_SMEM_AUDIO_RX & 0xFFFF)
 
 enum
 {
@@ -281,7 +281,7 @@ static void msrcu_dev_audio_task(const void *arg)
 #endif
                     res = hal_audio_enc_set_config(1, 0, PDM_CLK, gAudioSampleRate, 0, ADPCM_BLOCK_SIZE_DEV, VOICE_SAMPLE_GAIN);
                     MSPRINT("hal_audio_enc_set_config sample rate:%d.\r\n", gAudioSampleRate);
-					
+                    
                     if(res)
                     {
                         MSPRINT("hal_audio_enc_set_config err:%d.\r\n", res);

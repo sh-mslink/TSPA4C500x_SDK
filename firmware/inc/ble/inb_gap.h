@@ -23,7 +23,7 @@
  */
 
 #include <stdint.h>
-
+#include <stdbool.h>
 /*
  * DEFINES
  ****************************************************************************************
@@ -360,7 +360,8 @@ enum inb_auth
     AUTH_REQ_SEC_CON_NO_BOND  = (AUTH_SEC_CON),
     /// SEC_CON and Bonding
     AUTH_REQ_SEC_CON_BOND     = (AUTH_SEC_CON | AUTH_BOND),
-
+    /// SEC_CON , MITM and Bonding
+    AUTH_REQ_SEC_CON_MITM_BOND      = (AUTH_SEC_CON | AUTH_BOND | AUTH_MITM),
     AUTH_REQ_LAST,
 
     /// Mask of  authentication features without reserved flag
@@ -1733,6 +1734,21 @@ inb_set_dev_info_cfm_t;
  */
 int inb_reset(void);
 
+
+/**
+ ****************************************************************************************
+ * @brief Get channel assess data
+ *
+ * @param[in] chn			Data channel, from 0 to 36. 
+ * @param[out] level		Level
+ *@param[out] timestamp		Timestamp when update level
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
+
+int inb_get_chn_assess(int chn, int8_t *level, uint32_t * timestamp);
+
 /**
  ****************************************************************************************
  * @brief Test BLE phy TX and RX
@@ -1816,6 +1832,18 @@ int inb_gen_random_addr(int rnd_addr_type, inb_bdaddr_t *p_rnd_addr);
  ****************************************************************************************
  */
 int inb_aes_enc(inb_aes_enc_t *p_enc, uint8_t *p_enc_res);
+
+/**
+ ****************************************************************************************
+ * @brief get public key
+ *
+ * @param[in] renew				1 to renew public/private key pair, 0 to read current value  
+ * @param[out] p_pub_key		public key
+ *
+ * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
+ ****************************************************************************************
+ */
+int inb_get_pub_key(int renew, inb_pub_key_t* p_pub_key);
 
 /**
  ****************************************************************************************

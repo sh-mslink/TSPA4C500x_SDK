@@ -535,6 +535,13 @@ static __inline void dma_ch_tran_block_size(uint32_t ch_base, int block_ts)
 	WR_WORD(ch_base + DMA_CH_REG_CTL_OFS + 4, reg);
 }
 
+static __inline uint32_t dma_ch_get_tran_block_size(uint32_t ch_base)
+{
+	uint32_t reg = RD_WORD(ch_base + DMA_CH_REG_CTL_OFS + 4);
+	reg &= DMA_CH_CTL_BLOCK_TS;
+	return reg;
+}
+
 static __inline void dma_ch_set_prio(uint32_t ch_base, int priority)
 {
 	uint32_t reg = RD_WORD(ch_base + DMA_CH_REG_CFG_OFS);

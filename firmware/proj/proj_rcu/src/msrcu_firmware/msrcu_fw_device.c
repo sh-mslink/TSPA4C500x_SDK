@@ -12,7 +12,7 @@
  ****************************************************************************************
  */
 #include "msrcu_dev_system.h"
-#if MSRCU_DEV == MSRCU_DEV_TSPA4C500A
+#if MSRCU_DEV == MSRCU_DEV_TSPA4C500X
 #include "msrcu_dev_adc.h"
 #endif
 
@@ -51,10 +51,10 @@ msrcuErr_t msrcu_fw_device_init(void)
     if(MSRCU_DEV == MSRCU_DEV_NULL || MSRCU_DEV > MSRCU_DEV_MAX)
         return ERR_DEVICE;
     
-#if MSRCU_DEV == MSRCU_DEV_TSPA4C500A    
+#if MSRCU_DEV == MSRCU_DEV_TSPA4C500X
     err = msrcu_dev_system_init();
     if(err)
-        return err;  
+        return err;
     
     err = msrcu_dev_adc_init();
     if(err)

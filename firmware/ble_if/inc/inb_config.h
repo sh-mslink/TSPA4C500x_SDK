@@ -139,11 +139,7 @@
 #define BLE_DATA_BUF_NB_RX           		(BLE_RX_DESC_NB + 3)
 
 /// Number of TX ACL data buffers
-#if !CFG_SDR
 #define BLE_ACL_BUF_NB_TX            			(BLE_ACTIVITY_MAX + 2)
-#else
-#define BLE_ACL_BUF_NB_TX            			((BLE_ACTIVITY_MAX + 2) + (CFG_SDR_NB_TX_BUF))
-#endif
 
 #if (BLE_OBSERVER)
 #define BLE_DUPLICATE_FILTER_MAX    	(CFG_BLE_PARAM_DUP_FILT_MAX)

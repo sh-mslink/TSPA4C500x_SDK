@@ -13,7 +13,7 @@
  */
 #include "msrcu_config.h"
 #if MSRCU_VOICE_ENABLE
-#if MSRCU_DEV == MSRCU_DEV_TSPA4C500A
+#if MSRCU_DEV == MSRCU_DEV_TSPA4C500X
 #include "msrcu_dev_system.h"
 #include "msrcu_dev_ble.h"
 #include "msrcu_dev_audio.h"
@@ -47,8 +47,8 @@ static bool isStop = true;
 msrcuErr_t msrcu_fw_voice_init(void)
 {
     msrcuErr_t err = ERR_DEVICE;
-            
-#if MSRCU_DEV == MSRCU_DEV_TSPA4C500A
+    
+#if MSRCU_DEV == MSRCU_DEV_TSPA4C500X
 #if MSRCU_DEV_MIC_POWER_USE_VDDIO_SENSOR
     msrcu_dev_system_vddio_sensor_enable();
     msrcu_dev_system_vddio_sensor_off();
@@ -74,7 +74,7 @@ msrcuErr_t msrcu_fw_voice_atv_start(void)
 {
     msrcuErr_t err = ERR_DEVICE;
     
-#if MSRCU_DEV == MSRCU_DEV_TSPA4C500A
+#if MSRCU_DEV == MSRCU_DEV_TSPA4C500X
     err = msrcu_dev_audio_atv_start(); 
 #endif
     
@@ -86,7 +86,7 @@ msrcuErr_t msrcu_fw_voice_start(void)
 {
     msrcuErr_t err = ERR_DEVICE;
     
-#if MSRCU_DEV == MSRCU_DEV_TSPA4C500A
+#if MSRCU_DEV == MSRCU_DEV_TSPA4C500X
 #if MSRCU_DEV_MIC_POWER_USE_VDDIO_SENSOR
     msrcu_dev_system_vddio_sensor_on();
 #else
@@ -107,7 +107,7 @@ msrcuErr_t msrcu_fw_voice_stop(void)
 {
     msrcuErr_t err = ERR_DEVICE;
     
-#if MSRCU_DEV == MSRCU_DEV_TSPA4C500A
+#if MSRCU_DEV == MSRCU_DEV_TSPA4C500X
 #if MSRCU_DEV_MIC_POWER_USE_VDDIO_SENSOR
     msrcu_dev_system_vddio_sensor_off();
 #else

@@ -168,7 +168,7 @@ int atv_add_svc(void)
 {
 	int ret;
 	inb_gatt_svc_desc_t *p_svc;
-			
+	
 //	p_svc = (inb_gatt_svc_desc_t*)malloc(sizeof(inb_gatt_svc_desc_t)+g_AtvSecondarySvc.nb_att*sizeof(inb_gatt_att_desc_t));
 //  if(!p_svc) return -1;
 //	memcpy(p_svc, &g_AtvSecondarySvc, sizeof(inb_gatt_svc_desc_t));
@@ -176,7 +176,7 @@ int atv_add_svc(void)
 //	ret = inb_gatt_add_svc(p_svc, &g_AtvSecondarySvc_shl);
 //	if(p_svc) free(p_svc);
 //	if(ret) return -1;
-			
+	
 	p_svc = (inb_gatt_svc_desc_t*)malloc(sizeof(inb_gatt_svc_desc_t)+g_AtvPrimarySvc.nb_att*sizeof(inb_gatt_att_desc_t));
     if(!p_svc) return -1;
 	memcpy(p_svc, &g_AtvPrimarySvc, sizeof(inb_gatt_svc_desc_t));
@@ -212,7 +212,7 @@ int atv_voice_char_rx_send(int conIdx, uint8_t *buffer, uint8_t len)
     if(res)
         PRINTD(DBG_TRACE, "ATVV_CHAR_RX send error: 0x%X\r\n", res);
     else
-    {        
+    {
 //        PRINTD(DBG_TRACE, "ATVV_CHAR_RX send, conidx:%d, length=%d, data: 0x", conIdx, len);
 //        for(int i = 0; i < len; i++)
 //            PRINTD(DBG_TRACE, " %02X", buffer[i]);

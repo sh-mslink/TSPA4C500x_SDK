@@ -17,22 +17,21 @@
 
 int handle_default_bas_evt(uint16_t eid, void *pv)
 {
-	int ret = -1;
-
-#if (CFG_PRF_BASC==1) || (CFG_PRF_BASS==1)
-	if((eid & 0xFF00) == BAS_EVT_CODE)
+    int ret = -1;
+    
+#if (CFG_PRF_BASC_EN) || (CFG_PRF_BASS_EN)
+    if((eid & 0xFF00) == BAS_EVT_CODE)
     {
-		ret = 0;
-		//PRINTD(DBG_TRACE, "\n%s  id 0x%x\r\n", __func__, eid);
-	}
-
-	switch(eid)
-	{
+        ret = 0;
+        //PRINTD(DBG_TRACE, "\n%s  id 0x%x\r\n", __func__, eid);
+    }
+    
+    switch(eid)
+    {
         default:
-		break;
-	}
+        break;
+    }
 #endif
-
-	return ret;
+    
+    return ret;
 }
-

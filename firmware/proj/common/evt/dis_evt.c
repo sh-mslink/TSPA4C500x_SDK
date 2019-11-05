@@ -29,7 +29,7 @@
 #define APP_DIS_SERIAL_NB_STR_LEN       (10)
 
 /// Firmware Revision
-#define APP_DIS_FIRM_REV_STR            ("1.0.16")
+#define APP_DIS_FIRM_REV_STR            ("1.0.17")
 #define APP_DIS_FIRM_REV_STR_LEN        (6)
 
 /// System ID Value - LSB -> MSB
@@ -41,7 +41,7 @@
 #define APP_DIS_HARD_REV_STR_LEN        (5)
 
 /// Software Revision String
-#define APP_DIS_SW_REV_STR              ("SDK_0.4.0")
+#define APP_DIS_SW_REV_STR              ("SDK_0.4.1")
 #define APP_DIS_SW_REV_STR_LEN          (9)
 
 /// IEEE
@@ -63,7 +63,7 @@ int handle_default_dis_evt(uint16_t eid, void *pv)
 {
 	int ret = -1;
 
-#if (CFG_PRF_DISC==1) || (CFG_PRF_DISS==1)
+#if (CFG_PRF_DISC_EN) || (CFG_PRF_DISS_EN)
 	if((eid & 0xFF00) == DIS_EVT_CODE)
     {
 		ret = 0;

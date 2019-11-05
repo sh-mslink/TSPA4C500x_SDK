@@ -239,6 +239,14 @@ int hal_timer_profile_end(void);
  */
 int hal_timer_delay_us(uint32_t usec);
 
+/**
+ ****************************************************************************************
+ * @brief Return the OS tick
+ *
+ * @return  Current OS tick 
+ ****************************************************************************************
+ */
+uint32_t hal_timer_get_systick(void);
 
 /// @} HAL_WDT
 

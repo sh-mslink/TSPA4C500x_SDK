@@ -8,18 +8,18 @@
  ****************************************************************************************
  */
 enum {
-	MSG_ACTV_STOP,
-	//MSG_START_CONNECT,
-	MSG_DISC,	
-	MSG_CONNECTED,
+    MSG_ACTV_STOP,
+    //MSG_START_CONNECT,
+    MSG_DISC,
+    MSG_CONNECTED,
     MSG_CON_PARAM_UPD_REQ,
     MSG_CON_PARAM_UPD,
-	MSG_PAIR,
-	MSG_HOGPD_NTF,
-	MSG_BOND,
-	MSG_TPPS_NTF,
-	MSG_ATV_AUDIO_END,
-	MSG_ATV_AUDIO_START,
+    MSG_PAIR,
+    MSG_HOGPD_NTF,
+    MSG_BOND,
+    MSG_TPPS_NTF,
+    MSG_ATV_AUDIO_END,
+    MSG_ATV_AUDIO_START,
 };
 /*
  * Types

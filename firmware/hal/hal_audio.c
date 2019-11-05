@@ -1489,6 +1489,7 @@ int hal_audio_enc_pdm_dc_offset_cal(int bytes_per_frame, int is_stereo, int num_
 	pd->isCalibrated = 1;
 	
 	float error = 0;
+	float offset = 0;
 	int loops = 0;
 	int sum = 0;
 	int done = 0;
@@ -1502,6 +1503,7 @@ int hal_audio_enc_pdm_dc_offset_cal(int bytes_per_frame, int is_stereo, int num_
 		if(loops >= num_frames_skip) {
 			sum += error;
 			if(loops >= num_frames_skip + num_frames_samp) {
+				int x = sum;
 				sum /= num_frames_samp;
 				hal_audio_enc_pdm_dc_offset_feedback(sum);
 				done = 1;
@@ -1757,7 +1759,6 @@ int hal_audio_resample_stop() {
 	
 	return pd->status;
 }
-
 
 
 #endif

@@ -23,7 +23,7 @@
 #pragma import(__use_no_semihosting_swi)
 
 extern int SER_PutChar(int c);
-extern int SER_GetChar(char *p);
+extern int SER_GetChar(uint8_t *p);
 static long timeval;
 
 struct __FILE { int handle; /* Add whatever you need here */ };
@@ -50,7 +50,7 @@ int fputc(int c, FILE *f) {
 int fgetc(FILE *f) {
 #if CFG_DBG_IF_UART
 	char ch;
-	SER_GetChar(&ch);
+	SER_GetChar((uint8_t *)&ch);
 	SER_PutChar(ch);
 	if (ch == 0x0d){
 		SER_PutChar(0x0a);

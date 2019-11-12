@@ -41,7 +41,7 @@
 #define APP_DIS_HARD_REV_STR_LEN        (5)
 
 /// Software Revision String
-#define APP_DIS_SW_REV_STR              ("SDK_0.4.1")
+#define APP_DIS_SW_REV_STR              ("SDK_0.4.2")
 #define APP_DIS_SW_REV_STR_LEN          (9)
 
 /// IEEE
@@ -165,7 +165,8 @@ int handle_default_dis_evt(uint16_t eid, void *pv)
             p_cfm->value = ind->value;
             memcpy(p_cfm->data, data, len);
             inb_diss_set_value_cfm(ind->conidx, p_cfm);
-            free(p_cfm);
+            if(p_cfm)
+                free(p_cfm);
         }
         break;
             

@@ -71,24 +71,24 @@ msrcuErr_t msrcu_dev_keyboard_state_get(uint8_t keyCode, msrcuKeySt *st)
 static void msrcu_dev_keyboard_task(const void *arg)
 {
     osEvent osEvt;
+    
+    while(1)
+    {
+        osEvt = osMessageGet(msrcuDevKbMsgQId, osWaitForever);
+        if(osEvt.status != osEventMessage)
+            continue;
         
-	while(1)
-    {                  
-		osEvt = osMessageGet(msrcuDevKbMsgQId, osWaitForever);
-		if(osEvt.status != osEventMessage)
-			continue;
-                  
         msrcuEvtKey_t* msKeyEvt = (msrcuEvtKey_t*)malloc(sizeof(msrcuEvtKey_t));
         if(msKeyEvt == NULL)
         {
             MSPRINT("ERROR: %s no memory.\r\n", __func__);
-			continue;
+            continue;
         }
-                     
-		if(isKeyboardMsg(osEvt.value.v))
+        
+        if(isKeyboardMsg(osEvt.value.v))
         {
-			uint32_t keycode = hal_kb_get_key_code(osEvt.value.v);
-			uint32_t keyevt = hal_kb_get_key_evt(osEvt.value.v);			
+            uint32_t keycode = hal_kb_get_key_code(osEvt.value.v);
+            uint32_t keyevt = hal_kb_get_key_evt(osEvt.value.v);
             
             msKeyEvt->code = keycode + 1;
             switch(keyevt)
@@ -110,17 +110,18 @@ static void msrcu_dev_keyboard_task(const void *arg)
                 
                 default:
                 break;
-            }            
-		}
-        else     
-        {            
+            }
+        }
+        else
+        {
             MSPRINT("Keyboard MSG ERROR.\r\n");
             continue;
         }
-                
+        
         msrcu_evt_key_cb(msKeyEvt);
-                
-        free(msKeyEvt);        
+        
+        if(msKeyEvt)
+            free(msKeyEvt);
     }
 }
 
@@ -135,19 +136,19 @@ msrcuErr_t msrcu_dev_keyboard_init(uint8_t row, uint8_t col, void (*cb)(msrcuEvt
     
     osThreadId msrcuDevKbId = osThreadCreate(&kbDef, NULL);
     if(msrcuDevKbId == NULL)
-        return ERR_OS; 
+        return ERR_OS;
     
     msrcuDevKbMsgQId = osMessageCreate(osMessageQ(msrcu_dev_kb_msg), NULL);
     if(msrcuDevKbMsgQId == NULL)
-        return ERR_OS;  
+        return ERR_OS;
     
     for(int i = 0; i < MSRCU_KEY_MATRIX_ROW_NB * MSRCU_KEY_MATRIX_COL_NB + 1; i++)
         keySt[i] = KEY_RELEASED;
     
     kbDev = hal_kb_open(row, col, msrcuDevKbMsgQId);
     if(!kbDev)
-        return ERR_DEVICE_DRIVER;    
-        
+        return ERR_DEVICE_DRIVER;
+    
     hal_kb_enable(kbDev);
     
     msrcu_evt_key_cb = cb;

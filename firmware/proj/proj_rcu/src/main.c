@@ -7,6 +7,7 @@
 #include "in_arm.h"
 #include "in_debug.h"
 #include "inb_config.h"
+#include "rf_int.h"
 #include "hal_uart.h"
 #include "hal_gpio.h"
 #include "hal_power.h"
@@ -559,7 +560,7 @@ static void user_rcu_ble_rf_test(void)
 {
     uint8_t testMode = 0;
     const uint8_t hciMode = 1;
-    const uint8_t inbMode = 2;
+    const uint8_t rfMode = 2;
     
     int port = 3;
     int pin = 2;
@@ -585,9 +586,9 @@ static void user_rcu_ble_rf_test(void)
     if(!hal_gpio_input(3, 2))
         testMode = hciMode;
     //If the button which connected to GPIO_3_3 & GPIO_1_7
-    //is pressed when power on, go to BLE RF test mode: inb_test.
+    //is pressed when power on, go to BLE RF test mode: rfMode.
     else if(!hal_gpio_input(3, 3))
-        testMode = inbMode;
+        testMode = rfMode;
     
     if(testMode)
     {
@@ -613,7 +614,7 @@ static void user_rcu_ble_rf_test(void)
         #error "CFG_HCI is disabled." 
 #endif
     }
-    else if(testMode == inbMode)
+    else if(testMode == rfMode)
     {
         //init timer for rf test
         if(MSRCU_RF_TEST_DURATION)
@@ -625,18 +626,12 @@ static void user_rcu_ble_rf_test(void)
             osTimerStart(msrcuAppRfTestTimerId, MSRCU_RF_TEST_DURATION);
         }
         
-        inb_test_mode_t tMode = {0};
-        uint16_t rxPacketNb = 0;
-        
         ble_config(0);
         
-        tMode.test_mode = TEST_MODE_TX;
-        tMode.channel = 19;//2440MHz
-        tMode.tx_data_length = 20;
-        tMode.tx_pkt_payload = PKT_PLD_PRBS15;
-        tMode.phy = TEST_PHY_1MBPS;
-        tMode.modulation_idx = MODULATION_STANDARD;
-        inb_test(&tMode, &rxPacketNb);//test start
+        rf_em_init();
+        rf_int_prog_pll_trx_trig(0); 
+        rf_int_rpl_mdm_init();
+        rf_int_tx_carrier_test(1, 19); //2440MHz
     }
     
     while(1);//continue to test forever until chip reset
@@ -754,7 +749,8 @@ static msrcuErr_t user_rcu_ble_adv_start(void)
     else if(adv->pduType == ADV_DIRECT_IND)
         MSPRINT("ADV_DIRECT_IND\r\n");
     
-    free(adv);
+    if(adv)
+        free(adv);
     
     if(!err)
     {

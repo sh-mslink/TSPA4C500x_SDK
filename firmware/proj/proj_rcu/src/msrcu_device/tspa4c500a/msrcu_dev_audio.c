@@ -213,7 +213,7 @@ static msrcuErr_t msrcu_dev_audio_adpcm_block_callback(uint8_t *buf)
 out:
     if(sendBuf)
         free(sendBuf);
-	
+    
     return err;
 }
 
@@ -233,9 +233,9 @@ static void msrcu_dev_audio_task(const void *arg)
     
     while(1)
     {
-		osEvt = osMessageGet(msrcuAuEncMsgQId, osWaitForever);
-		if(osEvt.status != osEventMessage)
-			continue;
+        osEvt = osMessageGet(msrcuAuEncMsgQId, osWaitForever);
+        if(osEvt.status != osEventMessage)
+            continue;
         
         switch(osEvt.value.v)
         {
@@ -489,5 +489,5 @@ msrcuErr_t msrcu_dev_audio_stop(void)
         return ERR_OS;
     
     gAudioIsStart = false;
-    return ERR_NO_ERROR; 
+    return ERR_NO_ERROR;
 }

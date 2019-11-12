@@ -82,7 +82,8 @@ msrcuErr_t msrcu_fw_key_hid_send(uint8_t conIndex, hidKeycode_t code)
     err = msrcu_dev_ble_hid_send(report);
 #endif
     
-    free(report);
+    if(report)
+        free(report);
     
     return err;
 }

@@ -409,6 +409,9 @@ int prof_init(void)
         ret = inb_hogpd_add(p_hogp_prf);
         if(ret != INB_ERR_NO_ERROR)
             PRINTD(DBG_ERR, "inb_hogpd_add return %d\r\n", ret);
+        
+        if(p_hogp_prf)
+            free(p_hogp_prf);
     }
 #endif
     
@@ -565,7 +568,8 @@ void ble_event_callback(inb_evt_t *evt)
 #ifdef CFG_PROJ_RCU
     msrcu_dev_ble_evt_cb(evt,param);
 #endif
-    free(param);
+    if(param)
+        free(param);
 }
 
 int ble_stack_init()
@@ -758,7 +762,7 @@ void handle_default_msg(msg_t *p_msg)
         //PRINTD(DBG_TRACE, "msg con param upd req...\r\n");
         osDelay(1000);//for stabilization
         
-        msg_con_param_upd_req_t *p = (msg_con_param_upd_req_t *)p_msg;        
+        msg_con_param_upd_req_t *p = (msg_con_param_upd_req_t *)p_msg;
         inb_conn_param_update_t *p_upd = (inb_conn_param_update_t *)malloc(sizeof(inb_conn_param_update_t));
         if(!p_upd)
             return;

@@ -66,6 +66,9 @@ static void msrcu_dev_ble_set_state(msrcuBleState_t state)
             msrcuBleRcuReady_t *rcuReady = &msBleEvt->param.rcuReady;
             rcuReady->conIndex = BLE_CON_IDX;
             msrcu_evt_ble_cb(msBleEvt);
+            
+            if(msBleEvt)
+                free(msBleEvt);
         }
     }
 }
@@ -146,12 +149,6 @@ static void msrcu_dev_ble_gap_evt(uint16_t eid, void *pv, void *param)
 static void msrcu_dev_ble_hogp_evt(uint16_t eid, void *pv)
 {
     inb_evt_hogpd_ntf_cfg_ind_t *param = (inb_evt_hogpd_ntf_cfg_ind_t *)pv;
-    msrcuEvtBle_t* msBleEvt = malloc(sizeof(msrcuEvtBle_t));
-    if(!msBleEvt)
-    {
-        MSPRINT("%s no memory\r\n", __func__);
-        return;
-    }
     
     switch(eid)
     {
@@ -160,8 +157,8 @@ static void msrcu_dev_ble_hogp_evt(uint16_t eid, void *pv)
             if((param->ntf_cfg[param->conidx] & INB_HOGPD_CFG_REPORT_NTF_EN) != 0)
             {
                 if(param->ntf_cfg[param->conidx] == 
-                        (INB_HOGPD_CFG_REPORT_NTF_EN
-                        | (INB_HOGPD_CFG_REPORT_NTF_EN << 1)
+                        (INB_HOGPD_CFG_REPORT_NTF_EN 
+                        | (INB_HOGPD_CFG_REPORT_NTF_EN << 1) 
                         | (INB_HOGPD_CFG_REPORT_NTF_EN << 2)))
                 {
                     msrcu_dev_ble_set_state(BLE_STATE_READY);
@@ -335,21 +332,19 @@ msrcuErr_t msrcu_dev_ble_hid_send2(msrcuBleHidReport_t *param)
     if(!report)
         return ERR_NO_MEMORY;
     
-    //MSPRINT("hid send: %d %d %d", param->conIndex, param->length, param->instance);
     report->hid_idx = param->conIndex;
     report->length = param->length;
     report->idx = param->instance;
     report->type = INB_HOGPD_REPORT;
     memcpy(report->value, param->data, param->length);
     //MSPRINT("%d,%d,%d,%d, ", report->hid_idx, report->length, report->idx, report->type);
-    //MSPRINT("%d,%d,%d,%d\r\n", report->value[0], report->value[1],report->value[2], report->value[5]);
     int err = inb_hogpd_report_upd_req(param->conIndex, report);
-    free(report);
+    
+    if(report)
+        free(report);
+    
     if(!err)
-    {
-        //MSPRINT("h");
         return ERR_NO_ERROR;
-    }
     else
     {
         MSPRINT("hogpd send error: 0x%X\r\n", err);

@@ -159,7 +159,7 @@ int handle_default_hogp_evt(uint16_t eid, void *pv)
                 {
                     uint16_t len = 8;
                     cfm = (inb_hogpd_report_info_t *)malloc(sizeof(inb_hogpd_report_info_t) + len);
-                    if (!cfm)
+                    if(!cfm)
                     {
                         PRINTD(DBG_TRACE, "no mem \n");
                         break;
@@ -199,9 +199,10 @@ int handle_default_hogp_evt(uint16_t eid, void *pv)
                 status = INB_ERR_NO_ERROR;
             }
             
-            inb_hogpd_report_req_cfm(p_para->conidx, p_para->operation, status, cfm);      
+            inb_hogpd_report_req_cfm(p_para->conidx, p_para->operation, status, cfm);
             
-            free(cfm);
+            if(cfm)
+                free(cfm);
         }
         break;
         
@@ -212,7 +213,7 @@ int handle_default_hogp_evt(uint16_t eid, void *pv)
             
             //PRINTD(DBG_TRACE, "HOGPD_EVT_PROTO_MODE_UPD_IND\r\n");
             
-            inb_hogpd_proto_mode_req_cfm(p_para->conidx, status, p_para->hid_idx, p_para->proto_mode);            
+            inb_hogpd_proto_mode_req_cfm(p_para->conidx, status, p_para->hid_idx, p_para->proto_mode);
         }
         break;
         
@@ -228,7 +229,7 @@ int handle_default_hogp_evt(uint16_t eid, void *pv)
                 /*
                 byte 0 modifier keys
                 byte 1 reserved
-                byte 2 ~ 7  keycode 1~6				
+                byte 2 ~ 7  keycode 1~6
                 */
 //                inb_hogpd_report_info_t *report = malloc(sizeof(inb_hogpd_report_info_t) + 3);
 //                if(!report)
@@ -336,7 +337,8 @@ int handle_default_hogp_evt(uint16_t eid, void *pv)
             
             inb_hogpd_report_req_cfm(p_para->conidx, INB_HOGPD_OP_REPORT_WRITE, status, cfm);
             
-            free(cfm);
+            if(cfm)
+                free(cfm);
         }
         break;
         

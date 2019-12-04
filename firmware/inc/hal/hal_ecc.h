@@ -490,6 +490,6 @@ int hal_ecc_pver(uint16_t size, const uint8_t *Px, const uint8_t *Py, const uint
  ****************************************************************************************
  */
 int hal_ecc_shamir(uint16_t size, const uint8_t *Px, const uint8_t *Py, const uint8_t *Qx, const uint8_t *Qy, const uint8_t *a, const uint8_t *k, const uint8_t *l, 
-												const uint8_t *p, const uint8_t *mp, const uint8_t *r_sqr, uint8_t *Rx, uint8_t *Ry);
+/// @} HAL_ECC												const uint8_t *p, const uint8_t *mp, const uint8_t *r_sqr, uint8_t *Rx, uint8_t *Ry);
 
 #endif

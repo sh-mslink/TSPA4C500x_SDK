@@ -53,7 +53,12 @@
 #define ATVV_CODECS_8K          (0x0001)//8kHz/16bit
 //#define ATVV_CODECS_16K         (0x0002)//16kHz/16bit
 #define ATVV_CODECS_8K_16K      (0x0003)//16kHz/16bit & 8kHz/16bit
+
+#if (MSRCU_BLE_VOICE_SAMPLE_RATE == 8000)
+#define ATVV_CODECS_SUPPORTED   ATVV_CODECS_8K
+#elif (MSRCU_BLE_VOICE_SAMPLE_RATE == 16000)
 #define ATVV_CODECS_SUPPORTED   ATVV_CODECS_8K_16K
+#endif
 
 //ATVV Bytes/Frame
 #define ATVV_BYTES_PER_FRAME    (0x0086)//134
@@ -62,6 +67,9 @@
 #define ATVV_BYTES_PER_CHAR     (0x0014)//20
 
 
+void atv_task_send_enable(void);
+void atv_task_send_disable(void);
+bool atv_task_send_is_enabled(void);
 void atv_task_cmd_receive(int conIdx, uint8_t *buffer, uint8_t len);
 void atv_task_cmd_send(int conIdx, uint8_t *buffer, uint8_t len);
 void atv_task_audio_send(int conIdx, uint8_t *buffer, uint8_t len);

@@ -750,6 +750,7 @@ int hal_mi2c_write_read(void *hdl, int speed, uint8_t tar, uint8_t *wr_buf, uint
 	i2c_master_enable(pd->base);	
 	i2c_tar(pd->base, tar);
 	i2c_speed(pd->base, speed);
+	i2c_restart_enable(pd->base);
 	i2c_scl_cnt(pd, speed);
 	i2c_intr_clr(pd->base);												/// Clear all the interrupt
 	i2c_intr_mask(pd->base, I2C_INTR_MASK_ALL);		/// Mask all the interrupt

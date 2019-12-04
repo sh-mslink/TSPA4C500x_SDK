@@ -80,10 +80,10 @@ int handle_default_gap_evt(uint16_t eid, void *pv, void *param)
 //                        ind->trans_addr.addr.addr[3],
 //                        ind->trans_addr.addr.addr[4],
 //                        ind->trans_addr.addr.addr[5]);
-#ifdef CFG_PROJ_TPPC                
-                if(isTppsDevice(ind->data, ind->length))
-                {				
-                    PRINTD(DBG_TRACE, "TPPS device found!!!\r\n");
+#ifdef CFG_PROJ_TPPC
+                if(isTppsDevice(ind->rssi, ind->data, ind->length))
+                {
+                    PRINTD(DBG_TRACE, "TPPS device found.\r\n");
                     stop_scan();
                     start_connect(&ind->trans_addr);
 //                    msg_start_connect_t *msg = (msg_start_connect_t *)malloc(sizeof(msg_start_connect_t));
@@ -364,7 +364,7 @@ int handle_default_gap_evt(uint16_t eid, void *pv, void *param)
                     memcpy(msrcuBondData.randNb.nb, cfm.u.ltk.randnb.nb, BLE_RANDOM_NB_LEN); 
                     msrcuBondData.keySize = cfm.u.ltk.key_size;                                                   
 #endif                    
-//                    memcpy(&ble_bond_data[GAP_BOND_DATA], (uint8_t*)0x37F000, sizeof(inb_ltk_t));  
+//                    memcpy(&ble_bond_data[GAP_BOND_DATA], (uint8_t*)0x37E000, sizeof(inb_ltk_t));  
 //                    PRINTD(DBG_TRACE, "ediv 0x%x\n", ble_bond_data[GAP_BOND_DATA].ediv);
 //                    PRINTD(DBG_TRACE, "\n rand ");
 //                    for (int i = 0; i < 8; i++) {

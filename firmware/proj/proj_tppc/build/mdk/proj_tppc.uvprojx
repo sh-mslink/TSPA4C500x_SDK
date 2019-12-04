@@ -369,9 +369,7 @@
             <ScatterFile>.\proj_tppc.sct</ScatterFile>
             <IncludeLibs></IncludeLibs>
             <IncludeLibsPath></IncludeLibsPath>
-            <Misc>..\..\..\..\lib\rf.lib
-..\..\..\..\lib\rom\ble_flash.lib
-..\..\..\..\lib\rom\ble_rom.lib</Misc>
+            <Misc></Misc>
             <LinkerInputFile></LinkerInputFile>
             <DisabledWarnings></DisabledWarnings>
           </LDads>
@@ -400,6 +398,26 @@
               <FileName>spi_flash.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\spi_flash\src\spi_flash.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>lib</GroupName>
+          <Files>
+            <File>
+              <FileName>ble_rom.lib</FileName>
+              <FileType>4</FileType>
+              <FilePath>..\..\..\..\lib\rom\ble_rom.lib</FilePath>
+            </File>
+            <File>
+              <FileName>ble_flash.lib</FileName>
+              <FileType>4</FileType>
+              <FilePath>..\..\..\..\lib\rom\ble_flash.lib</FilePath>
+            </File>
+            <File>
+              <FileName>rf.lib</FileName>
+              <FileType>4</FileType>
+              <FilePath>..\..\..\..\lib\rf.lib</FilePath>
             </File>
           </Files>
         </Group>

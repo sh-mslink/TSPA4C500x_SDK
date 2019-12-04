@@ -1228,7 +1228,34 @@ static void spi_slv_finish(spi_dev_t *pd)
 		spi_reset(pd->id);
 	}
 }
-int hal_spi_slv_tx(void *hdl, int cs, int speed, int phase, int polarity, int dfs, void *buffer, uint16_t buffer_len, uint16_t *tx_len)
+
+static int spi_binary_sem_wait(osSemaphoreId sema, uint32_t millisec)
+{
+    int ret;
+
+    /* 
+     * Only use semaphore as a binary sem. osSemaphoreRelease will add sem count without check init count.
+     * So here we make sure the count is 0 using osSemaphoreWait(0) , then call  osSemaphoreWait(millisec).   
+     */
+    if (millisec != 0) {
+        do {
+            ret = osSemaphoreWait(sema, 0);
+        } while (ret > 0);
+    }
+    ret = osSemaphoreWait(sema, millisec);
+	return ret;
+}
+
+
+void hal_spi_slv_stop(void *hdl)
+{
+	spi_dev_t *pd = (spi_dev_t *)hdl;
+	osSemaphoreRelease(pd->h_sma);
+	pd->slv_stop = 1;
+
+}
+
+int hal_spi_slv_tx(void *hdl,  int phase, int polarity, int dfs, void *buffer, uint16_t buffer_len, uint16_t *tx_len)
 {
 	spi_dev_t *pd = (spi_dev_t *)hdl;
 
@@ -1243,19 +1270,21 @@ int hal_spi_slv_tx(void *hdl, int cs, int speed, int phase, int polarity, int df
 
 	if (buffer_len == 0)
 		return SPI_ERR_INVALID_PARAM;	
-
+#if 0
 	if (cs == 1)
 		cs = 3;
-
+#endif
 	osMutexWait(pd->h_mu, osWaitForever);
 
 	// Configure SPI	
 	spi_disable(pd->base);
 	spi_ctl0(pd->base, SPI_STD_FMT, SPI_TMOD_TX_ONLY, dfs, phase, polarity);
+#if 0
 	if (pd->id == MSPI_ID) {
 		spi_baud_rate(pd->base, hal_clk_d0_get(), speed); 
 		spi_ser(pd->base, 0, cs);
 	}
+#endif
 	spi_intr_clr(pd->base);
 	spi_intr_mask(pd->base, SPI_IT_ALL);
 	int tx_tl;
@@ -1265,6 +1294,8 @@ int hal_spi_slv_tx(void *hdl, int cs, int speed, int phase, int polarity, int df
 		tx_tl = SPI_TX_TL;
 	spi_txftl(pd->base, tx_tl);
 	spi_enable(pd->base);	
+	hal_gpio_ext_int_en((pd->ssn_pin>>GPIO_CFG_PORT_SHIFT) & 0xF, pd->ssn_pin & 0xF, 1, pd, hal_spi_slv_stop);
+	spi_pin_mux_en(pd, 1);
 
 	pd->dfs = dfs;
 
@@ -1282,17 +1313,19 @@ int hal_spi_slv_tx(void *hdl, int cs, int speed, int phase, int polarity, int df
 	NVIC_SetPriority(pd->irq, IRQ_PRI_High);	
 	NVIC_EnableIRQ(pd->irq);
 
+#if 0
 	// Select Slave...Start transfer
 	if (pd->id == MSPI_ID) 
 		spi_ser(pd->base, 1, cs);
+#endif
 
 #if CFG_PM_EN
 	pd->pm_state = PM_SLEEP;
 #endif
-
-	//osSemaphoreWait(pd->h_sma, osWaitForever);
-	while(!(spi_sr(pd->base) & SPI_SR_BUSY)  &&  (pd->slv_stop == 0));
-	while((spi_sr(pd->base) & SPI_SR_BUSY) && (pd->slv_stop == 0));
+	
+	spi_binary_sem_wait(pd->h_sma, osWaitForever);
+	//while(!(spi_sr(pd->base) & SPI_SR_BUSY)  &&  (pd->slv_stop == 0));
+	//while((spi_sr(pd->base) & SPI_SR_BUSY) && (pd->slv_stop == 0));
 	// Disable interrupt
 	spi_intr_mask(pd->base, SPI_IT_TXE|SPI_IT_TXO);
 	NVIC_DisableIRQ(pd->irq);
@@ -1301,6 +1334,8 @@ int hal_spi_slv_tx(void *hdl, int cs, int speed, int phase, int polarity, int df
 	}
 	// Done, disable SPI
 	spi_slv_finish(pd);
+	hal_gpio_ext_int_dis((pd->ssn_pin>>GPIO_CFG_PORT_SHIFT) & 0xF, pd->ssn_pin & 0xF);
+	spi_pin_mux_en(pd, 1);//restore pinmux
 
 #if CFG_PM_EN
 	pd->pm_state = PM_DEEP_SLEEP;
@@ -1319,13 +1354,8 @@ int hal_spi_busy(void *hdl)
 
 	return RD_WORD(pd->base + SPI_REG_SSIEN_OFS) && ((status & SPI_SR_BUSY) )  ; 
 }
-int hal_spi_slv_stop(void *hdl)
-{
-	spi_dev_t *pd = (spi_dev_t *)hdl;
-	pd->slv_stop = 1;
-    return SPI_ERR_OK;
-}
-int hal_spi_slv_rx(void *hdl, int cs, int speed, int phase, int polarity, int dfs, void *buffer, uint16_t buffer_len, uint16_t *rx_len)
+
+int hal_spi_slv_rx(void *hdl, int phase, int polarity, int dfs, void *buffer, uint16_t buffer_len, uint16_t *rx_len)
 {
 	spi_dev_t *pd = (spi_dev_t *)hdl;
 
@@ -1341,19 +1371,22 @@ int hal_spi_slv_rx(void *hdl, int cs, int speed, int phase, int polarity, int df
 	if (buffer_len == 0)
 		return SPI_ERR_INVALID_PARAM;	
 
+#if 0
 	if (cs == 1)
 		cs = 3;
-
+#endif
 	osMutexWait(pd->h_mu, osWaitForever);
 
 	// Configure SPI		
 	spi_disable(pd->base);
 	spi_ctl0(pd->base, SPI_STD_FMT, SPI_TMOD_RX_ONLY, dfs, phase, polarity);
+#if 0
 	if (pd->id == MSPI_ID) {
 		spi_baud_rate(pd->base, hal_clk_d0_get(), speed); 
 		spi_ndf(pd->base, (buffer_len - 1));
 		spi_ser(pd->base, 0, cs);
 	}
+#endif
 	spi_intr_clr(pd->base);
 	spi_intr_mask(pd->base, SPI_IT_ALL);
 	int rx_tl;
@@ -1375,23 +1408,31 @@ int hal_spi_slv_rx(void *hdl, int cs, int speed, int phase, int polarity, int df
 	pd->txbuf_ofs = 0;
 	pd->error = SPI_ERR_OK;
 	pd->slv_stop = 0;
+
+	hal_gpio_ext_int_en((pd->ssn_pin>>GPIO_CFG_PORT_SHIFT) & 0xF, pd->ssn_pin & 0xF, 1, pd, hal_spi_slv_stop);
+	spi_pin_mux_en(pd, 1);//restore pinmux
+
 	// Unmask interrupt
 	spi_intr_unmask(pd->base, SPI_IT_RXU|SPI_IT_RXO|SPI_IT_RXF);
 	NVIC_SetPriority(pd->irq, IRQ_PRI_High);	
 	NVIC_EnableIRQ(pd->irq);
 
+#if 0
 	/// Select Slave...Start transfer
 	if (pd->id == MSPI_ID) {
 		spi_dr_write(pd->base, 0);
 		spi_ser(pd->base, 1, cs);
 	}
+#endif
 
 #if CFG_PM_EN
 	pd->pm_state = PM_SLEEP;
 #endif
-	
-	while(!(spi_sr(pd->base) & SPI_SR_BUSY)  &&  (pd->slv_stop == 0));
-	while((spi_sr(pd->base) & SPI_SR_BUSY) && (pd->slv_stop == 0));
+
+	spi_binary_sem_wait(pd->h_sma, osWaitForever);
+	//while(!(spi_sr(pd->base) & SPI_SR_BUSY)  &&  (pd->slv_stop == 0));
+	//while((spi_sr(pd->base) & SPI_SR_BUSY) && (pd->slv_stop == 0));
+
 	// Disable interrupt
 	spi_intr_mask(pd->base, SPI_IT_RXU|SPI_IT_RXO|SPI_IT_RXF);
 	NVIC_DisableIRQ(pd->irq);
@@ -1431,6 +1472,9 @@ int hal_spi_slv_rx(void *hdl, int cs, int speed, int phase, int polarity, int df
 	}	
 	/// Done, disable SPI
 	spi_slv_finish(pd);
+	
+	hal_gpio_ext_int_dis((pd->ssn_pin>>GPIO_CFG_PORT_SHIFT) & 0xF, pd->ssn_pin & 0xF);
+	spi_pin_mux_en(pd, 1);
 
 
 #if CFG_PM_EN

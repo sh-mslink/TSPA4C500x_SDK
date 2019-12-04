@@ -1,10 +1,14 @@
 #include <stdlib.h>
 
 #include ".\ble\inb_api.h"
+#include "hal_global.h"
 #include "ble_test.h"
 #include "gap_test.h"
 #include "msg.h"
 #include "..\inc\test_svc.h"
+#if CFG_FW_UPD_EN
+#include "prf_otas.h"
+#endif
 #ifdef CFG_PROJ_TPPC
 #include "prf_tppc.h"
 #endif
@@ -201,7 +205,7 @@ int start_connect(inb_bdaddr_t* addr)
     sparam.u.init_param.conn_param_1m.conn_intv_min = 6;
     sparam.u.init_param.conn_param_1m.conn_intv_max = 6;
     sparam.u.init_param.conn_param_1m.conn_latency = 0;
-    sparam.u.init_param.conn_param_1m.supervision_to = 100;
+    sparam.u.init_param.conn_param_1m.supervision_to = 500;
     sparam.u.init_param.conn_param_1m.ce_len_min = 0x0000;
     sparam.u.init_param.conn_param_1m.ce_len_max = 0xffff;
     
@@ -304,13 +308,13 @@ int discovery_service(int conIdx)
     if(p_read)
     {
         memset(p_read, 0, sizeof(inb_gatt_disc_t));
-    
+        
         p_read->start_hdl = 0x0001;
         p_read->end_hdl = 0xffff;
     
         res = inb_gatt_discovery(conIdx, GATT_DISC_ALL_SVC, p_read);
-        if(res)
-            PRINTD(DBG_ERR, "Discovery service error:0x%02X.\r\n", res);
+//        if(res)
+//            PRINTD(DBG_ERR, "Discovery service error:0x%02X.\r\n", res);
         
         if(p_read)
             free(p_read);
@@ -413,6 +417,17 @@ int prof_init(void)
         if(p_hogp_prf)
             free(p_hogp_prf);
     }
+#endif
+#if CFG_FW_UPD_EN
+    in_ota_svc_add();
+#endif
+#ifdef CFG_PROJ_RCU
+#if MSRCU_BLE_VOICE_ATV_ENABLE
+    atv_add_svc();
+#endif
+#endif
+#ifdef CFG_PROJ_TPPS
+    tpps_add_svc();
 #endif
     
     return ret;
@@ -657,18 +672,6 @@ int ble_config(int role)
         return 0;
     
     prof_init();
-
-#ifdef CFG_PROJ_RCU
-#if MSRCU_BLE_VOICE_ATV_ENABLE   
-    if(!role)
-        atv_add_svc();
-#endif
-#endif
-    
-#ifdef CFG_PROJ_TPPS    
-    if(!role)
-        tpps_add_svc();
-#endif
     
     return 0;
 }
@@ -709,15 +712,18 @@ void handle_default_msg(msg_t *p_msg)
             {
                 actv_del = 0;
                 conidx = 0;
-#if defined(CFG_PROJ_TPPC)
+#ifndef CFG_PROJ_RCU
                 PRINTD(DBG_TRACE, "Disconnected, idx:%d, reason:0x%02X.\r\n", p->conidx, p->reason);
+#if defined(CFG_CENTRAL)
                 if(start_scan())
                     return;
-#elif defined(CFG_PROJ_TPPS)
-                PRINTD(DBG_TRACE, "Disconnected, idx:%d, reason:0x%02X.\r\n", p->conidx, p->reason);
-                osTimerStop(tppsNtfTimerId); 	
+#elif defined(CFG_PERIPHERAL)
                 if(start_adv())
                     return;
+#endif
+#if defined(CFG_PROJ_TPPS)
+                osTimerStop(tppsNtfTimerId);
+#endif
 #endif
             }
         }
@@ -738,7 +744,10 @@ void handle_default_msg(msg_t *p_msg)
             uint16_t mtu = 251;
             uint16_t err = inb_gatt_exc_mtu(p->conidx, &mtu);
             if(err)
+            {
                 PRINTD(DBG_TRACE, "inb_gatt_exc_mtu ERROR:0x%X\r\n", err);
+                hal_global_sys_reset();
+            }
 #endif
 #else
             PRINTD(DBG_TRACE, "Connected, idx:%d, ", p->conidx);
@@ -746,9 +755,9 @@ void handle_default_msg(msg_t *p_msg)
             PRINTD(DBG_TRACE, "addr:0x %02X %02X %02X %02X %02X %02X, ", 
                     p->peer_addr.addr[0], p->peer_addr.addr[1], p->peer_addr.addr[2], 
                     p->peer_addr.addr[3], p->peer_addr.addr[4], p->peer_addr.addr[5]);
-            PRINTD(DBG_TRACE, "interval:%d, ", p->con_interval);
+            PRINTD(DBG_TRACE, "interval:0x%X, ", p->con_interval);
             PRINTD(DBG_TRACE, "latency:%d, ", p->con_latency);
-            PRINTD(DBG_TRACE, "timeout:%d.\r\n", p->sup_to);
+            PRINTD(DBG_TRACE, "timeout:%dms.\r\n", p->sup_to * 10);
 #endif
             
 #ifdef CFG_PROJ_TPPC

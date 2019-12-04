@@ -53,7 +53,7 @@
 #if CFG_EXT_SPI_FLASH_PUYA
 #define SPI_INS_SPEED			1000000
 #define SPI_READ_SPEED		2000000
-#define SPI_PROG_SPEED		2000000
+#define SPI_PROG_SPEED		1000000//2000000
 #define SPI_READ_SIZE			64	// avoid overflow
 #define SPI_PROG_SIZE			64	// avoid overflow
 #if CFG_FPGA

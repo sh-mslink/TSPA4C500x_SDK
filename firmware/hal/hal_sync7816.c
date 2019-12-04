@@ -43,7 +43,7 @@ osSemaphoreDef(sync7816_timer_sema);
 osMutexDef(sync7816_mutex);
 
 
-static void sync7816_data_handle(uint32_t status)
+static void sync7816_data_handle(uint32_t status, void *arg)
  {
      sync7816_dev_t *dev = &sync7816_dev;
 
@@ -54,7 +54,7 @@ static void sync7816_data_handle(uint32_t status)
      }
 
  }
- static void sync7816_timer_handle(uint32_t status)
+ static void sync7816_timer_handle(uint32_t status, void *arg)
  {
      sync7816_dev_t *dev = &sync7816_dev;
 
@@ -171,23 +171,23 @@ sync7816_dev_t* hal_sync7816_open(int clk_pin, int rst_pin, int data_pin, uint32
     hal_cnt_pin_mux_en(dev->rst_pin, 1);
     hal_cnt_pin_mux_en(dev->data_pin, 1);
 
-    dev->clk_dev = hal_cnt_open(clk_id);
+    dev->clk_dev = hal_cnt_open(clk_id, 0);
     if (dev->clk_dev == NULL)
     {
         goto fail;
     }
     //cnt_set_default(clk_dev);
-    dev->rst_dev = hal_cnt_open(rst_id);
+    dev->rst_dev = hal_cnt_open(rst_id, 0);
     if (dev->rst_dev == NULL)
     {
         goto fail;
     }
-    dev->data_dev = hal_cnt_open(data_id);
+    dev->data_dev = hal_cnt_open(data_id, 0);
     if (dev->data_dev == NULL)
     {
         goto fail;
     }
-    dev->timer_dev = hal_cnt_open(timer_id);
+    dev->timer_dev = hal_cnt_open(timer_id, 0);
     if (dev->timer_dev == NULL)
     {
         goto fail;
@@ -215,8 +215,8 @@ sync7816_dev_t* hal_sync7816_open(int clk_pin, int rst_pin, int data_pin, uint32
 
 
     dev->clk = clk;
-    hal_cnt_set_handler(dev->data_dev, sync7816_data_handle);
-    hal_cnt_set_handler(dev->timer_dev, sync7816_timer_handle);
+    hal_cnt_set_handler(dev->data_dev, sync7816_data_handle, dev);
+    hal_cnt_set_handler(dev->timer_dev, sync7816_timer_handle, dev);
 
     //shiftout_complete = 0;
     //timer_stop = 0;
@@ -300,8 +300,8 @@ static void sync7816_setup_clk(sync7816_dev_t* dev)
 
     cnt_set_input_mux(dev->clk_dev->base, 0);//use A
 
-    cnt_set_target_a(dev->clk_dev->base, 0, dev->clk_dev->clk/dev->clk/2, dev->clk_dev->clk/dev->clk);
-    cnt_set_target_b(dev->clk_dev->base, 0, dev->clk_dev->clk/dev->clk + 10, 0);
+    cnt_set_target_a(dev->clk_dev->base, 0, hal_cnt_get_clk(dev->clk_dev) /dev->clk/2, hal_cnt_get_clk(dev->clk_dev)/dev->clk);
+    cnt_set_target_b(dev->clk_dev->base, 0, hal_cnt_get_clk(dev->clk_dev) /dev->clk + 10, 0);
 
     cnt_set_out_bypass(dev->clk_dev->base, CNT_OUT_BYPASS_B);//bypass a and b  review?
     cnt_set_in_bypass(dev->clk_dev->base, CNT_IN_BYPASS_A|CNT_IN_BYPASS_B);
@@ -324,7 +324,7 @@ static void sync7816_setup_rst(sync7816_dev_t* dev, uint32_t duration)
     cnt_set_input_mux(dev->rst_dev->base, 0xf);//use B(clock B) 
     
     //pull up reset
-    cnt_set_target_a(dev->rst_dev->base, duration, dev->clk_dev->clk/dev->clk/4, 0);
+    cnt_set_target_a(dev->rst_dev->base, duration, hal_cnt_get_clk(dev->clk_dev) /dev->clk/4, 0);
     cnt_set_target_b(dev->rst_dev->base, 0, 0, 0);
 
 
@@ -366,7 +366,7 @@ int hal_sync7816_answer_to_rst(sync7816_dev_t* dev, uint32_t* pval)
 	#endif
     sync7816_setup_clk(dev);
     //reset
-    sync7816_setup_rst(dev, dev->clk_dev->clk/dev->clk + dev->clk_dev->clk/1000000*8);//8us dev->clk->clk/1000000*8
+    sync7816_setup_rst(dev, hal_cnt_get_clk(dev->clk_dev) /dev->clk + hal_cnt_get_clk(dev->clk_dev) /1000000*8);//8us dev->clk->clk/1000000*8
     //cnt_set_out_bypass(dev->data_dev->base, CNT_OUT_BYPASS_B|CNT_OUT_BYPASS_A);//bypass a and b  review?
     //cnt_set_in_bypass(dev->data_dev->base, CNT_IN_BYPASS_A|CNT_IN_BYPASS_B);
 
@@ -413,9 +413,9 @@ static int sync7816_setup_read(sync7816_dev_t* dev, uint32_t start_trigger, uint
     cnt_set_shiftmode_ctrl(data_dev->base, 0);//use A
 
     cnt_set_shiftin_bit_num(data_dev->base, bit_len - 1);
-    cnt_set_shiftmode_point_en(data_dev->base, CNT_SHIFTMODE_POINT_EN | dev->clk_dev->clk/dev->clk/2);//half clk time (COUNTER_CLK/SYNC_CLK/2)
+    cnt_set_shiftmode_point_en(data_dev->base, CNT_SHIFTMODE_POINT_EN | hal_cnt_get_clk(dev->clk_dev)/dev->clk/2);//half clk time (COUNTER_CLK/SYNC_CLK/2)
 
-    cnt_set_one_bit_count(data_dev->base, dev->clk_dev->clk/dev->clk);
+    cnt_set_one_bit_count(data_dev->base, hal_cnt_get_clk(dev->clk_dev)/dev->clk);
 
     cnt_config_switch_mode(data_dev->base, bit_len<<CNT_CAPTURE_SHIFTIN_CNT_SHIFT|0xff<<CNT_WAVEFORM_SHIFTOUT_CNT_SHIFT);
     cnt_set_in_bypass(data_dev->base, CNT_IN_BYPASS_A|CNT_IN_BYPASS_B);
@@ -462,7 +462,7 @@ void hal_sync7816_stop(sync7816_dev_t* dev)
 {
     cnt_dev_t *rst_dev = dev->rst_dev;
     osMutexWait(dev->mutex, osWaitForever);
-    cnt_set_target_a(rst_dev->base, dev->clk_dev->clk/dev->clk, 1, 0);//8us dev->clk->clk/1000000*8
+    cnt_set_target_a(rst_dev->base, hal_cnt_get_clk(dev->clk_dev)/dev->clk, 1, 0);//8us dev->clk->clk/1000000*8
     cnt_trigger_stop(dev->clk_dev->base);
     cnt_disable(dev->clk_dev->base);
     cnt_trigger_stop(rst_dev->base);
@@ -568,7 +568,7 @@ out:
 static void fm4428_setup_write_with_read(sync7816_dev_t* dev, uint32_t val, uint32_t write_len, uint32_t read_len)
 {
     
-    sync7816_setup_rst(dev, dev->clk_dev->clk/dev->clk*write_len + dev->clk_dev->clk/dev->clk/4);
+    sync7816_setup_rst(dev, hal_cnt_get_clk(dev->clk_dev)/dev->clk*write_len + hal_cnt_get_clk(dev->clk_dev)/dev->clk/4);
     sync7816_setup_clk(dev);
 
 
@@ -585,13 +585,13 @@ static void fm4428_setup_write_with_read(sync7816_dev_t* dev, uint32_t val, uint
 
     cnt_set_shiftout_bit_num(dev->data_dev->base, write_len-1);
    
-    cnt_set_shiftmode_point_en(dev->data_dev->base, CNT_SHIFTMODE_POINT_EN | dev->clk_dev->clk/dev->clk/2);//SHIFTMODE_POINT_EN COUNTER_CLK/SYNC_CLK/2
+    cnt_set_shiftmode_point_en(dev->data_dev->base, CNT_SHIFTMODE_POINT_EN | hal_cnt_get_clk(dev->clk_dev)/dev->clk/2);//SHIFTMODE_POINT_EN COUNTER_CLK/SYNC_CLK/2
 
     cnt_set_shiftout_data(dev->data_dev->base, val);
     cnt_set_shiftout_data_valid(dev->data_dev->base, 1);
    
 
-    cnt_set_one_bit_count(dev->data_dev->base, dev->clk_dev->clk/dev->clk);
+    cnt_set_one_bit_count(dev->data_dev->base, hal_cnt_get_clk(dev->clk_dev)/dev->clk);
     cnt_config_switch_mode(dev->data_dev->base, CNT_CAPTURE_SHIFTIN_AUTO_ENABLE|
             (write_len)<<CNT_WAVEFORM_SHIFTOUT_CNT_SHIFT|read_len<<CNT_CAPTURE_SHIFTIN_CNT_SHIFT);
     cnt_set_out_bypass(dev->data_dev->base, CNT_OUT_BYPASS_B|CNT_OUT_BYPASS_A);
@@ -607,7 +607,7 @@ static void fm4428_setup_write_with_read(sync7816_dev_t* dev, uint32_t val, uint
 static void fm4428_setup_write(sync7816_dev_t* dev, uint32_t val, uint32_t bit_len)
 {
     
-    sync7816_setup_rst(dev, dev->clk_dev->clk/dev->clk*bit_len + dev->clk_dev->clk/dev->clk/4);
+    sync7816_setup_rst(dev, hal_cnt_get_clk(dev->clk_dev)/dev->clk*bit_len + hal_cnt_get_clk(dev->clk_dev)/dev->clk/4);
     sync7816_setup_clk(dev);
 
 
@@ -632,7 +632,7 @@ static void fm4428_setup_write(sync7816_dev_t* dev, uint32_t val, uint32_t bit_l
     cnt_set_shiftout_data_valid(dev->data_dev->base, 1);
    
 
-    cnt_set_one_bit_count(dev->data_dev->base, dev->clk_dev->clk/dev->clk);
+    cnt_set_one_bit_count(dev->data_dev->base, hal_cnt_get_clk(dev->clk_dev)/dev->clk);
     cnt_config_switch_mode(dev->data_dev->base, 
             bit_len<<CNT_WAVEFORM_SHIFTOUT_CNT_SHIFT|0xff<<CNT_CAPTURE_SHIFTIN_CNT_SHIFT);
     cnt_set_out_bypass(dev->data_dev->base, CNT_OUT_BYPASS_B|CNT_OUT_BYPASS_A);
@@ -667,7 +667,7 @@ int fm4428_write_cmd(sync7816_dev_t* dev, uint32_t cmd, uint32_t addr, uint8_t d
 
     
     fm4428_setup_write(dev, val, 24);
-    sync7816_setup_timer(dev, dev->clk_dev->clk/dev->clk*wait_clk, 10, 0);
+    sync7816_setup_timer(dev, hal_cnt_get_clk(dev->clk_dev)/dev->clk*wait_clk, 10, 0);
 
 
     
@@ -782,7 +782,7 @@ static void fm4442_setup_write_with_read(sync7816_dev_t* dev, uint32_t val, uint
 
     cnt_set_shiftout_bit_num(data_cnt->base, write_len + 2 - 1);
    
-    cnt_set_shiftmode_point_en(data_cnt->base, CNT_SHIFTMODE_POINT_EN | dev->clk_dev->clk/dev->clk/4);//SHIFTMODE_POINT_EN COUNTER_CLK/SYNC_CLK/2
+    cnt_set_shiftmode_point_en(data_cnt->base, CNT_SHIFTMODE_POINT_EN | hal_cnt_get_clk(dev->clk_dev)/dev->clk/4);//SHIFTMODE_POINT_EN COUNTER_CLK/SYNC_CLK/2
 
     uint32_t dup_val = sync7816_dup_bits(val, write_len/2);
     dup_val <<= 2;
@@ -791,7 +791,7 @@ static void fm4442_setup_write_with_read(sync7816_dev_t* dev, uint32_t val, uint
     cnt_set_shiftout_data_valid(data_cnt->base, 1);
     //DUMP_REG(COUNTER_ALL_APB_REG_SHIFTOUT_DATA_C0, offset);
 
-    cnt_set_one_bit_count(data_cnt->base, dev->clk_dev->clk/dev->clk/2);
+    cnt_set_one_bit_count(data_cnt->base, hal_cnt_get_clk(dev->clk_dev)/dev->clk/2);
     cnt_config_switch_mode(data_cnt->base, CNT_CAPTURE_SHIFTIN_AUTO_ENABLE|
             (write_len*2+4)<<CNT_WAVEFORM_SHIFTOUT_CNT_SHIFT|(read_len*2)<<CNT_CAPTURE_SHIFTIN_CNT_SHIFT);
     cnt_set_out_bypass(data_cnt->base, CNT_OUT_BYPASS_B|CNT_OUT_BYPASS_A);//bypass a and b
@@ -825,7 +825,7 @@ int fm4442_read_cmd(sync7816_dev_t* dev, uint32_t cmd, uint32_t addr, uint32_t *
 
     sync7816_setup_clk(dev);  
     fm4442_setup_write_with_read(dev, val, 24, rx_len);
-    sync7816_setup_timer(dev, dev->clk_dev->clk/dev->clk*3, dev->clk_dev->clk/dev->clk*3/4, (CNT_INNER_DIN0+dev->clk_dev->id)|CNT_RISING_EDGE);//3 clk?
+    sync7816_setup_timer(dev, hal_cnt_get_clk(dev->clk_dev)/dev->clk*3, hal_cnt_get_clk(dev->clk_dev)/dev->clk*3/4, (CNT_INNER_DIN0+dev->clk_dev->id)|CNT_RISING_EDGE);//3 clk?
     hal_cnt_sync(dev->data_dev, CNT_SNAP_SHIFTIN_DATA_MASK);
     uint32_t refill = sync7816_dup_bits(val>>12, 12);
     PRINTD(DBG_TRACE, "refill  %08x\r\n", refill);
@@ -893,7 +893,7 @@ int fm4442_write_cmd(sync7816_dev_t* dev, uint32_t cmd, uint32_t addr, uint8_t d
 
     sync7816_setup_clk(dev);  
     fm4442_setup_write(dev, val, 24);
-    sync7816_setup_timer(dev, dev->clk_dev->clk/dev->clk*3, dev->clk_dev->clk/dev->clk*3/4, (CNT_INNER_DIN0+dev->clk_dev->id)|CNT_RISING_EDGE);//3 clk?
+    sync7816_setup_timer(dev, hal_cnt_get_clk(dev->clk_dev)/dev->clk*3, hal_cnt_get_clk(dev->clk_dev)/dev->clk*3/4, (CNT_INNER_DIN0+dev->clk_dev->id)|CNT_RISING_EDGE);//3 clk?
 
     uint32_t refill = sync7816_dup_bits(val>>12, 12);
     //PRINTD(DBG_TRACE, "refill  %08x\r\n", refill);
@@ -958,7 +958,7 @@ static void fm4442_setup_write(sync7816_dev_t* dev, uint32_t val, uint32_t write
     cnt_set_shiftout_data_valid(data_cnt->base, 1);
  
 
-    cnt_set_one_bit_count(data_cnt->base, dev->clk_dev->clk/dev->clk/2);
+    cnt_set_one_bit_count(data_cnt->base, hal_cnt_get_clk(dev->clk_dev)/dev->clk/2);
     cnt_config_switch_mode(data_cnt->base, 
             (write_len*2+4)<<CNT_WAVEFORM_SHIFTOUT_CNT_SHIFT|0xff<<CNT_CAPTURE_SHIFTIN_CNT_SHIFT);
     cnt_set_out_bypass(data_cnt->base, CNT_OUT_BYPASS_B|CNT_OUT_BYPASS_A);//bypass a and b

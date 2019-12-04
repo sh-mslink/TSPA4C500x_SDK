@@ -770,7 +770,7 @@ void hal_dma_close(void *hdl);
 
 /**
  ****************************************************************************************
- * @brief DMA channel enable
+ * @brief (Software Control) DMA  channel enable
  *
  * @param[in] hdl				The handle from the previous "open" function.   
  * @param[in] *arg			The pointer to the caller's argument.
@@ -821,6 +821,17 @@ int hal_dma_switch_buffer(void *hdl, int sa_da, uint32_t buffer_addr);
  */
 int hal_dma_src_req(void *hdl);
 int hal_dma_dst_req(void *hdl);
+
+/**
+ ****************************************************************************************
+ * @brief Get DMA transfer length
+ *
+ * @param[in] hdl					The handle from the previous "open" function.   
+ *
+ * @return the length of DMA transfer bytes 
+ ****************************************************************************************
+ */
+uint32_t hal_dma_get_tran_len(void *hdl);
 
 
 /// @} HAL_WDT

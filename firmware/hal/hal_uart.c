@@ -735,6 +735,13 @@ void hal_uart_close(void *hdl)
 
 	// set baud to 0 to close uart
 	uart_set_baud(pd->base, hal_clk_d0_get(), 0);
+	
+	if (pd->h_rx_dma) {
+		// Disable DMA
+		hal_dma_ch_disable(pd->h_rx_dma);
+		hal_dma_close(pd->h_rx_dma);
+		pd->h_rx_dma = NULL;
+	}
 
 	if (pd->h_tx_mu) {
 		osMutexDelete(pd->h_tx_mu);
@@ -859,6 +866,21 @@ int hal_uart_xmit_intr(void *hdl, uint8_t *buffer, uint32_t buffer_len, void *cb
 	osMutexRelease(pd->h_tx_mu);
 	return err;
 }
+int hal_uart_clear_rx_fifo(void* hdl)
+{
+	uart_dev_t *pd = (uart_dev_t *)hdl;
+	int err = UART_ERR_OK;
+
+	if (!pd)
+		return UART_ERR_INVALID_PARAM; 	
+	osMutexWait(pd->h_rx_mu, osWaitForever);
+	while (uart_line_status(pd->base) & UART_LSR_DR) {
+		uart_read_data(pd->base);
+	}	
+	osMutexRelease(pd->h_rx_mu);
+	return err;
+
+}
 
 int hal_uart_rcvd_intr(void *hdl, uint8_t *buffer, uint32_t buffer_len, void *cb_arg, void (*callback)(void *arg, int length, int error))
 {
@@ -886,6 +908,7 @@ int hal_uart_rcvd_intr(void *hdl, uint8_t *buffer, uint32_t buffer_len, void *cb
 	pd->rx_callback_arg = cb_arg;
 	pd->rx_callback = callback;
 	pd->rx_no_wait = 0;
+
 	/// THR empty, Line 
 	uart_intr_enable(pd->base, (UART_IER_ERBFI | UART_IER_ELSI));		
 
@@ -1162,5 +1185,102 @@ out:
 	return err;
 }
 
+int hal_uart_rcvd_dma_tmo(void *hdl, uint8_t *buffer, uint32_t buffer_len, uint32_t *actual_rx_len, uint32_t tmo)
+{
+	uart_dev_t *pd = (uart_dev_t *)hdl;
+	int err = UART_ERR_OK;
+
+	if (!pd)
+		return UART_ERR_INVALID_PARAM; 	
+
+	if (!buffer)
+		return UART_ERR_INVALID_PARAM; 	
+
+	if (buffer_len == 0)
+		return UART_ERR_INVALID_PARAM; 	
+
+	//
+	// DMA burst size needs to be less than the uart's threshold value.  This is to make sure that we always have data
+	//			in the FIFO to trigger the time out for the case where actual RX length is not the same as the user's request.
+	//.	
+	int burst_size;
+	if (pd->fifo_rx_thold_nb == UART_FIFO_DEPTH/4) {
+		burst_size = DMA_CTL_TR_MSIZE_1;
+	} else if (pd->fifo_rx_thold_nb == UART_FIFO_DEPTH/2) {
+		burst_size = DMA_CTL_TR_MSIZE_4;
+	} else if (pd->fifo_rx_thold_nb == UART_FIFO_DEPTH-2) {
+		burst_size = DMA_CTL_TR_MSIZE_8;
+	} else {
+		// This will not satisfy the time out condition
+		return UART_ERR_INVALID_PARAM; 	
+	}
+
+	osMutexWait(pd->h_rx_mu, osWaitForever);
+
+	if (actual_rx_len)
+		*actual_rx_len = 0;
+
+	// Find a available DMA channel
+	pd->h_rx_dma = hal_dma_open(DMA1_ID, 
+												((pd->id == UART0_ID) ? DMA_ID_UART0_RX : DMA_ID_UART1_RX),
+													(uint32_t)(pd->base + UART_REG_RBR_OFS),
+														(uint32_t)buffer, 
+															buffer_len,
+																DMA_CTL_TR_WIDTH_8BITS, 
+																	DMA_CTL_TR_WIDTH_8BITS,
+																		DMA_ADDR_SAME, 
+																			DMA_ADDR_INC, 
+																				burst_size, 
+																					burst_size,
+																						DMA_AHB_MASTER_PERIPH,  
+																							DMA_AHB_MASTER_MEM, 
+																								DMA_TT_PERF_TO_MEM_FC_DMAC);
+	if (!pd->h_rx_dma) {
+		err = UART_DMA_NOT_AVAIL;
+		goto out;
+	}						
+
+	// Prepare...
+	pd->rx_buffer = buffer;
+	pd->rx_buffer_len = buffer_len;
+	pd->rx_buffer_ofs = 0;
+	pd->rx_callback_arg = NULL;
+	pd->rx_callback = NULL;
+	pd->rx_no_wait = 1;
+	pd->error = err;						
+
+#if CFG_PM_EN
+	pd->power_state = PM_SLEEP;
+#endif
+
+	// Uart: enable RX interrupt (including time out) and line status 
+	uart_intr_enable(pd->base, (UART_IER_ERBFI | UART_IER_ELSI));		
+
+	// DMA channel enable 
+	hal_dma_ch_enable(pd->h_rx_dma, (void *)pd, uart_dma_isr_cb);
+
+		
+	// Block call 
+	osSemaphoreWait(pd->h_rx_sma, tmo);
+	err = pd->error;
+	if (actual_rx_len)
+		*actual_rx_len = pd->rx_buffer_ofs;
+	//uart_intr_disable(pd->base, (UART_IER_ERBFI | UART_IER_ELSI));
+	if (pd->h_rx_dma) {
+		// Disable DMA
+		hal_dma_ch_disable(pd->h_rx_dma);
+		hal_dma_close(pd->h_rx_dma);
+		pd->h_rx_dma = NULL;
+	}
+#if CFG_PM_EN
+	pd->power_state = PM_DEEP_SLEEP;
+#endif
+	
+out:
+
+	osMutexRelease(pd->h_rx_mu);
+
+	return err;
+}
 
 #endif	/* CFG_NB_UART */ 

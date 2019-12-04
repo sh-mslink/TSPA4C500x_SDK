@@ -83,13 +83,13 @@ __irq void Calib_Handler()
 	__nop();
 #endif
 
-	uint32_t freq=((uint32_t)(32000000.0 / (cal_result/524288.)));
+	uint32_t freq=((uint32_t)(32000000.0f / (cal_result/524288.f)));
 	if (g_clk.rtc_clk0 == 0)
 		g_clk.rtc_clk0 = freq;
 	else 
-		g_clk.rtc_clk0=  g_clk.rtc_clk0 *3.0/4.0 + freq/4.0;
+		g_clk.rtc_clk0=  g_clk.rtc_clk0 *3.0f/4.0f + freq/4.0f;
 
-	g_clk.rtc_clk = (((uint32_t) (g_clk.rtc_clk0*(1+1*760.0/1e6))) + 8) >> 4 ;
+	g_clk.rtc_clk = (((uint32_t) (g_clk.rtc_clk0*(1+1*(float)CFG_RC_PPM_OFFSET/1e6))) + 8) >> 4 ;
 
 	//g_clk.rtc_clk = ((uint32_t)(32000000.0 / (cal_result/32768.)));
 	g_clk.rtc_ready = 1;
@@ -106,6 +106,7 @@ __irq void Calib_Handler()
  */
 static void rtc_call_back(void *arg)
 {
+#if !CFG_FPGA
 	clk_dev_t *pd = (clk_dev_t *)arg;
 	/// This is a call back from timer (after 1 second) which indicate RTC should be ready.
 	pd->rtc_ready = 1; 
@@ -119,6 +120,8 @@ static void rtc_call_back(void *arg)
 	/// Change Timer 2 clock source to Rtc
 	if (CFG_RTC_EN)
 		hal_clk_tim2_set(CFG_RTC_EN);
+#endif	// !CFG_FPGA
+
 }
 
 /*
@@ -130,6 +133,7 @@ int hal_clk_root_set(uint32_t clk_root)
 {
 	int res = CLK_ERR_NO_ERROR;
 
+#if !CFG_FPGA
 	if (clk_root == 32000000) {
 		clk_root_mux(0);
 	} else if (clk_root == 64000000) {
@@ -137,16 +141,22 @@ int hal_clk_root_set(uint32_t clk_root)
 	} else {
 		res = CLK_ERR_INVALID_PARAM;			
 	}
+#endif	// !CFG_FPGA
 
 	return res;
 }
 
 uint32_t hal_clk_root_get(void)
 {
+#if !CFG_FPGA
 	if (clk_root_mux_get() == 1) 
 		return 64000000;
 	else
 		return 32000000;
+#else
+	return 32000000;
+#endif	// !CFG_FPGA
+
 }
 
 int hal_clk_cpu_set(uint32_t cpu_clk)
@@ -161,6 +171,7 @@ uint32_t hal_clk_cpu_get(void)
 
 int hal_clk_d0_set(uint32_t d0_clk)
 {
+#if !CFG_FPGA
 	uint32_t clk = hal_clk_root_get();
 	uint32_t mux;
 	int res = CLK_ERR_NO_ERROR;
@@ -188,12 +199,17 @@ int hal_clk_d0_set(uint32_t d0_clk)
 
 	if (res == CLK_ERR_NO_ERROR)
 		clk_d0_mux(mux);
+#else
+	int res = CLK_ERR_NO_ERROR;
+#endif	// !CFG_FPGA
 
 	return res;
 }
 
 uint32_t hal_clk_d0_get(void)
 {
+#if !CFG_FPGA
+
 	uint32_t clk = hal_clk_root_get();
 	uint32_t mux = clk_d0_mux_get();
 
@@ -203,16 +219,16 @@ uint32_t hal_clk_d0_get(void)
 		clk /= 4;
 	else
 		clk /= 8;
-
-#if CFG_FPGA	
-	clk = 32000000;
-#endif
+#else
+	uint32_t clk = 32000000;
+#endif	// !CFG_FPGA
 
 	return clk;
 }
 
 int hal_clk_d1_set(uint32_t d1_clk)
 {
+#if !CFG_FPGA
 	uint32_t clk = hal_clk_root_get();
 	uint32_t mux;
 	int res = CLK_ERR_NO_ERROR;
@@ -240,12 +256,16 @@ int hal_clk_d1_set(uint32_t d1_clk)
 
 	if (res == CLK_ERR_NO_ERROR)
 		clk_d1_mux(mux);
+#else
+	int res = CLK_ERR_NO_ERROR;
+#endif	// !CFG_FPGA
 
 	return res;
 }
 
 uint32_t hal_clk_d1_get(void)
 {
+#if !CFG_FPGA
 	uint32_t clk = hal_clk_root_get();
 	uint32_t mux = clk_d1_mux_get();
 
@@ -255,15 +275,16 @@ uint32_t hal_clk_d1_get(void)
 		clk /= 4;
 	else
 		clk /= 8;
+#else
+	uint32_t clk = 16000000;
+#endif	// !CFG_FPGA
 
-#if CFG_FPGA	
-	clk = 16000000;
-#endif
 	return clk;
 }
 
 int hal_clk_d2_set(uint32_t d2_clk)
 {
+#if !CFG_FPGA
 	uint32_t clk = hal_clk_root_get();
 	uint32_t mux;
 	int res = CLK_ERR_NO_ERROR;
@@ -295,12 +316,16 @@ int hal_clk_d2_set(uint32_t d2_clk)
 
 	if (res == CLK_ERR_NO_ERROR)
 		clk_d2_mux(mux);
+#else
+	int res = CLK_ERR_NO_ERROR;
+#endif	// !CFG_FPGA
 
 	return res;
 }
 
 uint32_t hal_clk_d2_get(void)
 {
+#if !CFG_FPGA
 	uint32_t clk = hal_clk_root_get();
 	uint32_t mux = clk_d2_mux_get();
 
@@ -310,14 +335,16 @@ uint32_t hal_clk_d2_get(void)
 		clk /= 4;
 	else 
 		clk /= 8;
-#if CFG_FPGA	
-	clk = 32000000;
-#endif
+#else
+	uint32_t clk = 32000000;
+#endif	// !CFG_FPGA
 	return clk;
 }
 
 int hal_clk_tim1_set(uint32_t tim0_clk)
 {
+#if !CFG_FPGA
+
 	uint32_t clk = hal_clk_root_get();
 	uint32_t mux;
 	int res = CLK_ERR_NO_ERROR;
@@ -344,12 +371,16 @@ int hal_clk_tim1_set(uint32_t tim0_clk)
 		
 	if (res == CLK_ERR_NO_ERROR)
 		clk_timer1_mux(mux);
+#else
+	int res = CLK_ERR_NO_ERROR;
+#endif	// !CFG_FPGA
 	
 	return res;
 }
 
 uint32_t hal_clk_tim1_get(void)
 {
+#if !CFG_FPGA
 	uint32_t clk = hal_clk_root_get();
 	uint32_t mux = clk_timer1_mux_get();
 
@@ -359,17 +390,24 @@ uint32_t hal_clk_tim1_get(void)
 		clk /= 8;
 	else
 		clk /= 16;
+#else
+	uint32_t clk = 16000000;
+#endif	// !CFG_FPGA
 
 	return clk;
 }
 
 void hal_clk_tim2_set(int rtc_clk)
 {
+#if !CFG_FPGA
 	clk_timer2_mux(rtc_clk);
+#endif	// !CFG_FPGA
+
 }
 
 int hal_clk_hwacc_set(uint32_t hwacc_clk)
 {
+#if !CFG_FPGA
 	uint32_t clk = hal_clk_root_get();
 	uint32_t mux;
 	int res = CLK_ERR_NO_ERROR;
@@ -400,12 +438,18 @@ int hal_clk_hwacc_set(uint32_t hwacc_clk)
 		
 	if (res == CLK_ERR_NO_ERROR)
 		clk_hwacc_mux(mux);
+#else
+
+	int res = CLK_ERR_NO_ERROR;
+
+#endif	// !CFG_FPGA
 	
 	return res;
 }
 
 int hal_clk_sadc_set(uint32_t sadc_clk)
 {
+#if !CFG_FPGA
 	uint32_t clk = hal_clk_root_get();
 	uint32_t mux;
 	int res = CLK_ERR_NO_ERROR;
@@ -438,12 +482,16 @@ int hal_clk_sadc_set(uint32_t sadc_clk)
 		
 	if (res == CLK_ERR_NO_ERROR)
 		clk_sadc_mux(mux);
+#else
+	int res = CLK_ERR_NO_ERROR;
+#endif	// !CFG_FPGA
 	
 	return res;
 }
 
 uint32_t hal_clk_sadc_get(void)
 {
+#if !CFG_FPGA
 	uint32_t clk = hal_clk_root_get();
 	uint32_t mux = clk_sadc_mux_get();
 
@@ -457,12 +505,16 @@ uint32_t hal_clk_sadc_get(void)
 		clk /= 32;
 	else 
 		clk /= 64;
+#else
+	uint32_t clk = 1000000;
+#endif	// !CFG_FPGA
 
 	return clk;
 }
 
 int hal_clk_smem_set(uint32_t smem_clk)
 {
+#if !CFG_FPGA
 	uint32_t clk = hal_clk_root_get();
 	uint32_t mux;
 	int res = CLK_ERR_NO_ERROR;
@@ -493,12 +545,19 @@ int hal_clk_smem_set(uint32_t smem_clk)
 		
 	if (res == CLK_ERR_NO_ERROR)
 		clk_smem_mux(mux);
+
+#else
+
+	int res = CLK_ERR_NO_ERROR;
+
+#endif	// !CFG_FPGA
 	
 	return res;
 }
 
 int hal_clk_qspi_set(uint32_t qspi_clk)
 {
+#if !CFG_FPGA
 	uint32_t clk = hal_clk_root_get();
 	uint32_t mux;
 	int res = CLK_ERR_NO_ERROR;
@@ -529,12 +588,16 @@ int hal_clk_qspi_set(uint32_t qspi_clk)
 		
 	if (res == CLK_ERR_NO_ERROR)
 		clk_qspi_mux(mux);
+#else
+	int res = CLK_ERR_NO_ERROR;
+#endif	// !CFG_FPGA
 	
 	return res;
 }
 
 uint32_t hal_clk_qspi_get(void)
 {
+#if !CFG_FPGA
 	uint32_t clk = hal_clk_root_get();
 	uint32_t mux = clk_qspi_mux_get();
 
@@ -544,12 +607,16 @@ uint32_t hal_clk_qspi_get(void)
 		clk /= 4;
 	else if (mux == CLK_QSPI_DIV8)
 		clk /= 8;
+#else
+	uint32_t clk = 32000000;
+#endif	// !CFG_FPGA
 
 	return clk;
 }
 
 int hal_clk_efuse_set(uint32_t efuse_clk)
 {
+#if !CFG_FPGA
 	uint32_t clk = hal_clk_root_get();
 	uint32_t mux;
 	int res = CLK_ERR_NO_ERROR;
@@ -572,52 +639,75 @@ int hal_clk_efuse_set(uint32_t efuse_clk)
 		
 	if (res == CLK_ERR_NO_ERROR)
 		clk_efuse_mux(mux);
+#else
+	int res = CLK_ERR_NO_ERROR;
+#endif	// !CFG_FPGA
 	
 	return res;
 }
 
 void hal_clk_si2s_set(int ext_clk)
 {
+#if !CFG_FPGA
 	clk_slv_i2s_mux(ext_clk);
+#endif	// !CFG_FPGA
+
 }
 
 void hal_clk_mi2s_set(uint32_t bit_clk)
 {
+#if !CFG_FPGA
 	uint32_t clk_cpu = hal_clk_root_get();
 	uint32_t div = (clk_cpu/bit_clk) & 0xFFF;
 	clk_mi2s(div);
+#endif	// !CFG_FPGA
+
 }
 
 void hal_clk_audio_codec(int mux)
 {
+#if !CFG_FPGA
 	clk_audio_codec_mux(mux);
+#endif	// !CFG_FPGA
+
 }
 
 void hal_clk_efuse_en(int en)
 {
+#if !CFG_FPGA
 	clk_efuse_en(en);		
+#endif	// !CFG_FPGA
+
 }
 
 void hal_clk_uart_en(int id, int on)
 {
+#if !CFG_FPGA
 	if (id == UART0_ID) {
 		clk_uart0_en(on);
 	} else {
 		clk_uart1_en(on);
 	}
+#endif	// !CFG_FPGA
+
 }
 
 void hal_clk_i2c_en(int id, int on)
 {
+#if !CFG_FPGA
 	if (id == I2C0_ID) {
 		clk_i2c0_en(on);
 	} else {
 		clk_i2c1_en(on);
 	}
+#endif	// !CFG_FPGA
+
 }
 
 void hal_clk_pwm_en(int id, int on)
 {
+#if !CFG_FPGA
+
 	if (id == PWM0_ID) {
 		clk_pwm0_en(on);
 	} else if (id == PWM1_ID) {
@@ -631,74 +721,111 @@ void hal_clk_pwm_en(int id, int on)
 	} else {
 		return;
 	}
+#endif	// !CFG_FPGA
+
 }
 
 void hal_clk_wdt_en(int on)
 {
+#if !CFG_FPGA
 	clk_wdt_en(on);
+#endif	// !CFG_FPGA
+
 }
 
 void hal_clk_kb_en(int on)
 {
+#if !CFG_FPGA
 	clk_kb_en(on);
+#endif	// !CFG_FPGA
+
 }
 
 void hal_clk_ecc_en(int on)
 {
+#if !CFG_FPGA
 	clk_ecc_en(on);
+#endif	// !CFG_FPGA
+
 }
 
 void hal_clk_hash_en(int on)
 {
+#if !CFG_FPGA
 	clk_hash_en(on);
+#endif	// !CFG_FPGA
+
 }
 
 void hal_clk_aes_en(int on)
 {
+#if !CFG_FPGA
 	clk_aes_en(on);
+#endif	// !CFG_FPGA
+
 }
 
 void hal_clk_counter_en(int on)
 {
+#if !CFG_FPGA
 	clk_counter_en(on);
+#endif	// !CFG_FPGA
+
 }
 
 void hal_clk_audio_en(int on)
 {
+#if !CFG_FPGA
 	clk_audio_en(on);
+#endif	// !CFG_FPGA
+
 }
 
 void hal_clk_sadc_en(int on)
 {
+#if !CFG_FPGA
 	clk_sadc_en(on);
+#endif	// !CFG_FPGA
+
 }
 
 void hal_clk_i2s_en(int id, int on)
 {
+#if !CFG_FPGA
 	if (id == MI2S_ID) {
 		clk_mi2s_en(on);
 	} else {
 		clk_si2s_en(on);
 	}
+#endif	// !CFG_FPGA
+
 }
 
 void hal_clk_quaddec_en(int on)
 {
+#if !CFG_FPGA
 	clk_quaddec_en(on);
+#endif	// !CFG_FPGA
+
 }
 
 void hal_clk_dma_en(int on)
 {
+#if !CFG_FPGA
 	clk_dma_en(on);
+#endif	// !CFG_FPGA
 }
 
 void hal_clk_ble_en(int on)
 {
+#if !CFG_FPGA
 	clk_ble_en(on);
+#endif	// !CFG_FPGA
 }
 
 void hal_clk_gpio_intr(int port, int on)
 {
+#if !CFG_FPGA
 	if (port == GPIO_PORT_0)
 		clk_gpio_0_intr_en(on);
 	else if (port == GPIO_PORT_1)
@@ -709,16 +836,24 @@ void hal_clk_gpio_intr(int port, int on)
 		clk_gpio_3_intr_en(on);
 	else 
 		clk_gpio_4_intr_en(on);
+#endif	// !CFG_FPGA
+
 }
 
 void hal_clk_mspi_en(int on)
 {
+#if !CFG_FPGA
 	clk_mspi_en(on);
+#endif	// !CFG_FPGA
+
 }
 
 void hal_clk_sspi_en(int on)
 {
+#if !CFG_FPGA
 	clk_sspi_en(on);
+#endif	// !CFG_FPGA
+
 }
 
 void hal_clk_calib_xo(void)
@@ -728,6 +863,7 @@ void hal_clk_calib_xo(void)
 
 void hal_clk_calib_rc(int cycles)
 {
+#if !CFG_FPGA
 	uint32_t val;
 
 	WR_WORD(0x44125004, 0);
@@ -735,12 +871,14 @@ void hal_clk_calib_rc(int cycles)
 	WR_WORD(0x44125000, val); // start the calibration
 
 	/// Result in the interrupt service routine
+#endif	// !CFG_FPGA
 
 	return;
 }
 
 void hal_clk_rtc_en(int en)
 {
+#if !CFG_FPGA
 	if (en) {
 		if (!aon_is_rtc_en()) {
 			aon_rtc_en(1);
@@ -776,17 +914,27 @@ void hal_clk_rtc_en(int en)
 
 		/// Wait for end of calibration
 		while (!g_clk.rtc_ready);
-		
 	}
+#endif	// !CFG_FPGA
 }
 
 int hal_clk_rtc_ready(void)
 {
+#if !CFG_FPGA
 	return g_clk.rtc_ready;	
+#else
+	return 1;
+#endif	// !CFG_FPGA
+
 }
 
 uint32_t hal_clk_rtc_get(void)
 {
+#if !CFG_FPGA
 	return g_clk.rtc_clk;
+#else
+	return 32768;
+#endif	// !CFG_FPGA
+
 }
 

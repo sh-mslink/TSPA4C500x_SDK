@@ -152,25 +152,48 @@ static void cnt_pm_up(void *arg)
 	cnt_dev_t *pd = (cnt_dev_t *)arg;
     //PRINTD(DBG_TRACE, "%s \n", __func__);
 
-    cnt_set_clk(pd->base, CNT_ROOT_CLK_DIV2);
+    cnt_set_clk(pd->base, pd->clk_div);
     cnt_enable_clk(pd->base);    
     cnt_reset(pd->id);
 }
 #endif	// CFG_PM_EN
 
-cnt_dev_t* hal_cnt_open(int id)
+cnt_dev_t* hal_cnt_open(int id, uint32_t clk)
 {
     cnt_dev_t* pd = NULL;
+    uint32_t div;
+    int clk_div;
+
     if (id >= CNT_MAX_ID || id < 0 || cnt_dev[id].used) {
         return NULL;
     }
+    if (clk == 0) {
+        clk_div = CNT_ROOT_CLK_DIV2;
+        clk = hal_clk_root_get() / 2;
+    } else {
+        div = hal_clk_root_get()/clk;
+        switch (div) {
+            case 2:
+                clk_div = CNT_ROOT_CLK_DIV2;
+                break;
+            case 4:
+                clk_div = CNT_ROOT_CLK_DIV4;
+                break;
+            case 8:
+                clk_div = CNT_ROOT_CLK_DIV8;
+                break;
+            default:
+                return NULL;   
+        }
+    }
+
+
     if (!cnt_mutex) {
         cnt_mutex = osMutexCreate(osMutex(cnt_dev_mutex));
         if (!cnt_mutex) {
             return NULL;
         }
     }
-
 
     osMutexWait(cnt_mutex, osWaitForever);
     pd = &cnt_dev[id];
@@ -187,8 +210,10 @@ cnt_dev_t* hal_cnt_open(int id)
 #endif
 
     hal_clk_counter_en(1);
-    cnt_set_clk(pd->base, CNT_ROOT_CLK_DIV2);// when use XO, it is 32MHz
-    pd->clk = 32000000;//32Mhz
+
+    cnt_set_clk(pd->base, clk_div);// when use XO, it is 32MHz
+    pd->clk = clk;//32Mhz
+    pd->clk_div = clk_div;
     cnt_enable_clk(pd->base);
 
     cnt_reset(pd->id);
@@ -293,12 +318,18 @@ int hal_cnt_internal_dout_pinmux(int inner_pin, int ext_pin)
     cnt_set_dout_mux(reg);
 	  return CNT_ERR_OK;
 }
-void hal_cnt_set_handler(cnt_dev_t *dev, CNT_ISR_FUN fun)
+void hal_cnt_set_handler(cnt_dev_t *dev, CNT_ISR_FUN fun, void *arg)
 {
     cnt_dev_t* pd = dev;
     pd->isr_handler = (CNT_ISR_FUN)fun;
+	pd->isr_arg = arg;
 }
-
+uint32_t hal_cnt_get_clk(cnt_dev_t *dev)
+{
+	if (!dev)
+		return 0;
+	return dev->clk;
+}
 static void cnt_set_default(cnt_dev_t* dev)
 {
     
@@ -406,7 +437,7 @@ __irq void Counter_Handler(void)
     for (int i = 0; i < CNT_MAX_ID; i++) {
         uint32_t param = (status>>(i*8)) & 0xff;
         if (cnt_dev[i].used && cnt_dev[i].isr_handler && param) {
-            cnt_dev[i].isr_handler(param);
+            cnt_dev[i].isr_handler(param, cnt_dev[i].isr_arg);
         }
     }
 }

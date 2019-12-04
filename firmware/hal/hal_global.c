@@ -125,7 +125,8 @@ void HardFault_Handler_C(unsigned long * hardfault_args, unsigned int lr_value)
 	PRINTD (DBG_ERR, "- Misc\n"); 
 	PRINTD (DBG_ERR, " LR/EXC_RETURN= %x\n", lr_value);
 
-	while(1); // endless loop
+	//while(1); // endless loop
+	hal_global_sys_reset();
 }
 #endif	// CFG_DBG_EN
 
@@ -198,9 +199,10 @@ void hal_global_pre_init(void)
 	/// Smem
 	hal_clk_smem_set(CFG_SMEM_CLK);
 
+#endif	// !CFG_FPGA
+
 	/// **** Configure shared memory ****
 	hal_smem_init();
-#endif	// !CFG_FPGA
 
 }
 

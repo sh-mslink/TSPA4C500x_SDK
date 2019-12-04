@@ -2,7 +2,6 @@
  ****************************************************************************************
  *
  * Auto Generated Project Configuration File
- *		Do not modify !!!
  *
  * @file IN_CONFIG(PROJ_RCU).H
  *
@@ -18,6 +17,8 @@
 /// @Misc::TSPA4C500X
 #define CFG_TSPA4C500X	1
 #define CFG_FPGA	0
+/// @Misc::OTA
+#define CFG_FW_UPD_EN	1
 /// @Misc::PM
 #define CFG_PM_EN	1
 #define CFG_PM_DEEP_SLEEP_THRD	5
@@ -32,8 +33,8 @@
 #define CFG_PM_RETN_16K	1
 #define CFG_PM_RETN_32K	1
 /// @Misc::RAM
-#define CFG_RAM_BASE_ADDR	0x201000
-#define CFG_RAM_SIZE	0xf000
+#define CFG_RAM_BASE_ADDR	0x202000
+#define CFG_RAM_SIZE	0xe000
 #define CFG_STACK_SIZE	0x400
 #define CFG_HEAP_SIZE	0x1000
 /// @Misc::DEBUG
@@ -59,8 +60,9 @@
 #define CFG_QSPI_CLK	64000000
 #define CFG_AUDIO_CODEC_CLK_MUX	0
 #define CFG_SI2S_CLK_MUX	1
-#define CFG_RTC_EN	1
-#define CFG_RTC_CLK	32768
+#define CFG_RTC_EN	0
+#define CFG_RTC_CLK	0
+#define CFG_RC_PPM_OFFSET 760
 /// @Misc::SMEM
 /// [0:15]: size
 /// [16:31]: address offset
@@ -68,13 +70,13 @@
 #define CFG_SMEM_BLE_RETN_EN	1
 #define CFG_SMEM_ANT_RX_DATA	0
 #define CFG_SMEM_ANT_RX_DATA_RETN_EN	0
-#define CFG_SMEM_AUDIO_RX	0x80400800
+#define CFG_SMEM_AUDIO_RX	0x80400fc0
 #define CFG_SMEM_AUDIO_RX_RETN_EN	1
-#define CFG_SMEM_AUDIO_TX	0x88400800
+#define CFG_SMEM_AUDIO_TX	0x90000fc0
 #define CFG_SMEM_AUDIO_TX_RETN_EN	1
 #define CFG_SMEM_HW_ACCEL_INST	0
 #define CFG_SMEM_HW_ACCEL_INST_RETN_EN	0
-#define CFG_SMEM_SADC	0x90400400
+#define CFG_SMEM_SADC	0x9fc00040
 #define CFG_SMEM_SADC_RETN_EN	1
 #define CFG_SMEM_AHB_TRIG	0x00000040
 #define CFG_SMEM_AHB_TRIG_RETN_EN	1
@@ -92,10 +94,10 @@
 #define CFG_QSPI_SPEED	32000000
 #define CFG_EXT_SPI_FLASH_POWER_FROM_602	1
 #define CFG_EXT_SPI_FLASH_POWER_ON_SETTLE_TIME	1000
-#define CFG_FLASH_BASE_ADDR	0x301000
-#define CFG_FLASH_SIZE	0x7f000
+#define CFG_FLASH_BASE_ADDR	0x302000
+#define CFG_FLASH_SIZE	0x7e000
 /// @Flash::BOOTRAM
-#define CFG_BRAM_COLD_BOOT_ADDR	0x00301000
+#define CFG_BRAM_COLD_BOOT_ADDR	0x302000
 #define CFG_BRAM_BOOT_OPT	1
 #define CFG_BRAM_BOOT_WAIT_TIME	1
 #define CFG_BRAM_BOOT_GPIO_PORT	0
@@ -202,7 +204,7 @@
 /// @BLE::PLT
 #define CFG_BLE_PARAM_BD_ADDR	0x11, 0x11, 0x11, 0x11, 0x11, 0x11
 #define CFG_BLE_PARAM_SLP_ALGO_DUR	200
-#define CFG_BLE_PARAM_LPC_DRIFT	500
+#define CFG_BLE_PARAM_LPC_DRIFT	1000
 #define CFG_BLE_PARAM_RADIO_WUP_TIME	625
 #define CFG_BLE_PARAM_OSC_WUP_TIME	2500
 #define CFG_BLE_PARAM_MAX_SLEEP_DURATION_TIME	0x0000fa00

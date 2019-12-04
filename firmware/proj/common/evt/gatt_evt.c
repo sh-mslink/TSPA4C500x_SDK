@@ -12,10 +12,15 @@
 #include ".\hal\hal_adc.h"
 #include ".\ble\inb_api.h"
 
+#if CFG_FW_UPD_EN
+#include "prf_otas.h"
+#endif
+
 #ifdef CFG_PROJ_RCU
 #include "msrcu_config.h"
 #if MSRCU_BLE_VOICE_ATV_ENABLE
 #include "prf_atv.h"
+#include "prf_atv_task.h"
 #endif
 #endif
 
@@ -124,23 +129,21 @@ int handle_default_gatt_evt(uint16_t eid, void* pv, void* param)
 
 	case GATT_EVT_RD_REQ:/// GATT read request indication  
 		{
-			inb_evt_read_req_ind_t* ind = (inb_evt_read_req_ind_t*)pv;
-			if (param){
-				inb_gatt_read_req_cfm(ind->conidx, ind->handle, 0/*ATT_ERR_NO_ERROR*/, *(uint16_t*)param, (uint8_t*)param+2);
-//				for (int i=0;i<*(uint16_t*)param;i++)
-//					PRINTD(DBG_TRACE, "%02X ", *((uint8_t*)param+2+i));
-//				PRINTD(DBG_TRACE, "\r\n");
-			}else{
-				uint8_t value = 0;
-				inb_gatt_read_req_cfm(ind->conidx, ind->handle, 0/*ATT_ERR_NO_ERROR*/, sizeof(value), &value);
-//				PRINTD(DBG_TRACE, " EVT_RD_REQ conidx:%d  handle:%d value read:0x%x\r\n", ind->conidx, ind->handle, value);
-			}
+			inb_evt_read_req_ind_t* ind = (inb_evt_read_req_ind_t *)pv;
+			uint8_t status = INB_ATT_ERR_REQUEST_NOT_SUPPORTED;
+			uint16_t data_len = 0;
+			uint8_t *data = NULL;
+            
+#if CFG_FW_UPD_EN
+			status = in_ota_svc_read_hdl(ind->handle, &data_len, &data);
+#endif
+            
+			inb_gatt_read_req_cfm(ind->conidx, ind->handle, status, data_len, data);
 		}
 		break;
 	case GATT_EVT_WRT_REQ:/// GATT write request indication  
 		{
 			inb_evt_write_req_ind_t *ind = (inb_evt_write_req_ind_t*)pv;
-			inb_gatt_write_req_cfm(ind->conidx, ind->handle, 0/*ATT_ERR_NO_ERROR*/);
 
 //			PRINTD(DBG_TRACE, " EVT_WRT_REQ on connection %d:\r\n", ind->conidx);
 //			PRINTD(DBG_TRACE, "\t handle: %d \r\n", ind->handle); 
@@ -149,6 +152,10 @@ int handle_default_gatt_evt(uint16_t eid, void* pv, void* param)
 //			for (int i=0;i<ind->length;i++)
 //				PRINTD(DBG_TRACE, "%02X ", ind->value[i]);
 //			PRINTD(DBG_TRACE, "\r\n");
+
+#if CFG_FW_UPD_EN
+			in_ota_svc_write_hdl(ind);
+#endif
             
 #ifdef CFG_PROJ_RCU
 #if MSRCU_VOICE_ENABLE
@@ -167,10 +174,16 @@ int handle_default_gatt_evt(uint16_t eid, void* pv, void* param)
             else if(ind->handle == g_AtvPrimarySvc_shl + 1 + ATVV_IDX_CHAR_CTL_CFG)
             {
                 if(ind->value[1] == 0x00 && ind->value[0] == 0x01)
+                {
                     PRINTD(DBG_TRACE, "ATVV_CHAR_CTL notify enable\r\n");
+                    atv_task_send_enable();
+                }
                 else if(ind->value[1] == 0x00 && ind->value[0] == 0x00)
+                {
                     PRINTD(DBG_TRACE, "ATVV_CHAR_CTL notify disable\r\n");
-            }          
+                    atv_task_send_disable();
+                }
+            }
 #endif
 #endif
 #endif
@@ -193,6 +206,7 @@ int handle_default_gatt_evt(uint16_t eid, void* pv, void* param)
                 tpps_receive_write(ind->conidx, ind->value, ind->length);
             }
 #endif            
+			inb_gatt_write_req_cfm(ind->conidx, ind->handle, 0/*ATT_ERR_NO_ERROR*/);
 		}
 		break;
 	case GATT_EVT_ATT_INFO_REQ:/// GATT request attribute info  
@@ -200,6 +214,11 @@ int handle_default_gatt_evt(uint16_t eid, void* pv, void* param)
 			inb_evt_att_info_req_ind_t *ind = (inb_evt_att_info_req_ind_t*)pv;
 			uint16_t length = 0;
 			if (param)	length = *(uint16_t*)param;
+            
+#if CFG_FW_UPD_EN
+			in_ota_svc_info_req_hdl(ind->handle, &length);
+#endif
+            
 			inb_gatt_att_info_req_cfm(ind->conidx, ind->handle, length, 0/*ATT_ERR_NO_ERROR*/);
 
 //			PRINTD(DBG_TRACE, "EVT_ATT_INFO_REQ on connection %d:\r\n", ind->conidx);

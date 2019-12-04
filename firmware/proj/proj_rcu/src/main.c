@@ -40,7 +40,7 @@
 #define MOTION_TIMER_MS     (1000 / M_SAMPLE_FREQUENCY)
 #endif
 
-#define BOND_DATA_FLASH_OFFSET  (0x7F000)
+#define BOND_DATA_FLASH_OFFSET  (0x7E000)
 
 
 msrcuBleBondData_t msrcuBondData = {0};
@@ -341,7 +341,7 @@ static msrcuErr_t user_rcu_led_set(msrcuLedSt newSt)
             newSt = LED_STATE_NULL;
             break;
         }
-                
+        
         case LED_STATE_POWER_LOW:
         {
             msrcu_app_led_on(LED_R);
@@ -434,6 +434,13 @@ static void user_rcu_longpress_timer_callback(void const *arg)
     if(userLongpressDuration <= 0)
     {
         osTimerStop(msrcuAppLongpressTimerId);
+        
+        if(BLE_STATE_CONNECTED == msrcu_app_ble_get_state()
+                || BLE_STATE_READY == msrcu_app_ble_get_state())
+        {
+            MSPRINT("BLE is already connected, can't start or clear bond.\r\n");
+            return;
+        }
         
         if(msrcuBondData.status)
         {
@@ -552,6 +559,9 @@ static void user_rcu_bond_timer_callback(void const *arg)
     
     if(BLE_STATE_ADVERTISING == msrcu_app_ble_get_state())
         user_rcu_ble_adv_stop();
+    else if(BLE_STATE_CONNECTED == msrcu_app_ble_get_state()
+            || BLE_STATE_READY == msrcu_app_ble_get_state())
+        ;//msrcu_app_ble_disconnect();
     
     user_rcu_led_set(LED_STATE_BOND_FAIL);
 }
@@ -590,7 +600,19 @@ static void user_rcu_ble_rf_test(void)
     else if(!hal_gpio_input(3, 3))
         testMode = rfMode;
     
-    if(testMode)
+    if(testMode == hciMode)
+    {
+        //LED blue on
+        port = MSRCU_DEV_LED_2_GPIO_PORT;
+        pin = MSRCU_DEV_LED_2_GPIO_PIN;
+        hal_gpio_pin_mux(port, pin, 0, 0);
+        hal_gpio_pad_oe_ie(port, pin, 1, 0);
+        hal_gpio_pad_pd_pu(port, pin, 0, 1);
+        hal_gpio_aon_latch(port, pin, 0);//latch off
+        hal_gpio_output(port, pin, 0, 1);//output low
+        hal_gpio_aon_latch(port, pin, 1);//latch on
+    }
+    else if(testMode == rfMode)
     {
         //LED red on
         port = MSRCU_DEV_LED_0_GPIO_PORT;
@@ -659,6 +681,9 @@ static msrcuErr_t user_rcu_ble_update_connection_parameter(void)
 
 static msrcuErr_t user_rcu_ble_bond_data_save(msrcuBleBondData_t* data)
 {
+    //make sure ble is not busy
+    while(inb_is_ble_busy());
+    
     if(hal_spi_flash_prog(BOND_DATA_FLASH_OFFSET, 4096,
             BOND_DATA_FLASH_OFFSET, 256, (uint8_t *)data, 0))
         return ERR_DEVICE_DRIVER;
@@ -682,6 +707,10 @@ static msrcuErr_t user_rcu_ble_bond_data_clear(msrcuBleBondData_t* data)
     {
         memset(&ble_bond_data, 0, sizeof(ble_bond_data));
         memset(data, 0, sizeof(msrcuBleBondData_t));
+        
+        // make sure ble is not busy
+        while (inb_is_ble_busy());
+        
         if(hal_spi_flash_prog(BOND_DATA_FLASH_OFFSET, 4096, 
                 BOND_DATA_FLASH_OFFSET, 256, (uint8_t *)data, 0))
             return ERR_DEVICE_DRIVER;
@@ -783,7 +812,7 @@ static msrcuErr_t user_rcu_ble_adv_stop(void)
 }
 
 static void user_rcu_ble_callback(msrcuEvtBle_t *evt)
-{   
+{
     switch(evt->code)
     {
         case EVT_BLE_CONNETED:
@@ -816,12 +845,16 @@ static void user_rcu_ble_callback(msrcuEvtBle_t *evt)
             msrcuBleDisconInd_t* disconInd = &evt->param.disconInd;
             MSPRINT("Disconnected, idx:%d, reason:0x%02X.\r\n", disconInd->conIndex, disconInd->reason);
             
-            osTimerStop(msrcuAppConnectTimerId);
+            if(MSRCU_BLE_CNT_DURATION)
+                osTimerStop(msrcuAppConnectTimerId);
             
             userConParamUpdFlag = false;
             
             msrcuLedSt ledSt = LED_STATE_NULL;
 #if MSRCU_VOICE_ENABLE
+#if MSRCU_BLE_VOICE_ATV_ENABLE
+            atv_task_send_disable();
+#endif
             if(!userVoiceIsStop)
             {
                 if(!msrcu_app_voice_stop())
@@ -938,16 +971,16 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
             if(BLE_STATE_IDLE == msrcu_app_ble_get_state() && msrcuBondData.status)
                 user_rcu_ble_adv_start();
             
-            if((BLE_STATE_IDLE == msrcu_app_ble_get_state()
-                    || BLE_STATE_ADVERTISING == msrcu_app_ble_get_state()))
+            if(BLE_STATE_IDLE == msrcu_app_ble_get_state()
+                    || BLE_STATE_ADVERTISING == msrcu_app_ble_get_state()
+                    || BLE_STATE_CONNECTED == msrcu_app_ble_get_state())
             {
 #if MSRCU_IR_SEND_ENABLE
                 if(userIrSendIsStop)
                 {
                     //IR send start
                     userIrCode.protocol = IR_PROT_NEC;
-                    userIrCode.param.necCode.addL = MSRCU_IR_NEC_ADD_L;
-                    userIrCode.param.necCode.addH = MSRCU_IR_NEC_ADD_H; 
+                    userIrCode.param.necCode.address = MSRCU_IR_NEC_ADDRESS;
                     userIrCode.param.necCode.cmd = msrcuKeycodeToIrCmd(param->code); 
                     
                     if(!msrcu_app_ir_send_start(&userIrCode))
@@ -960,9 +993,14 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
                 }
 #endif
             }
-            else if(BLE_STATE_READY == msrcu_app_ble_get_state()
-                    && param->code != KEY_CODE_VOICE)
-                msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(param->code, 0));
+            else if(BLE_STATE_READY == msrcu_app_ble_get_state())
+            {
+                if(MSRCU_BLE_CNT_DURATION)
+                    osTimerStart(msrcuAppConnectTimerId, MSRCU_BLE_CNT_DURATION);
+                
+                if(param->code != KEY_CODE_VOICE)
+                    msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(param->code, 0));
+            }
         }
         break;
         
@@ -988,9 +1026,14 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
             }
 #endif
             //HID keycode release
-            if(BLE_STATE_READY == msrcu_app_ble_get_state()
-                 && param->code != KEY_CODE_VOICE)
-                msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(KEY_CODE_NULL, 0));
+            if(BLE_STATE_READY == msrcu_app_ble_get_state())
+            {
+                if(MSRCU_BLE_CNT_DURATION)
+                    osTimerStart(msrcuAppConnectTimerId, MSRCU_BLE_CNT_DURATION);
+                
+                if(param->code != KEY_CODE_VOICE)
+                    msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(KEY_CODE_NULL, 0));
+            }
         }
         break;
         
@@ -1030,7 +1073,7 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
 //            else if(param->behavior == EVT_KEY_LONG_PRESS){}
 //        }
 //        break; 
-
+        
         case KEY_CODE_POWER:
         {
             if(param->behavior == EVT_KEY_PRESS)
@@ -1059,8 +1102,11 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
                 {
 #if MSRCU_VOICE_ENABLE
 #if MSRCU_BLE_VOICE_ATV_ENABLE
-                    msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(param->code, 0));
-                    msrcu_app_voice_atv_start();
+                    if(atv_task_send_is_enabled())
+                    {
+                        msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(param->code, 0));
+                        msrcu_app_voice_atv_start();
+                    }
                     if(!userVoiceIsStop)
                         user_rcu_voice_stop();
 #else
@@ -1165,7 +1211,7 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
                     if(msrcu_app_ir_learn_stop())//result at user_rcu_ir_callback
                         MSPRINT("IR learn stop error.\r\n");
                 }
-#endif            
+#endif
             }
         }
         break;
@@ -1180,9 +1226,12 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
                     if(userMotionIsStop)
                     {
 #if MSRCU_BLE_VOICE_ATV_ENABLE
-                        uint8_t cmd[ATVV_CHAR_CTL_DPAP_SELECT_LEN] = {0};
-                        cmd[0] = ATVV_CHAR_CTL_DPAP_SELECT_CMD;
-                        atv_task_cmd_send(BLE_CON_IDX, cmd, ATVV_CHAR_CTL_DPAP_SELECT_LEN);
+                        if(atv_task_send_is_enabled())
+                        {
+                            uint8_t cmd[ATVV_CHAR_CTL_DPAP_SELECT_LEN] = {0};
+                            cmd[0] = ATVV_CHAR_CTL_DPAP_SELECT_CMD;
+                            atv_task_cmd_send(BLE_CON_IDX, cmd, ATVV_CHAR_CTL_DPAP_SELECT_LEN);
+                        }
 #endif
                     }
                     else
@@ -1244,7 +1293,7 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
 
 #if (MSRCU_IR_SEND_ENABLE || MSRCU_IR_LEARN_ENABLE)
 static void user_rcu_ir_callback(msrcuEvtIr_t *param)
-{   
+{
 #if MSRCU_IR_LEARN_ENABLE
     switch(param->lrnResult)
     {
@@ -1324,7 +1373,7 @@ static msrcuErr_t user_rcu_timer_init(void)
     
     //init timer for conncetion duration
     msrcuAppConnectTimerId = osTimerCreate(osTimer(msrcuAppConnectTimer), osTimerPeriodic, NULL);
-    if(msrcuAppAdvTimerId == NULL)
+    if(msrcuAppConnectTimerId == NULL)
         return ERR_OS;
     
     //init timer for bond
@@ -1343,7 +1392,7 @@ static msrcuErr_t user_rcu_timer_init(void)
 }
 
 static msrcuErr_t user_rcu_init(msrcuAppCallback_t *cb)
-{    
+{
     msrcuErr_t err = ERR_NO_ERROR;
     
     //get bond data from FLASH

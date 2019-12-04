@@ -15,6 +15,7 @@ extern int atv_voice_char_ctl_send(int conIdx, uint8_t *buffer, uint8_t len);
 
 void atv_task_cmd_send(int conIdx, uint8_t *buffer, uint8_t len);
 
+static bool atvSendEnable = false;
 
 static void set_caps_resp_cmd(uint8_t *cmd)
 {
@@ -29,6 +30,21 @@ static void set_caps_resp_cmd(uint8_t *cmd)
     cmd[8] = (ATVV_BYTES_PER_CHAR) & 0xff;
 }
 
+void atv_task_send_enable(void)
+{
+    atvSendEnable = true;
+}
+
+void atv_task_send_disable(void)
+{
+    atvSendEnable = false;
+}
+
+bool atv_task_send_is_enabled(void)
+{
+    return atvSendEnable;
+}
+
 void atv_task_cmd_receive(int conIdx, uint8_t *buffer, uint8_t len)
 {
     if(buffer == NULL || len == 0)
@@ -40,8 +56,8 @@ void atv_task_cmd_receive(int conIdx, uint8_t *buffer, uint8_t len)
         {
 //            if(len != ATVV_CHAR_TX_ATV_GET_CAPS_LEN)
 //                break;
-			PRINTD(DBG_TRACE, "ATV version:0x%02X%02X.\r\n", buffer[1], buffer[2]);
-			PRINTD(DBG_TRACE, "ATV codecs supported:0x%02X%02X.\r\n", buffer[3], buffer[4]);
+            PRINTD(DBG_TRACE, "ATV version:0x%02X%02X.\r\n", buffer[1], buffer[2]);
+            PRINTD(DBG_TRACE, "ATV codecs supported:0x%02X%02X.\r\n", buffer[3], buffer[4]);
         
             uint8_t rspCmd[ATVV_CHAR_CTL_GET_CAPS_RESP_LEN] = {0};
             set_caps_resp_cmd(rspCmd);
@@ -54,16 +70,16 @@ void atv_task_cmd_receive(int conIdx, uint8_t *buffer, uint8_t len)
         {
 //            if(len != ATVV_CHAR_TX_ATV_MIC_OPEN_LEN)
 //                break;
-			PRINTD(DBG_TRACE, "ATV MIC open with codec:0x%02X%02X.\r\n", buffer[1], buffer[2]);
+            PRINTD(DBG_TRACE, "ATV MIC open with codec:0x%02X%02X.\r\n", buffer[1], buffer[2]);
             
             if(buffer[1] == 0x00 && buffer[2] == 0x01)
             {
-                msrcu_dev_audio_atv_set_sample_rate(VOICE_SAMPLE_RATE_8K);
+                msrcu_dev_audio_atv_set_sample_rate(8000);
                 user_rcu_voice_start();
             }
             else if(buffer[1] == 0x00 && buffer[2] == 0x02)
             {
-                msrcu_dev_audio_atv_set_sample_rate(VOICE_SAMPLE_RATE_16K);
+                msrcu_dev_audio_atv_set_sample_rate(16000);
                 user_rcu_voice_start();
             }
             else
@@ -76,7 +92,7 @@ void atv_task_cmd_receive(int conIdx, uint8_t *buffer, uint8_t len)
         {
 //            if(len != ATVV_CHAR_TX_ATV_MIC_CLOSE_LEN)
 //                break;
-			PRINTD(DBG_TRACE, "ATV MIC close.\r\n");
+            PRINTD(DBG_TRACE, "ATV MIC close.\r\n");
             
             user_rcu_voice_stop();
             
@@ -90,11 +106,17 @@ void atv_task_cmd_receive(int conIdx, uint8_t *buffer, uint8_t len)
 
 void atv_task_cmd_send(int conIdx, uint8_t *buffer, uint8_t len)
 {
+    if(!atv_task_send_is_enabled())
+        return;
+    
     atv_voice_char_ctl_send(conIdx, buffer, len);
 }
 
 void atv_task_audio_send(int conIdx, uint8_t *buffer, uint8_t len)
 {
+    if(!atv_task_send_is_enabled())
+        return;
+    
     atv_voice_char_rx_send(conIdx, buffer, len);
 }
 #endif

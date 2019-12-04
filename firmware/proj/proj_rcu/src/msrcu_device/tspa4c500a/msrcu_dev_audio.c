@@ -19,7 +19,7 @@
  */
 #define PDM_CLK                 (1600000)
 
-#define VOICE_SAMPLE_RATE       VOICE_SAMPLE_RATE_16K//no use for atv voice
+#define VOICE_SAMPLE_RATE       MSRCU_BLE_VOICE_SAMPLE_RATE//no use for atv voice
 #define VOICE_SAMPLE_GAIN       (256)
 
 
@@ -309,14 +309,18 @@ static void msrcu_dev_audio_task(const void *arg)
                 {
                     res = hal_audio_encode_process(gHalAdBuf + halAdLen, AUDIO_HAL_BUF_LENGTH - halAdLen, (uint16_t *)&len);
                     if(res)
+                    {
                         MSPRINT("hal_audio_encode_process err:%d.\r\n", res);
-                        //TODO
+                        msrcu_dev_audio_stop();
+                        goto jumpOut;
+                    }
 //                    MSPRINT("len %d\r\n", len);
-                    if(len >= AUDIO_HAL_BUF_LENGTH / 4 * 3)
-                        MSPRINT("Voice overflow warning:%d.\r\n", len);
                     if(len >= AUDIO_HAL_BUF_LENGTH - halAdLen)
+                    {
                         MSPRINT("Voice overflow!!!\r\n");
-                        //TODO
+                        msrcu_dev_audio_stop();
+                        goto jumpOut;
+                    }
 //                    for(uint32_t i = 0; i < len; i++)
 //                        MSPRINT("%02X ", gHalAdBuf[halAdLen + i]);
 //                    MSPRINT("\r\n");

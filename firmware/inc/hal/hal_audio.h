@@ -32,35 +32,6 @@
  * INLINE FUNCTIONS
  ****************************************************************************************
  */
- #if 0//use clk_audio_en()
-static __inline void audio_rx_enable_clk()
-{
-	uint32_t reg = RD_WORD(GLOBAL_REG_CLKD0_ENABLE_1);
-	reg |= (GLOBAL_REG_CLKD0_ENABLE_1_CTL_CLKD0_ENABLE_1_AUDIO_AURX_CLK | GLOBAL_REG_CLKD0_ENABLE_1_CTL_CLKD0_ENABLE_1_AUDIO_AUTX_CLK | GLOBAL_REG_CLKD0_ENABLE_1_CTL_CLKD0_ENABLE_1_AUDIO_64M_CLK);
-	WR_WORD(GLOBAL_REG_CLKD0_ENABLE_1, reg);
-}
-
-static __inline void audio_rx_disable_clk()
-{
-	uint32_t reg = RD_WORD(GLOBAL_REG_CLKD0_ENABLE_1);
-	reg &= ~(GLOBAL_REG_CLKD0_ENABLE_1_CTL_CLKD0_ENABLE_1_AUDIO_AURX_CLK | GLOBAL_REG_CLKD0_ENABLE_1_CTL_CLKD0_ENABLE_1_AUDIO_AUTX_CLK | GLOBAL_REG_CLKD0_ENABLE_1_CTL_CLKD0_ENABLE_1_AUDIO_64M_CLK);
-	WR_WORD(GLOBAL_REG_CLKD0_ENABLE_1, reg);
-}
-
-static __inline void audio_tx_enable_clk()
-{
-	uint32_t reg = RD_WORD(GLOBAL_REG_CLKD0_ENABLE_1);
-	reg |= (GLOBAL_REG_CLKD0_ENABLE_1_CTL_CLKD0_ENABLE_1_AUDIO_SPK_CLK | GLOBAL_REG_CLKD0_ENABLE_1_CTL_CLKD0_ENABLE_1_AUDIO_SD_CLK);
-	WR_WORD(GLOBAL_REG_CLKD0_ENABLE_1, reg);
-}
-
-static __inline void audio_tx_disable_clk()
-{
-	uint32_t reg = RD_WORD(GLOBAL_REG_CLKD0_ENABLE_1);
-	reg &= ~(GLOBAL_REG_CLKD0_ENABLE_1_CTL_CLKD0_ENABLE_1_AUDIO_SPK_CLK | GLOBAL_REG_CLKD0_ENABLE_1_CTL_CLKD0_ENABLE_1_AUDIO_SD_CLK);
-	WR_WORD(GLOBAL_REG_CLKD0_ENABLE_1, reg);
-}
-#endif
 static __inline uint32_t audio_intr_status()
 {
 	return RD_WORD(AUDIO_REGS_INTR_STATUS);
@@ -192,6 +163,20 @@ static __inline void audio_afifo_en_rd_disable()
 {
 	uint32_t reg = RD_WORD(AUDIO_REGS_MISC_CTRL0);
 	reg &= ~(AUDIO_REGS_MISC_CTRL0_CTLT_AUTX_AFIFO_EN_RD);
+	WR_WORD(AUDIO_REGS_MISC_CTRL0, reg);
+}
+
+static __inline void audio_autx_sdm_enable()
+{
+	uint32_t reg = RD_WORD(AUDIO_REGS_MISC_CTRL0);
+	reg |= (AUDIO_REGS_MISC_CTRL0_CTLT_AUTX_SDM_EN);
+	WR_WORD(AUDIO_REGS_MISC_CTRL0, reg);
+}
+
+static __inline void audio_autx_sdm_disable()
+{
+	uint32_t reg = RD_WORD(AUDIO_REGS_MISC_CTRL0);
+	reg &= ~(AUDIO_REGS_MISC_CTRL0_CTLT_AUTX_SDM_EN);
 	WR_WORD(AUDIO_REGS_MISC_CTRL0, reg);
 }
 
@@ -1179,30 +1164,6 @@ typedef enum {
 	AUDIO_ERR_AUDIO_HW_INTR = 8,
 } audio_status_t;
 
-/*
-/// Audio function status return
-typedef enum {
-	/// No error. Good status. 
-	AUDIO_ERR_OK = 0,
-	/// Error, AUDIO driver not initialized
-	AUDIO_ERR_NOT_INIT = 1,
-	/// Error, AUDIO driver already initialized
-	AUDIO_ERR_ALREADY_INIT = 2,
-	/// Error, AUDIO bad state 
-	AUDIO_ERR_DEV_BAD_STATE = 3,
-	/// Error, invalid AUDIO parameter. 
-	AUDIO_ERR_INVALID_PARA = 4,
-	/// Error, current operation block.
-	AUDIO_ERR_OP_BLOCKED = 5,
-	/// Error, configuration not initialized.
-	AUDIO_ERR_NO_AUDIO_CONFIG = 6,
-	/// Error, HW GPIO configuration error.
-	AUDIO_ERR_BAD_HW_GPIO_CONFIG = 7,
-	/// Error, Audio interrupt trigger.
-	AUDIO_ERR_AUDIO_HW_INTR = 8,
-} audio_intr_error_status_t;
-*/
-
 // DEFAULT INITIALIZATION
 /**
  ****************************************************************************************
@@ -1314,24 +1275,41 @@ int hal_audio_enc_set_config(int is_pdm, int is_I2S_master, float in_rate, float
  ****************************************************************************************
  * @brief Configure audio_control decode function settings.
  *
- * @param[in] is_MSB								1 if audio encode input is PDM mic, 0 if input is I2S mic.
- * @param[in] is_I2S_master					1 if audio decode output is I2S mic connected to I2S master core, 0 if output is I2S mic connected to I2S slave core, otherwise don't care.
+ * @param[in] is_i2s								1 if audio decode output is i2s output path, 0 if output is sigma delta output path.
+ * @param[in] is_I2S_master					1 if audio decode output is I2S connected to I2S master core, 0 if output is I2S connected to I2S slave core, otherwise don't care.
  * @param[in] in_rate								Audio input encoded data rate in float format. 
  * @param[in] is_stereo							1 if audio sample format is stereo, 0 if format is mono.
  * @param[in] out_rate							Audio decode output decoded data rate in float format.
+ * @param[in] out_clk_src						Audio decode clock rate source. 0 if source is I2S Master, 1 if source is I2S Slave, 2 if source is PDM clock.
+ *																	If clock source is PDM, hardware will internally configure clock. 
+ *																	If clock source is I2S Master or I2S Slave, user must generate and/or supply clock signal.
+ * @param[in] out_clk_rate					Audio decode clock rate used to generate audio decode out rate in float format.
  * @param[in] bytes_per_frame				Number of total bytes per decoded audio frame. Max 512 bytes. 
  * @param[in] gain									Left/Right gain setting. 
  *
  * @return AUDIO_ERR_OK if successful, error otherwise. @see enum audio_status_t.
  ****************************************************************************************
  */
-int hal_audio_dec_set_config(int is_I2S_master, float in_rate, float out_rate, int is_stereo, int bytes_per_frame, int gain);
+int hal_audio_dec_set_config(int is_i2s, int is_I2S_master, float in_rate, float out_rate, uint8_t out_clk_src, float out_clk_rate, int is_stereo, int bytes_per_frame, int gain);
 
 /**
  ****************************************************************************************
  * @brief Configure audio_control resample function settings.
  *
- * @param[in] is_MSB								1 if audio encode input is PDM mic, 0 if input is I2S mic.
+ * @param[in] in_rate								Audio resample input sampling rate in float format. 
+ * @param[in] is_stereo							1 if audio sample format is stereo, 0 if format is mono.
+ * @param[in] out_rate							Audio resample output sampling rate in float format.
+ * @param[in] gain									Left/Right gain setting. 
+ *
+ * @return AUDIO_ERR_OK if successful, error otherwise. @see enum audio_status_t.
+ ****************************************************************************************
+ */
+int hal_audio_resample_set_config(float in_rate, float out_rate, int is_stereo, int gain);
+
+/**
+ ****************************************************************************************
+ * @brief Configure audio_control resample function settings.
+ *
  * @param[in] in_rate								Audio resample input sampling rate in float format. 
  * @param[in] is_stereo							1 if audio sample format is stereo, 0 if format is mono.
  * @param[in] out_rate							Audio resample output sampling rate in float format.
@@ -1372,6 +1350,7 @@ int hal_audio_encode_start(void);
  * @brief Request encoded data.
  *
  * @param[in] out_buf								Pointer to the output location where encoded data is to be written.
+ * @param[in] buf_sz							Buffer size.
  * @param[out] in_size							Pointer to the requested number of encoded bytes of data. 
  *																	Location will be updated upon return with actual number of bytes written to output buffer.
  *
@@ -1385,26 +1364,27 @@ int hal_audio_encode_process(uint8_t* out_buf, uint32_t buf_sz, uint16_t* in_siz
  * @brief Begin decode audio functionality based on current configuration and input data.
  *
  * @param[in] in_buf								Pointer to the input location of encoded data to be decoded.
- * @param[out] in_size							Pointer to the requested number of bytes of input encoded data. 
- *																	Location will be updated upon return with actual number of bytes inserted into audio hardware.
+ * @param[in] buf_size							Buffer size
+ * @param[out] in_size							return with actual number of bytes inserted into audio hardware.
  *
  * @return AUDIO_ERR_OK if successful, error otherwise. @see enum audio_status_t.
  ****************************************************************************************
  */
-int hal_audio_decode_start(uint8_t* in_buf, uint16_t* in_size);
+int hal_audio_decode_start(uint8_t* in_buf, uint16_t buf_size, uint16_t* in_size);
 
 /**
  ****************************************************************************************
  * @brief Provide audio hardware with additional encoded data to be decoded.
  *
  * @param[in] in_buf								Pointer to the input encoded data to be decoded.
- * @param[out] in_size							Pointer to the requested number of bytes of input encoded data. 
- *																	Location will be updated upon return with actual number of bytes inserted into audio hardware.
+ * @param[in] buf_size							Buffer size
+ * @param[out] in_size							return with actual number of bytes inserted into audio hardware.
+ *																	
  *
  * @return AUDIO_ERR_OK if successful, error otherwise. @see enum audio_status_t.
  ****************************************************************************************
  */
-int hal_audio_decode_process(uint8_t* in_buf, uint16_t* in_size);
+int hal_audio_decode_process(uint8_t* in_buf, uint16_t buf_size, uint16_t* in_size);
 
 /**
  ****************************************************************************************
@@ -1446,7 +1426,7 @@ int hal_audio_decode_stop(void);
  ****************************************************************************************
  */
 int hal_audio_resample_stop(void);
-	
+/// @} HAL_AUDIO	
 #endif
 
 

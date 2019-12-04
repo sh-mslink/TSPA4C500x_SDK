@@ -93,7 +93,7 @@ ir_dev_t *hal_ir_open(int id, int cnt_id, int rx_pin, int tx_pin);
 void hal_ir_close(ir_dev_t* dev);
 
 /** 
- * @brief Start reciece data. Need call @ir_stop_recv to get last sample.
+ * @brief Start reciece data. Need call @see ir_stop_recv to get last sample.
  * @param[in] dev   IR device struct
  * @param[in] buf   recieve data buffer
  * @param[in] size  buffer size
@@ -103,7 +103,7 @@ void hal_ir_close(ir_dev_t* dev);
 int hal_ir_recv(ir_dev_t* dev, uint32_t *buf, int size, uint32_t *out_sz);
 
 /** 
- * @brief Start reciece data for frequence caculation. Need call @ir_stop_recv to get last sample.
+ * @brief Start reciece data for frequence caculation. Need call @see ir_stop_recv to get last sample.
  * @param[in] dev   IR device struct
  * @param[in] buf   recieve data buffer
  * @param[in] size  buffer size

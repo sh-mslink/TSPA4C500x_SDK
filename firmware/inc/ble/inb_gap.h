@@ -805,12 +805,12 @@ enum inb_per_sync_type
 
 ///	LE CODED PHY option
 enum inb_coded_phy_opt {
-	/// No preference
-	LE_CODED_ALL_RATES = 0x01,
-	/// 500kbps rate 
-	LE_CODED_500K_RATE =  0x02,
-	/// 125kbps rate
-	LE_CODED_125K_RATE = 0x04,
+    /// The Host has no preferred coding when transmitting on the LE Coded PHY
+    PHY_OPT_NO_CODED_TX_PREF,
+    /// The Host prefers that S=2 coding be used when transmitting on the LE Coded PHY
+    PHY_OPT_S2_CODED_TX_PREF,
+    /// The Host prefers that S=8 coding be used when transmitting on the LE Coded PHY
+    PHY_OPT_S8_CODED_TX_PREF,
 };
 
 /// Keypress state
@@ -1896,7 +1896,7 @@ int inb_unregister_lepsm(uint32_t psm);
  * @brief Get local or peer resolvable private address.
  *
  * @param[in] p_ral_addr			Pointer to peer device identity,
- * @param[out] p_addrr			Pointer to the last resolvable private address,
+ * @param[out] p_addr			Pointer to the last resolvable private address,
  *
  * @return INB_ERR_NO_ERROR if successful, otherwise failed. @see enum inb_err_t 
  ****************************************************************************************
@@ -2016,7 +2016,7 @@ int inb_actv_del(int actv_idx);
  * @brief Confirm connection request
  * @note: This is to response to the event "GAP_EVT_CONN_REQ".  Application can call this API in the call back.
  *
- * @param[in] conidxx				Connection index.
+ * @param[in] conidx				Connection index.
  * @param[in] p_cfm					Pointer to the confirm data structure.
  * 
  *
@@ -2030,7 +2030,7 @@ int inb_conn_cfm(int conidx, inb_conn_cfm_t *p_cfm);
  * @brief Disconnect a link
  * @note: Either master or slave can call this function.
  *
- * @param[in] conidxx				Connection index.
+ * @param[in] conidx				Connection index.
  * @param[in] reason				Reason of disconnection, @see enum ble_disc_reason.
  * 
  *

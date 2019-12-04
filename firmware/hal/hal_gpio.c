@@ -151,6 +151,7 @@ __irq void Gpio_4_Handler(void)
 
 void hal_gpio_pin_cfg(uint32_t pin_cfg)
 {
+#if !CFG_FPGA
 	int pin = pin_cfg & 0xF;
 	int port = (pin_cfg >> GPIO_CFG_PORT_SHIFT) & 0xF;
 	int mux = (pin_cfg >> GPIO_CFG_MUX_SHIFT) & 0xF;
@@ -170,11 +171,13 @@ void hal_gpio_pin_cfg(uint32_t pin_cfg)
 	hal_gpio_output(port, pin, 0, output);
 	hal_gpio_aon_wup(port, pin, wup, wup_pol);
 	hal_gpio_aon_latch(port, pin, latch);
+#endif
 	return;
 }
 
 void hal_gpio_pin_dft(uint32_t pin_cfg)
 {
+#if !CFG_FPGA
 	int pin = pin_cfg & 0xF;
 	int port = (pin_cfg >> GPIO_CFG_PORT_SHIFT) & 0xF;
 
@@ -184,12 +187,13 @@ void hal_gpio_pin_dft(uint32_t pin_cfg)
 	hal_gpio_output(port, pin, 0, 0);
 	hal_gpio_aon_wup(port, pin, 0, 0);
 	hal_gpio_aon_latch(port, pin, 0);
-
+#endif
 	return;
 }
 
 void hal_gpio_pin_mux(int port, int pin, int mux, int inv)
 {
+#if !CFG_FPGA
 	if (port == GPIO_PORT_0) {
 		gpio_port_0_pin_mux(pin, mux, inv);
 	} else if (port == GPIO_PORT_1) {
@@ -201,12 +205,13 @@ void hal_gpio_pin_mux(int port, int pin, int mux, int inv)
 	} else {
 		gpio_port_4_pin_mux(pin, mux, inv);
 	}
-
+#endif	// !CFG_FPGA
 	return;
 }
 
 void hal_gpio_output(int port, int pin, int high, int en)
 {
+#if !CFG_FPGA
 	if (port == GPIO_PORT_0) {
 		gpio_port_0_output(pin, high, en);
 	} else if (port == GPIO_PORT_1) {
@@ -218,12 +223,14 @@ void hal_gpio_output(int port, int pin, int high, int en)
 	} else {
 		gpio_port_4_output(pin, high, en);
 	}
+#endif	// !CFG_FPGA
 
 	return;
 }
 
 int hal_gpio_input(int port, int pin)
 {
+#if !CFG_FPGA
 	int high;
 
 	if (port == GPIO_PORT_0) {
@@ -239,10 +246,15 @@ int hal_gpio_input(int port, int pin)
 	}
 
 	return high;
+#else
+	return 1;
+#endif	// !CFG_FPGA
+
 }
 
 void hal_gpio_pad_oe_ie(int port, int pin, int oe, int ie)
 {
+#if !CFG_FPGA
 	if (port == GPIO_PORT_0) {
 		gpio_port_0_pad_oe_ie(pin, oe, ie);
 	} else if (port == GPIO_PORT_1) {
@@ -254,10 +266,13 @@ void hal_gpio_pad_oe_ie(int port, int pin, int oe, int ie)
 	} else {
 		gpio_port_4_pad_oe_ie(pin, oe, ie);
 	}
+#endif	// !CFG_FPGA
+
 }
 
 void hal_gpio_pad_pd_pu(int port, int pin, int pd, int pu)
 {
+#if !CFG_FPGA
 	if (port == GPIO_PORT_0) {
 		gpio_port_0_pad_pd_pu(pin, pd, pu);
 	} else if (port == GPIO_PORT_1) {
@@ -269,10 +284,13 @@ void hal_gpio_pad_pd_pu(int port, int pin, int pd, int pu)
 	} else {
 		gpio_port_4_pad_pd_pu(pin, pd, pu);
 	}
+#endif	// !CFG_FPGA
+
 }
 
 void hal_gpio_pad_pc(int port, int pin, int on)
 {
+#if !CFG_FPGA
 	if (port == GPIO_PORT_0) {
 		gpio_port_0_pad_pc(pin, on);
 	} else if (port == GPIO_PORT_1) {
@@ -284,10 +302,13 @@ void hal_gpio_pad_pc(int port, int pin, int on)
 	} else {
 		gpio_port_4_pad_pc(pin, on);
 	}
+#endif	// !CFG_FPGA
+
 }
 
 void hal_qspi_pin_cfg(uint32_t pin_cfg)
 {
+#if !CFG_FPGA
 	int pin = pin_cfg & 0xF;
 	int mux = (pin_cfg >> QSPI_CFG_MUX_SHIFT) & 0xF;
 	int oe = (pin_cfg >> QSPI_CFG_OE_IE_SHIFT) & 0x1;
@@ -299,38 +320,57 @@ void hal_qspi_pin_cfg(uint32_t pin_cfg)
 	hal_qspi_pad_oe_ie(pin, oe, ie); 
 	hal_qspi_pad_pd_pu(pin, pd, pu); 
 	hal_qspi_pad_pc(pin, 1);
+#endif	// !CFG_FPGA
+
 	return;
 }
 
 void hal_qspi_pin_mux(int pin, int mux, int inv)
 {
+#if !CFG_FPGA
 	gpio_qspi_pin_mux(pin, mux, inv);
+#endif	// !CFG_FPGA
+
 	return;
 }
 
 void hal_qspi_pin_output(int pin, int out, int en)
 {
+#if !CFG_FPGA
 	gpio_qspi_pin_output(pin, out, en);
+#endif	// !CFG_FPGA
+
 	return;
 }
 
 void hal_qspi_pad_oe_ie(int pin, int oe, int ie)
 {
+#if !CFG_FPGA
 	gpio_qspi_pin_pad_oe_ie(pin, oe, ie);
+#endif	// !CFG_FPGA
+
 }
 
 void hal_qspi_pad_pd_pu(int pin, int pd, int pu)
 {
+#if !CFG_FPGA
 	gpio_qspi_pin_pad_pu_pd(pin, pd, pu);
+#endif	// !CFG_FPGA
+
 }
 
 void hal_qspi_pad_pc(int pin, int on)
 {
+#if !CFG_FPGA
 	gpio_qspi_pin_pad_pc(pin, on);
+#endif	// !CFG_FPGA
+
 }
 
 void hal_gpio_aon_latch(int port, int pin, int latch)
 {
+#if !CFG_FPGA
+
 	uint32_t addr;
 
 	if (port == GPIO_PORT_0) {
@@ -357,10 +397,14 @@ void hal_gpio_aon_latch(int port, int pin, int latch)
 		reg &= ~(1 << pin);
 
 	aon_write(addr, reg);
+#endif	// !CFG_FPGA
+
 }
 
 void hal_gpio_aon_wup(int port, int pin, int wup, int pol)
 {
+#if !CFG_FPGA
+
 	uint32_t reg, maskb_addr, wk_addr, pol_addr, wk_shift;
 
 	/// port
@@ -426,10 +470,14 @@ void hal_gpio_aon_wup(int port, int pin, int wup, int pol)
 		}
 	} 
 	aon_write(pol_addr, reg);
+#endif	// !CFG_FPGA
+
 }
 
 void hal_gpio_aon_out(int port, int pin)
 {
+#if !CFG_FPGA
+
 	uint32_t addr, reg, shift;
 
 	if (port == GPIO_PORT_0) {
@@ -457,10 +505,14 @@ void hal_gpio_aon_out(int port, int pin)
 	reg = aon_read(addr);
 	reg |= 1 << (pin + shift);
 	aon_write(addr, reg);
+#endif	// !CFG_FPGA
+
 }
 
 void hal_gpio_ext_int_clear(int port, int pin)
 {
+#if !CFG_FPGA
+
 	if (port == GPIO_PORT_0) {
 		gpio_port_0_int_clear(pin);
 	} else if (port == GPIO_PORT_1) {
@@ -472,10 +524,13 @@ void hal_gpio_ext_int_clear(int port, int pin)
 	} else if (port == GPIO_PORT_4) {
 		gpio_port_4_int_clear(pin);
 	}
-}
+#endif	// !CFG_FPGA
 
+}
 void hal_gpio_ext_int_en(int port, int pin, int pol, void *arg, void (*callback)(void *))
 {
+#if !CFG_FPGA
+
 	/// Turn on gpio intr ctrl clock
 	hal_clk_gpio_intr(port, 1);
 
@@ -523,8 +578,9 @@ void hal_gpio_ext_int_en(int port, int pin, int pol, void *arg, void (*callback)
 		gpio_port_1_int_polarity(pin, pol);
 		gpio_port_1_int_clear(pin);
 		gpio_port_1_int_unmask(pin);
-        NVIC_SetPriority(Gpio1_IRQn, IRQ_PRI_Normal);
+        	NVIC_SetPriority(Gpio1_IRQn, IRQ_PRI_Normal);
 		NVIC_EnableIRQ(Gpio1_IRQn);
+		
 	} else if (port == GPIO_PORT_2) {
 		g_gio_2.pin[pin].arg = arg;
 		g_gio_2.pin[pin].callback = callback;
@@ -595,10 +651,14 @@ void hal_gpio_ext_int_en(int port, int pin, int pol, void *arg, void (*callback)
         NVIC_SetPriority(Gpio4_IRQn, IRQ_PRI_Normal);
 		NVIC_EnableIRQ(Gpio4_IRQn);
 	} 
+#endif	// !CFG_FPGA
+
 }
 
 void hal_gpio_ext_int_dis(int port, int pin)
 {
+#if !CFG_FPGA
+
 	if (port == GPIO_PORT_0) {
 		g_gio_0.in_use &= ~(1 << pin);
 		gpio_port_0_int_mask(pin);
@@ -651,10 +711,14 @@ void hal_gpio_ext_int_dis(int port, int pin)
 		/// pad - ie
 		gpio_port_4_pad_oe_ie(pin, 0, 0);
 	} 
+#endif	// !CFG_FPGA
+
 }
 
 void hal_gpio_ext_int_mask(int port, int pin)
 {
+#if !CFG_FPGA
+
 	if (port == GPIO_PORT_0) {
 		gpio_port_0_int_mask(pin);
 	} else if (port == GPIO_PORT_1) {
@@ -666,10 +730,14 @@ void hal_gpio_ext_int_mask(int port, int pin)
 	} else  {
 		gpio_port_4_int_mask(pin);
 	} 
+#endif	// !CFG_FPGA
+
 }
 
 void hal_gpio_ext_int_unmask(int port, int pin)
 {
+#if !CFG_FPGA
+
 	if (port == GPIO_PORT_0) {
 		gpio_port_0_int_unmask(pin);
 	} else if (port == GPIO_PORT_1) {
@@ -681,6 +749,8 @@ void hal_gpio_ext_int_unmask(int port, int pin)
 	} else  {
 		gpio_port_4_int_unmask(pin);
 	} 
+#endif	// !CFG_FPGA
+
 }
 
 #if CFG_PM_EN

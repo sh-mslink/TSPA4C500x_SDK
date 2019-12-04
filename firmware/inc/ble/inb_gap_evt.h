@@ -1,7 +1,7 @@
 /**
  ****************************************************************************************
  *
- * @file inb_gap_event.h
+ * @file inb_gap_evt.h
  *
  * @brief BLE GAP events
  *
@@ -161,6 +161,11 @@ typedef struct
 
     /// RSSI (between -127 and +20 dBm)
     int8_t rssi;
+
+#ifdef RPT_ADV_CHN
+	/// Advertising channel number	
+	int8_t adv_chn;
+#endif
 
     /// Primary PHY on which advertising report has been received, @see enum inb_phy
     uint8_t phy_prim;

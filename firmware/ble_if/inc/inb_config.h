@@ -175,7 +175,7 @@
 /// Prefetch Abort time (in us)
 /// (note 1: the prefetch abort time must be greater than prefetch time)
 /// (note 2: use less than IFS to ensure that two activities can be separated by an IFS time)
-#define BLE_PREFETCHABORT_TIME_US  (500)		// inplay
+#define BLE_PREFETCHABORT_TIME_US  (500)		// tropos
 
 /// Margin for event time reservation (in half-us)
 #define BLE_RESERVATION_TIME_MARGIN_HUS    (2 * BLE_PREFETCHABORT_TIME_US)

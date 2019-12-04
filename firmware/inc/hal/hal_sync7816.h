@@ -57,7 +57,7 @@ enum sync7816_error {
  * @brief Init sync7816 device
  * @param[in] clk_pin    Clock pin
  * @param[in] rst_pin    Reset pin
- * @param[in] data_id    Data pin
+ * @param[in] data_pin    Data pin
  * @param[in] clk   Bus clock
  * @return Sync7816 device struct, NUll if failed.
  * */
@@ -97,14 +97,14 @@ int fm4428_read_cmd(sync7816_dev_t* dev, uint32_t cmd, uint32_t addr, uint32_t *
  * @param[out] rx_data  Data that read out from bus
  * @return 0 if successful, otherwise failed
  * */
-int fm4428_read_byte(sync7816_dev_t* dev, uint32_t addr, int protect, uint8_t *data);
+int fm4428_read_byte(sync7816_dev_t* dev, uint32_t addr, int protect, uint8_t *rx_data);
 
 /**
  * @brief  Send write command for fm4428 chip
  * @param[in] dev   Sync7816 device struct
  * @param[in] cmd   Command
  * @param[in] addr  Address
- * @param[int] data  Data that write to bus
+ * @param[in] data  Data that write to bus
  * @param[in] wait_clk Wait clock for operation finish
  * @return 0 if successful, otherwise failed
  * */
@@ -145,7 +145,7 @@ int fm4442_read_cmd(sync7816_dev_t* dev, uint32_t cmd, uint32_t addr, uint32_t *
  * @param[in] dev   Sync7816 device struct
  * @param[in] cmd   Command
  * @param[in] addr  Address
- * @param[int] data  Data that write to bus
+ * @param[in] data  Data that write to bus
  * @return 0 if successful, otherwise failed
  * */
 int fm4442_write_cmd(sync7816_dev_t* dev, uint32_t cmd, uint32_t addr, uint8_t data);

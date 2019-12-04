@@ -22,44 +22,45 @@ static uint8_t hid_report_map[] =
     //report ID 1 for key
     0x05, 0x01,     // USAGE_PAGE (Generic Desktop)
     0x09, 0x06,     // USAGE (Keyboard)
-    0xa1, 0x01,     // COLLECTION (Application)
+    0xA1, 0x01,     // COLLECTION (Application)
         0x85, 0x01,     //   REPORT_ID (1)
         //the 1st byte for USAGE_PAGE Keyboard keycode
         0x05, 0x07,     // USAGE_PAGE
-        0x09, 0x66,     // 0x0001//power
-        0x09, 0x52,     // 0x0002//up
-        0x09, 0x51,     // 0x0003//down
-        0x09, 0x50,     // 0x0004//left
-        0x09, 0x4f,     // 0x0005//right
-        0x09, 0x58,     // 0x0006//ok
-        0x09, 0xf1,     // 0x0007//back
-        0x09, 0x80,     // 0x0008//vol+
-        0x09, 0x81,     // 0x0009//vol-
+        0x09, 0x00,     // 0x0001//null
         0x15, 0x01,     // LOGICAL_MINIMUM
-        0x25, 0x09,     // LOGICAL_MAXIMUM
+        0x25, 0x01,     // LOGICAL_MAXIMUM
         0x75, 0x08,     // REPORT_SIZE
         0x95, 0x01,     // REPORT_COUNT
         0x81, 0x00,     // INPUT
         //the 2nd byte for USAGE_PAGE Consumer Devices keycode
-        0x05, 0x0c,     // USAGE_PAGE
-        0x0A, 0x21, 0x02,     // 0x0100//search: for ATV voice
-        0x0A, 0x23, 0x02,     // 0x0200//home
-        0x09, 0xe2,     // 0x0300//mute
-        0x09, 0x40,     // 0x0400//menu
+        0x05, 0x0C,     // USAGE_PAGE
+        0x09, 0x30,     // 0x0100//power
+        0x09, 0x42,     // 0x0200//up
+        0x09, 0x43,     // 0x0300//down
+        0x09, 0x44,     // 0x0400//left
+        0x09, 0x45,     // 0x0500//right
+        0x09, 0x41,     // 0x0600//enter(select)
+        0x0A, 0x24, 0x02,     // 0x0700//back
+        0x09, 0xE9,     // 0x0800//vol+
+        0x09, 0xEA,     // 0x0900//vol-
+        0x0A, 0x21, 0x02,     // 0x0A00//search: for ATV voice
+        0x0A, 0x23, 0x02,     // 0x0B00//home
+        0x09, 0xE2,     // 0x0C00//mute
+        0x09, 0x40,     // 0x0D00//menu
         0x15, 0x01,     // LOGICAL_MINIMUM
-        0x25, 0x04,     // LOGICAL_MAXIMUM
+        0x25, 0x0D,     // LOGICAL_MAXIMUM
         0x75, 0x08,     // REPORT_SIZE
         0x95, 0x01,     // REPORT_COUNT
         0x81, 0x00,     // INPUT
-    0xc0,     //     END_COLLECTION
+    0xC0,     //     END_COLLECTION
     
     //report ID 2 for voice
     0x05, 0x01, // USAGE_PAGE (Generic Desktop)
     0x09, 0x06, // USAGE (Keyboard)
-    0xa1, 0x01, // COLLECTION (Application)
+    0xA1, 0x01, // COLLECTION (Application)
         0x85, 0x02, // REPORT_ID (2)
         //the 1st byte for voice keycode
-        0x05, 0x0c,     // USAGE_PAGE
+        0x05, 0x0C,     // USAGE_PAGE
         0x09, 0x00,     //
         0x09, 0x00,     //
         0x09, 0x00,     //
@@ -69,28 +70,31 @@ static uint8_t hid_report_map[] =
         0x09, 0x00,     //
         0x09, 0x00,     //
         0x09, 0x00,     //
-        0x0A, 0x21, 0x02,     // 0x0a//search
+        0x0A, 0x21, 0x02,     // 0x0A//search
         0x15, 0x01,     // LOGICAL_MINIMUM
-        0x25, 0x0a,     // LOGICAL_MAXIMUM
+        0x25, 0x0A,     // LOGICAL_MAXIMUM
         0x75, 0x08,     // REPORT_SIZE
         0x95, 0x01,     // REPORT_COUNT
         0x81, 0x00,     // INPUT
-        0x06, 0x00, 0xff, // USAGE_PAGE (Vendor Defined Page 1)
+        0x06, 0x00, 0xFF, // USAGE_PAGE (Vendor Defined Page 1)
         0x09, 0x01, // USAGE (Vendor Usage 1)
         0x15, 0x00, // LOGICAL_MINIMUM (0)
-        0x26, 0xff, 0x00, // LOGICAL_MAXIMUM (255)
+        0x26, 0xFF, 0x00, // LOGICAL_MAXIMUM (255)
         0x75, 0x08, // REPORT_SIZE (8)
-        0x95, 0xf3, // REPORT_COUNT (244 - 1)//(VOICE_BLE_PKG_SIZE - 1)
-//        0x95, 0x13, // REPORT_COUNT (20 - 1)//(VOICE_BLE_PKG_SIZE - 1)
+#if (MSRCU_BLE_VOICE_SAMPLE_RATE == 16000)
+        0x95, 0xF3, // REPORT_COUNT (244 - 1)//(VOICE_BLE_PKG_SIZE - 1)
+#elif (MSRCU_BLE_VOICE_SAMPLE_RATE == 8000)
+        0x95, 0x13, // REPORT_COUNT (20 - 1)//(VOICE_BLE_PKG_SIZE - 1)
+#endif
         0x81, 0x00, // INPUT (Data, Ary, Abs)
-    0xc0, // END_COLLECTION
+    0xC0, // END_COLLECTION
     
     //report id 3 for motion(airmouse)
     0x05, 0x01,     //USAGE_PAGE (Generic Desktop)
     0x09, 0x02,     //USAGE (Mouse)
-    0xa1, 0x01,     //COLLECTION (Application)
+    0xA1, 0x01,     //COLLECTION (Application)
         0x09, 0x01,     //USAGE (Pointer)
-        0xa1, 0x00,     //COLLECTION (Physical)
+        0xA1, 0x00,     //COLLECTION (Physical)
             0x85, 0x03,     //REPORT_ID (3)
             0x05, 0x09,     //USAGE_PAGE (Button)
             0x19, 0x01,     //USAGE_MINIMUM (Button 1)
@@ -107,12 +111,12 @@ static uint8_t hid_report_map[] =
             0x09, 0x30,     //USAGE (X)
             0x09, 0x31,     //USAGE (Y)
             0x15, 0x81,     //LOGICAL_MINIMUM (-127)
-            0x25, 0x7f,     //LOGICAL_MAXIMUM (127)
+            0x25, 0x7F,     //LOGICAL_MAXIMUM (127)
             0x75, 0x08,     //REPORT_SIZE (8)
             0x95, 0x02,     //REPORT_COUNT (2)
             0x81, 0x06,     //INPUT (Data,Var,Rel)
         0xc0,     //END_COLLECTION
-    0xc0,   //END_COLLECTION
+    0xC0,   //END_COLLECTION
 };
 
 

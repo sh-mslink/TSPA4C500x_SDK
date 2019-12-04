@@ -59,7 +59,9 @@ typedef enum {
 	/// Error, MAC verification failure 
 	AES_ERR_MAC_DOES_NOT_MATCH = 4,
 	/// Error, ECC using the HW memory 
-	AES_ERR_HW_MEM_USED_BY_ECC = 5
+	AES_ERR_HW_MEM_USED_BY_ECC = 5,
+	AES_ERR_NOT_ENOUGH_BUF = 6,
+	AES_ERR_INVALID_PARAM = 7,
 } aes_crypto_status;
 
 /// AES cryptography type
@@ -468,14 +470,17 @@ int hal_aes_process(uint8_t *msg, uint8_t *key, uint8_t *iv, uint8_t *MAC, uint8
  ****************************************************************************************
  * @brief Write AES result to output buffer
  *
- * @param[out] out					Pointer to output of AES result. Result will be same length as provided above in "num_bytes" field
- *
+ * @param[in] buf					Pointer to output of AES result. Result will be same length as provided above in "num_bytes" field
+ * @param[in] buf_sz				Buffer size
+ * @param[out] len					Actual length for output data.
  * @return AES_ERR_OK if encryption completes or MAC is verified, error otherwise. @see enum aes_crypto_status.
  ****************************************************************************************
  */
-int hal_aes_finish(uint8_t *out);
+int hal_aes_finish(uint8_t *buf, uint32_t buf_sz, uint32_t *len) ;
 
 
+
+/// @} HAL_AES
 
 
 #endif

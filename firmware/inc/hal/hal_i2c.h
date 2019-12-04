@@ -118,6 +118,8 @@ enum i2c_dir {
 #define I2C_CON_MASTER_MODE						0x00000001UL
 #define I2C_CON_SPEED									0x00000006UL
 #define I2C_CON_10BIT_SLAVE						0x00000008UL
+#define I2C_CON_RESTART_EN						0x00000020UL
+
 #define I2C_CON_SLAVE_DISABLE					0x00000040UL
 #define I2C_CON_TX_EMPTY_CTRL					0x00000100UL
 #define I2C_CON_RX_FIFO_FULL_HLD_CTRL	0x00000200UL
@@ -164,6 +166,22 @@ static __inline void i2c_slave_enable(uint32_t i2c_base)
 
 	WR_WORD(i2c_base + I2C_REG_CON_OFS, reg);
 
+}
+static __inline void i2c_restart_enable(uint32_t i2c_base)
+{
+	uint32_t reg = RD_WORD(i2c_base + I2C_REG_CON_OFS);
+
+	reg |= I2C_CON_RESTART_EN;	
+
+	WR_WORD(i2c_base + I2C_REG_CON_OFS, reg);
+}
+static __inline void i2c_restart_disable(uint32_t i2c_base)
+{
+	uint32_t reg = RD_WORD(i2c_base + I2C_REG_CON_OFS);
+
+	reg &= ~I2C_CON_RESTART_EN;	
+
+	WR_WORD(i2c_base + I2C_REG_CON_OFS, reg);
 }
 
 /*******************  Bit definition for I2C_TAR register  ********************/

@@ -266,12 +266,13 @@ int hal_aes_process(uint8_t *msg, uint8_t *key, uint8_t *iv, uint8_t *MAC, uint8
 	return AES_ERR_OK;
 }
 
-int hal_aes_finish(uint8_t *out) 
+int hal_aes_finish(uint8_t *out, uint32_t buf_sz, uint32_t *len) 
 {	
 	aes_dev_t *pd = &aes_dev;
 	if(!pd->used)
 		return AES_ERR_NOT_INIT;
-
+	if((!out ) || (!len))
+		return AES_ERR_INVALID_PARAM;
 	int result;
 	aes_crypto_mode mode = aes_get_misc_ctrl_mode();
 	if((mode == AES_CRYPTO_MODE_CCM || mode == AES_CRYPTO_MODE_CMAC) && aes_get_misc_ctrl_type() == AES_CRYPTO_TYPE_DECRYPT && !aes_get_crypto_status_mac_ver())
@@ -282,9 +283,15 @@ int hal_aes_finish(uint8_t *out)
 	/* clear go bit */
 	aes_clr_misc_ctrl_go();
 
+	uint32_t num_bytes = aes_get_num_bytes();
+	if (num_bytes > buf_sz) {
+		result = AES_ERR_NOT_ENOUGH_BUF;
+		num_bytes = buf_sz;
+	}
+	
 	/* read data */
-	read_buf(AES_DATA_BASE, aes_get_num_bytes(), out);
-
+	read_buf(AES_DATA_BASE, num_bytes, out);
+	*len = num_bytes;
 	osMutexRelease(pd->mutex);
 
 #if CFG_PM_EN

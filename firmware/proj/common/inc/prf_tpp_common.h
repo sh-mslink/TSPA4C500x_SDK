@@ -8,16 +8,13 @@
 
 enum
 {
-    TPP_IDX_SVC,
-    
     TPP_IDX_WR_DATA_CHAR,
     TPP_IDX_WR_DATA_VAL,
-    TPP_IDX_WR_DATA_USER_DESP,
-
+    
     TPP_IDX_NTF_VAL_CHAR,
     TPP_IDX_NTF_VAL,
     TPP_IDX_NTF_VAL_CFG,
-
+    
     TPP_IDX_NB,
 };
 

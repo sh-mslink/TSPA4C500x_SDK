@@ -92,7 +92,7 @@ int get_em_ble_tx_desc_nb(void)
 int get_em_sdr_cs_nb(void)
 {
 #if CFG_SDR
-	return CFG_SDR_NB_CS;
+	return 1;
 #else
 	return 0;
 #endif
@@ -101,7 +101,7 @@ int get_em_sdr_cs_nb(void)
 int get_em_sdr_ptr_nb(void)
 {
 #if CFG_SDR
-	return CFG_SDR_NB_PTR;
+	return 8;
 #else
 	return 0;
 #endif
@@ -110,7 +110,13 @@ int get_em_sdr_ptr_nb(void)
 int get_em_sdr_tx_desc_nb(void)
 {
 #if CFG_SDR
-	return CFG_SDR_NB_TX_DESC;
+	int n = CFG_SDR_MAX_DATA_SIZE/251;
+	int n1 = CFG_SDR_MAX_DATA_SIZE%251; 
+
+	if (n1)
+		n += 1;
+
+	return n;
 #else
 	return 0;
 #endif
@@ -129,7 +135,17 @@ int get_em_ble_advdatatxbuf_nb(void)
 
 int get_em_ble_acltxbuf_nb(void)
 {
+#if CFG_SDR
+	int n = CFG_SDR_MAX_DATA_SIZE/251;
+	int n1 = CFG_SDR_MAX_DATA_SIZE%251; 
+
+	if (n1)
+		n += 1;
+
+	return (BLE_ACL_BUF_NB_TX+n);
+#else
 	return BLE_ACL_BUF_NB_TX;
+#endif
 }
 
 int get_ble_whitelist_max(void)

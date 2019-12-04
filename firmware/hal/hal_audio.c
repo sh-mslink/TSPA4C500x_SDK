@@ -51,10 +51,7 @@ typedef enum {
 	SLAVE
 } audio_i2s_core_t;	
 
-#define AUDIO_I2S_CLK									16000000
-#define CTLT_AUTX_CLK_RATE						2000000.0f
 #define AUDIO_TX_CLK_RATE							16000000.0f
-#define AUDIO_ENC_
 //static const int RX_PDM_CIC_DEC_FACTOR[7] = {20, 16, 10, 8, 5, 4, 2};
 static const uint32_t RX_PDM_CIC_DEC_OFFSET[7] = {80000, 32768, 5000, 2048, 313, 128, 8};
 static const uint8_t RX_PDM_CIC_DEC_SHIFT[7] = {0, 1, 4, 5, 8, 9, 13};
@@ -86,6 +83,11 @@ typedef enum {
 	AUDIO_TX_UP0
 } audio_tx_up2_filters_ctrl_t;
 
+typedef enum {
+	TX_OUT_SIG_DELT,
+	TX_OUT_I2S
+} audio_tx_out_path_t;
+
 // HW GPIO Control
 typedef struct {
 	// GPIO_4_0_6 = pdm clk
@@ -112,6 +114,8 @@ typedef struct {
 	uint32_t i2s_s_ws_pin;
 	uint32_t i2s_s_sd0_pin;
 	uint32_t i2s_s_sd1_pin;
+	uint32_t audio_sd_left;
+	uint32_t audio_sd_right;
 } audio_gpio_dev_t;
 
 // User Control
@@ -156,8 +160,11 @@ typedef struct {
 
 typedef struct {
 	// TX path control
+	audio_tx_out_path_t out_path;
 	audio_i2s_core_t i2s_core;
 	audio_tx_up2_filters_ctrl_t up2_filters;
+	float out_clk_rate;	
+	uint8_t out_clk_src;
 
 	// Basic audio control
 	float in_rate;	
@@ -197,19 +204,19 @@ static int audio_rx_set_filterpath(int is_pdm, float in_rate, float out_rate);
  ****************************************************************************************
  */
 // Audio setting calculations
-static uint32_t hal_audio_calc_ctlt_autx_out_per(float out_rate) {
-	return (uint32_t) ( (CTLT_AUTX_CLK_RATE / out_rate) - 1.0f );
+static uint32_t hal_audio_calc_ctlt_autx_out_per(float out_clock_src_rate, float out_rate) {	
+	return (uint32_t) ( (out_clock_src_rate / out_rate) - 1.0f );
 }
 
 static uint32_t hal_audio_calc_tx_interp32_period(float in_rate) {
-	float f = AUDIO_I2S_CLK / in_rate / 2.0f;
+	float f = AUDIO_TX_CLK_RATE / in_rate / 2.0f;
 	if(f >= 1024.0f)
 		f = 1023.0f;
 	return (uint32_t) f;
 }
 
-static uint32_t hal_audio_calc_tx_vid_nom_rate(float in_rate, float out_rate, void* audio_control) {
-	audio_tx_dev_t* pd = (audio_tx_dev_t*) audio_control;
+static uint32_t hal_audio_calc_tx_vid_nom_rate(float in_rate, float out_rate) {
+	audio_tx_dev_t* pd = &audio_tx_dev;
 	float val;
 	switch(pd->up2_filters) {
 		case AUDIO_TX_UP8:
@@ -366,20 +373,6 @@ static void hal_audio_enc_pdm_dc_offset_feedback(uint32_t error) {
 	audio_rx_set_dc_off(new_offset);
 }
 	
-#if 0
-// Separate memory locations of RX/TX buffers
-static void hal_audio_rx_tx_mem_setup() {
-	uint32_t v;
-	v = RD_WORD(0x4414F060);
-	v =~(0x3fff<<8);
-	WR_WORD(0x4414F060,v);
-
-	v = RD_WORD(0x4414F070);
-	v =~ (0x3fff<<8);
-	v |= (0x800<<8);
-	WR_WORD(0x4414F070,v);
-}
-#endif
 // Audio HW GPIO Config
 static int audio_enc_pin_mux_chk() {
 	audio_gpio_dev_t* gpio = &audio_gpio_dev;
@@ -504,7 +497,7 @@ static int audio_enc_pin_mux_enable() {
 	}
 	else return AUDIO_ERR_DEV_BAD_STATE;
 	
-	//hal_clk_audio_en(1);
+	hal_clk_audio_en(1);
 	
 	return AUDIO_ERR_OK;
 }
@@ -548,7 +541,7 @@ static int audio_enc_pin_mux_disable() {
 	else return AUDIO_ERR_DEV_BAD_STATE;
 	
 	if(audio_rx_dev.enc_used == 0 && audio_tx_dev.dec_used == 0 && audio_tx_dev.resample_used == 0)
-		clk_audio_en(0);
+		hal_clk_audio_en(0);
 	
 	return AUDIO_ERR_OK;
 }
@@ -558,54 +551,67 @@ static int audio_dec_pin_mux_chk() {
 	audio_tx_dev_t* pd = &audio_tx_dev;
 	if(!pd->dec_used)
 		return AUDIO_ERR_NOT_INIT;	
-	
 	// Sanity check
-	if(pd->i2s_core == MASTER) {
-		if (((CFG_GPIO_1_3>>GPIO_CFG_MUX_SHIFT) & 0xF) == GPIO_MUX_O_I2S_MSTR_CLK) 
-			gpio->i2s_m_clk_pin = CFG_GPIO_1_3;
-		else
-			goto fail;
-		
-		if (((CFG_GPIO_1_4>>GPIO_CFG_MUX_SHIFT) & 0xF) == GPIO_MUX_IO_I2S_MSTR_WS) 
-			gpio->i2s_m_ws_pin = CFG_GPIO_1_4;
-		else
-			goto fail;
+	if(pd->out_path == TX_OUT_I2S) {
+		if(pd->i2s_core == MASTER) {
+			if (((CFG_GPIO_1_3>>GPIO_CFG_MUX_SHIFT) & 0xF) == GPIO_MUX_O_I2S_MSTR_CLK) 
+				gpio->i2s_m_clk_pin = CFG_GPIO_1_3;
+			else
+				goto fail;
+			
+			if (((CFG_GPIO_1_4>>GPIO_CFG_MUX_SHIFT) & 0xF) == GPIO_MUX_IO_I2S_MSTR_WS) 
+				gpio->i2s_m_ws_pin = CFG_GPIO_1_4;
+			else
+				goto fail;
 
-		if (((CFG_GPIO_1_5>>GPIO_CFG_MUX_SHIFT) & 0xF) == GPIO_MUX_IO_I2S_MSTR_SD0) 
-			gpio->i2s_m_sd0_pin = CFG_GPIO_1_5;
-		else
-			gpio->i2s_m_sd0_pin = 0;
+			if (((CFG_GPIO_1_5>>GPIO_CFG_MUX_SHIFT) & 0xF) == GPIO_MUX_IO_I2S_MSTR_SD0) 
+				gpio->i2s_m_sd0_pin = CFG_GPIO_1_5;
+			else
+				gpio->i2s_m_sd0_pin = 0;
 
-		if (((CFG_GPIO_1_6>>GPIO_CFG_MUX_SHIFT) & 0xF) == GPIO_MUX_IO_I2S_MSTR_SD1) 
-			gpio->i2s_m_sd1_pin = CFG_GPIO_1_6;
-		else
-			gpio->i2s_m_sd1_pin = 0;
+			if (((CFG_GPIO_1_6>>GPIO_CFG_MUX_SHIFT) & 0xF) == GPIO_MUX_IO_I2S_MSTR_SD1) 
+				gpio->i2s_m_sd1_pin = CFG_GPIO_1_6;
+			else
+				gpio->i2s_m_sd1_pin = 0;
 
-		if (!gpio->i2s_m_sd0_pin && !gpio->i2s_m_sd1_pin)
-			goto fail;
+			if (!gpio->i2s_m_sd0_pin && !gpio->i2s_m_sd1_pin)
+				goto fail;
+		}
+		else if(pd->i2s_core == SLAVE) {
+			if (((CFG_GPIO_1_3>>GPIO_CFG_MUX_SHIFT) & 0xF) == GPIO_MUX_I_I2S_SLV_CLK0) 
+				gpio->i2s_s_clk_pin = CFG_GPIO_1_3;
+			else
+				goto fail;
+			
+			if (((CFG_GPIO_1_4>>GPIO_CFG_MUX_SHIFT) & 0xF) == GPIO_MUX_IO_I2S_SLV_WS) 
+				gpio->i2s_s_ws_pin = CFG_GPIO_1_4;
+			else
+				goto fail;
+
+			if (((CFG_GPIO_1_5>>GPIO_CFG_MUX_SHIFT) & 0xF) == GPIO_MUX_IO_I2S_SLV_SD0) 
+				gpio->i2s_s_sd0_pin = CFG_GPIO_1_5;
+			else
+				gpio->i2s_s_sd0_pin = 0;
+
+			if (((CFG_GPIO_1_6>>GPIO_CFG_MUX_SHIFT) & 0xF) == GPIO_MUX_IO_I2S_SLV_SD1) 
+				gpio->i2s_s_sd1_pin = CFG_GPIO_1_6;
+			else
+				gpio->i2s_s_sd1_pin = 0;
+
+			if (!gpio->i2s_s_sd0_pin && !gpio->i2s_s_sd1_pin)
+				goto fail;
+		}
+		else return AUDIO_ERR_DEV_BAD_STATE;
 	}
-	else if(pd->i2s_core == SLAVE) {
-		if (((CFG_GPIO_1_3>>GPIO_CFG_MUX_SHIFT) & 0xF) == GPIO_MUX_I_I2S_SLV_CLK0) 
-			gpio->i2s_s_clk_pin = CFG_GPIO_1_3;
+	else if(pd->out_path == TX_OUT_SIG_DELT) {
+		if (((CFG_GPIO_2_1>>GPIO_CFG_MUX_SHIFT) & 0xF) == GPIO_MUX_O_AUDIO_SD_L) 
+			gpio->audio_sd_left = CFG_GPIO_2_1;
 		else
 			goto fail;
 		
-		if (((CFG_GPIO_1_4>>GPIO_CFG_MUX_SHIFT) & 0xF) == GPIO_MUX_IO_I2S_SLV_WS) 
-			gpio->i2s_s_ws_pin = CFG_GPIO_1_4;
+		if (((CFG_GPIO_2_3>>GPIO_CFG_MUX_SHIFT) & 0xF) == GPIO_MUX_O_AUDIO_SD_R) 
+			gpio->audio_sd_right = CFG_GPIO_2_3;
 		else
-			goto fail;
-
-		if (((CFG_GPIO_1_5>>GPIO_CFG_MUX_SHIFT) & 0xF) == GPIO_MUX_IO_I2S_SLV_SD0) 
-			gpio->i2s_s_sd0_pin = CFG_GPIO_1_5;
-		else
-			gpio->i2s_s_sd0_pin = 0;
-
-		if (((CFG_GPIO_1_6>>GPIO_CFG_MUX_SHIFT) & 0xF) == GPIO_MUX_IO_I2S_SLV_SD1) 
-			gpio->i2s_s_sd1_pin = CFG_GPIO_1_6;
-		else
-			gpio->i2s_s_sd1_pin = 0;
-
-		if (!gpio->i2s_s_sd0_pin && !gpio->i2s_s_sd1_pin)
 			goto fail;
 	}
 	else return AUDIO_ERR_DEV_BAD_STATE;
@@ -626,21 +632,28 @@ static int audio_dec_pin_mux_enable() {
 	if(result != AUDIO_ERR_OK)
 		return result;
 	
-	if(pd->i2s_core == MASTER) {
-		hal_gpio_pin_cfg(gpio->i2s_m_clk_pin);
-		hal_gpio_pin_cfg(gpio->i2s_m_ws_pin);
-		if (gpio->i2s_m_sd0_pin)
-			hal_gpio_pin_cfg(gpio->i2s_m_sd0_pin);
-		if (gpio->i2s_m_sd1_pin)
-			hal_gpio_pin_cfg(gpio->i2s_m_sd1_pin);
+	if(pd->out_path == TX_OUT_I2S) {
+		if(pd->i2s_core == MASTER) {
+			hal_gpio_pin_cfg(gpio->i2s_m_clk_pin);
+			hal_gpio_pin_cfg(gpio->i2s_m_ws_pin);
+			if (gpio->i2s_m_sd0_pin)
+				hal_gpio_pin_cfg(gpio->i2s_m_sd0_pin);
+			if (gpio->i2s_m_sd1_pin)
+				hal_gpio_pin_cfg(gpio->i2s_m_sd1_pin);
+		}
+		else if(pd->i2s_core == SLAVE) {
+			hal_gpio_pin_cfg(gpio->i2s_s_clk_pin);
+			hal_gpio_pin_cfg(gpio->i2s_s_ws_pin);
+			if (gpio->i2s_s_sd0_pin)
+				hal_gpio_pin_cfg(gpio->i2s_s_sd0_pin);
+			if (gpio->i2s_s_sd1_pin)
+				hal_gpio_pin_cfg(gpio->i2s_s_sd1_pin);
+		}
+		else return AUDIO_ERR_DEV_BAD_STATE;
 	}
-	else if(pd->i2s_core == SLAVE) {
-		hal_gpio_pin_cfg(gpio->i2s_s_clk_pin);
-		hal_gpio_pin_cfg(gpio->i2s_s_ws_pin);
-		if (gpio->i2s_s_sd0_pin)
-			hal_gpio_pin_cfg(gpio->i2s_s_sd0_pin);
-		if (gpio->i2s_s_sd1_pin)
-			hal_gpio_pin_cfg(gpio->i2s_s_sd1_pin);
+	else if(pd->out_path == TX_OUT_SIG_DELT) {
+		hal_gpio_pin_cfg(gpio->audio_sd_left);
+		hal_gpio_pin_cfg(gpio->audio_sd_right);
 	}
 	else return AUDIO_ERR_DEV_BAD_STATE;
 	
@@ -659,26 +672,33 @@ static int audio_dec_pin_mux_disable() {
 	if(result != AUDIO_ERR_OK)
 		return result;
 	
-	if(pd->i2s_core == MASTER) {
-		hal_gpio_pin_dft(gpio->i2s_m_clk_pin);
-		hal_gpio_pin_dft(gpio->i2s_m_ws_pin);
-		if (gpio->i2s_m_sd0_pin)
-			hal_gpio_pin_dft(gpio->i2s_m_sd0_pin);
-		if (gpio->i2s_m_sd1_pin)
-			hal_gpio_pin_dft(gpio->i2s_m_sd1_pin);
+	if(pd->out_path == TX_OUT_I2S) {
+		if(pd->i2s_core == MASTER) {
+			hal_gpio_pin_dft(gpio->i2s_m_clk_pin);
+			hal_gpio_pin_dft(gpio->i2s_m_ws_pin);
+			if (gpio->i2s_m_sd0_pin)
+				hal_gpio_pin_dft(gpio->i2s_m_sd0_pin);
+			if (gpio->i2s_m_sd1_pin)
+				hal_gpio_pin_dft(gpio->i2s_m_sd1_pin);
+		}
+		else if(pd->i2s_core == SLAVE) {
+			hal_gpio_pin_dft(gpio->i2s_s_clk_pin);
+			hal_gpio_pin_dft(gpio->i2s_s_ws_pin);
+			if (gpio->i2s_s_sd0_pin)
+				hal_gpio_pin_dft(gpio->i2s_s_sd0_pin);
+			if (gpio->i2s_s_sd1_pin)
+				hal_gpio_pin_dft(gpio->i2s_s_sd1_pin);
+		}
+		else return AUDIO_ERR_DEV_BAD_STATE;
 	}
-	else if(pd->i2s_core == SLAVE) {
-		hal_gpio_pin_dft(gpio->i2s_s_clk_pin);
-		hal_gpio_pin_dft(gpio->i2s_s_ws_pin);
-		if (gpio->i2s_s_sd0_pin)
-			hal_gpio_pin_dft(gpio->i2s_s_sd0_pin);
-		if (gpio->i2s_s_sd1_pin)
-			hal_gpio_pin_dft(gpio->i2s_s_sd1_pin);
+	else if(pd->out_path == TX_OUT_SIG_DELT) {
+		hal_gpio_pin_dft(gpio->audio_sd_left);
+		hal_gpio_pin_dft(gpio->audio_sd_right);
 	}
-	else return AUDIO_ERR_DEV_BAD_STATE;
+	else return AUDIO_ERR_DEV_BAD_STATE;	
 	
 	if(audio_rx_dev.enc_used == 0 && audio_tx_dev.dec_used == 0 && audio_tx_dev.resample_used == 0)
-		clk_audio_en(0);
+		hal_clk_audio_en(0);
 	
 	return AUDIO_ERR_OK;
 }
@@ -711,9 +731,6 @@ static int hal_audio_rx_apply_config() {
 	if(!pd->enc_used)
 		return AUDIO_ERR_NOT_INIT;
 
-	/* clkd0_enable_1: enable audio clock */
-	//audio_rx_enable_clk();// move to open function and use clk_audio_en instead
-
 	/* adec_dma_ctrl0: set read register to automatically update pointer */
 	audio_rx_enable_rd_dma_ack();
 
@@ -726,8 +743,8 @@ static int hal_audio_rx_apply_config() {
 		audio_aenc_stereo_enable();
 		audio_rx_stereo_enable();
 	}
-    int is_pdm = (pd->in_format == ENC_INPUT_PDM) ? 1: 0;
-    audio_rx_set_filterpath(is_pdm, pd->in_rate, pd->out_rate);
+	int is_pdm = (pd->in_format == ENC_INPUT_PDM) ? 1: 0;
+	audio_rx_set_filterpath(is_pdm, pd->in_rate, pd->out_rate);
 	/* aenc_ctrl0: set num samples per block */
 	audio_rx_init_aenc_num_samp_per_blk(pd->num_bytes_per_frame, pd->audio_mode);
 
@@ -748,8 +765,6 @@ static int hal_audio_rx_apply_config() {
 		audio_rx_in_format_pdm();
 		audio_rx_pdm_init_clk0(pd->pdm_clk_period, pd->wss_l_low);
 		audio_rx_pdm_init_clk1(pd->pdm_clk_period, pd->pdm_l_core, pd->pdm_r_core);		
-		//audio_rx_pdm_enable();//move to hal_audio_encode_start, don't sleep in power up function.
-		//osDelay(500);
 	
 		/* aurx_ctrl0: config RX PDM filtering */
 		if(!pd->isCalibrated)													// Only apply default DC Offset values if user has not calibrated
@@ -790,12 +805,21 @@ static int hal_audio_tx_apply_config() {
 	audio_tx_dev_t *pd = &audio_tx_dev;
 	if(!(pd->dec_used || pd->resample_used))
 		return AUDIO_ERR_NOT_INIT;
-
-	/* clkd0_enable_1: enable audio clock */
-	//audio_tx_enable_clk();
+	
+	/* global reg: clk_ctrl_1: Set Clock mux for Audio Speaker/SD clock */
+	uint32_t reg = RD_WORD(GLOBAL_REG_CLK_CTRL_1);
+	reg &= ~(0x3 << 23);
+	reg |= (pd->out_clk_src << 23);
+	WR_WORD(GLOBAL_REG_CLK_CTRL_1, reg);
+	
+	/* Generate clock source if PDM clock */
+	if(pd->out_clk_src == 2) {
+		uint32_t val = (64000000.0f / pd->in_rate) - 1;
+		audio_rx_pdm_init_clk0(val, 0);
+	}
 	
 	/* autx_ctrl3: set FIFO output sample rate */
-	uint32_t val = hal_audio_calc_ctlt_autx_out_per(pd->out_rate);
+	uint32_t val = hal_audio_calc_ctlt_autx_out_per(pd->out_clk_rate, pd->out_rate);
 	audio_tx_set_out_per(val);
 	audio_tx_set_gainl(pd->gain_left);
 
@@ -803,7 +827,7 @@ static int hal_audio_tx_apply_config() {
 	audio_tx_set_adec_pcm_freq_num(hal_audio_calc_tx_num(pd->in_rate));
 	audio_tx_set_adec_pcm_freq_den(hal_audio_calc_tx_den(pd->in_rate));
 	
-	uint32_t VNR = hal_audio_calc_tx_vid_nom_rate(pd->in_rate, pd->out_rate, pd);
+	uint32_t VNR = hal_audio_calc_tx_vid_nom_rate(pd->in_rate, pd->out_rate);
 	uint32_t VIR = hal_audio_calc_tx_vid_inv_rate(VNR);
 
 	/* autx_ctrl1: audio tx vid nominal rate */
@@ -863,17 +887,20 @@ static int hal_audio_tx_apply_config() {
 	
 	/* autx_wrsm_ctrl0: set audio tx path control to adpcm */
 	audio_wrsm_dma_sel_adpcm();
-
 	if(pd->dec_used) {
 		/* misc_ctrl0: enable: asynchronous TX FIFO, I2S slave core */
-		if(pd->i2s_core == MASTER){
-			audio_tx_i2s_master_enable();
-			audio_tx_i2s_slave_disable();
+		if(pd->out_path == TX_OUT_I2S) {
+			if(pd->i2s_core == MASTER){
+				audio_tx_i2s_master_enable();
+				audio_tx_i2s_slave_disable();
+			}
+			else{
+				audio_tx_i2s_master_disable();
+				audio_tx_i2s_slave_enable();
+			}
 		}
-		else{
-			audio_tx_i2s_master_disable();
-			audio_tx_i2s_slave_enable();
-		}
+		else
+			audio_autx_sdm_enable();
 		audio_afifo_en_wr_enable();	
 		audio_afifo_en_rd_enable();
 		
@@ -881,10 +908,7 @@ static int hal_audio_tx_apply_config() {
 	}
 
 	else if(pd->resample_used) {
-		// RX 
-		/* clkd0_enable_1: enable audio clock */
-		//audio_rx_enable_clk();
-		
+		// RX 		
 		/* adec_dma_ctrl0: set read register to automatically update pointer */
 		audio_rx_enable_rd_dma_ack();
 		
@@ -1017,14 +1041,16 @@ static void audio_resample_power_up(void *arg) {
 #endif	/* CFG_PM_EN */
 // Audio interrupt setup 
 __irq void Audio_Handler(void) {
+	uint32_t status = audio_intr_status();
 	audio_intr_clear(0x3FFFFF);
 	audio_rx_dev.status = AUDIO_ERR_AUDIO_HW_INTR;
 	audio_tx_dev.status = AUDIO_ERR_AUDIO_HW_INTR;
+	PRINTD(DBG_TRACE, "irq 0x%x\n", status);
+
 }
 
 // User audio setup 
 int hal_audio_enc_open() {
-	//hal_audio_rx_tx_mem_setup();
 	audio_rx_dev_t* pd = &audio_rx_dev;
 
 	if(audio_rx_dev.enc_used != 0 || audio_tx_dev.resample_used != 0)
@@ -1073,10 +1099,8 @@ int hal_audio_enc_open() {
 	hal_pm_reg_mod(&pd->pm);
 	pd->power_state = PM_DEEP_SLEEP;
 #endif
-
-
 	
-    clk_audio_en(1);
+  hal_clk_audio_en(1);
 
 	return AUDIO_ERR_OK;
 
@@ -1094,7 +1118,6 @@ fail:
 }
 
 int hal_audio_dec_open() {
-	//hal_audio_rx_tx_mem_setup();
 	audio_tx_dev_t* pd = &audio_tx_dev;
 
 	if(audio_tx_dev.resample_used != 0 || audio_tx_dev.dec_used != 0)
@@ -1106,12 +1129,15 @@ int hal_audio_dec_open() {
 	pd->status = AUDIO_ERR_OK;
 	
 	// TX path control
+	pd->out_path = TX_OUT_I2S;
+	pd->i2s_core = MASTER;
 	pd->up2_filters = AUDIO_TX_UP8;
+	pd->out_clk_rate = 2000000;	
+	pd->out_clk_src = 0;
 
 	// Basic audio control
 	pd->in_rate = 16000;	
 	pd->out_rate = 16000;	
-	pd->i2s_core = SLAVE;
 	pd->gain_left = 32;
 	pd->gain_right = 32;
 	pd->audio_mode = MONO;	
@@ -1135,7 +1161,7 @@ int hal_audio_dec_open() {
 	pd->power_state = PM_DEEP_SLEEP;
 #endif
 	
-        clk_audio_en(1);
+	hal_clk_audio_en(1);
 	
 	return AUDIO_ERR_OK;
 
@@ -1153,7 +1179,6 @@ fail:
 }
 
 int hal_audio_resample_open() {
-	//hal_audio_rx_tx_mem_setup();
 	audio_tx_dev_t* pd = &audio_tx_dev;
 
 	if(audio_rx_dev.enc_used != 0 || pd->resample_used != 0 || pd->dec_used != 0)
@@ -1194,7 +1219,7 @@ int hal_audio_resample_open() {
 	pd->power_state = PM_DEEP_SLEEP;
 #endif
 	
-        clk_audio_en(1);
+	hal_clk_audio_en(1);
 	
 	return AUDIO_ERR_OK;
 
@@ -1235,7 +1260,7 @@ int hal_audio_enc_close() {
 	
 	audio_enc_pin_mux_disable();
 	if(audio_rx_dev.enc_used == 0 && audio_tx_dev.dec_used == 0 && audio_tx_dev.resample_used == 0)
-		clk_audio_en(0);
+		hal_clk_audio_en(0);
 
 
 	return AUDIO_ERR_OK;
@@ -1264,7 +1289,7 @@ int hal_audio_dec_close() {
 	
 	audio_dec_pin_mux_disable();
 	if(audio_rx_dev.enc_used == 0 && audio_tx_dev.dec_used == 0 && audio_tx_dev.resample_used == 0)
-		clk_audio_en(0);
+		hal_clk_audio_en(0);
 
 	return AUDIO_ERR_OK;
 }
@@ -1295,7 +1320,7 @@ int hal_audio_resample_close() {
 	
 	audio_dec_pin_mux_disable();
 	if(audio_rx_dev.enc_used == 0 && audio_tx_dev.dec_used == 0 && audio_tx_dev.resample_used == 0)
-		clk_audio_en(0);
+		hal_clk_audio_en(0);
 
 	return AUDIO_ERR_OK;
 }
@@ -1372,10 +1397,7 @@ int hal_audio_enc_set_config(int is_pdm, int is_I2S_master, float in_rate, float
 	pd->in_format = (is_pdm) ? ENC_INPUT_PDM : ENC_INPUT_I2S;
 	pd->i2s_core = (is_I2S_master) ? MASTER : SLAVE;
 	if(is_pdm)		
-		pd->pdm_clk_period = (64000000 / in_rate) - 1;
-	//audio_rx_set_filterpath(is_pdm, in_rate, out_rate);//move to hal_audio_rx_apply_config
-	
-	//RX Path control - PDM Mic CLK - User must set separately
+		pd->pdm_clk_period = (64000000.0f / in_rate) - 1;
 	
 	// Basic audio control
 	pd->in_rate = in_rate;	
@@ -1388,10 +1410,8 @@ int hal_audio_enc_set_config(int is_pdm, int is_I2S_master, float in_rate, float
 	// Final return status depends on HW GPIO setup
 	if(GPIO_ENABLED == 1) {
 		ret = audio_enc_pin_mux_enable();
-		if(ret != AUDIO_ERR_OK) {
-            goto fail;
-        }
-			
+		if(ret != AUDIO_ERR_OK)
+			goto fail;
 	}
 	
 	// Apply config to HW
@@ -1411,7 +1431,7 @@ fail:
 	return ret;    
 }
 
-int hal_audio_dec_set_config(int is_I2S_master, float in_rate, float out_rate, int is_stereo, int bytes_per_frame, int gain) {
+int hal_audio_dec_set_config(int is_i2s, int is_I2S_master, float in_rate, float out_rate, uint8_t out_clk_src, float out_clk_rate, int is_stereo, int bytes_per_frame, int gain) {
 	audio_tx_dev_t* pd = &audio_tx_dev;
 	if(!pd->dec_used)
 		return AUDIO_ERR_NOT_INIT;
@@ -1421,7 +1441,14 @@ int hal_audio_dec_set_config(int is_I2S_master, float in_rate, float out_rate, i
 	osMutexWait(pd->mutex, osWaitForever);
 
 	// TX path control
-	pd->i2s_core = (is_I2S_master) ? MASTER : SLAVE;
+	if(is_i2s) {
+		pd->out_path = TX_OUT_I2S;
+		pd->i2s_core = (is_I2S_master) ? MASTER : SLAVE;
+	}
+	else
+		pd->out_path = TX_OUT_SIG_DELT;
+	pd->out_clk_src = out_clk_src;
+	pd->out_clk_rate = out_clk_rate;
 	pd->up2_filters = (in_rate > 32000 && is_stereo == STEREO) ? AUDIO_TX_UP4 : AUDIO_TX_UP8;
 	
 	// Basic audio control
@@ -1489,7 +1516,6 @@ int hal_audio_enc_pdm_dc_offset_cal(int bytes_per_frame, int is_stereo, int num_
 	pd->isCalibrated = 1;
 	
 	float error = 0;
-	float offset = 0;
 	int loops = 0;
 	int sum = 0;
 	int done = 0;
@@ -1503,7 +1529,6 @@ int hal_audio_enc_pdm_dc_offset_cal(int bytes_per_frame, int is_stereo, int num_
 		if(loops >= num_frames_skip) {
 			sum += error;
 			if(loops >= num_frames_skip + num_frames_samp) {
-				int x = sum;
 				sum /= num_frames_samp;
 				hal_audio_enc_pdm_dc_offset_feedback(sum);
 				done = 1;
@@ -1551,24 +1576,23 @@ int hal_audio_encode_start() {
 	return pd->status;
 }
 
-//Need check out_buf size, otherwise get memory overflow error
 int hal_audio_encode_process(uint8_t* out_buf, uint32_t buf_sz, uint16_t* in_size) {
 	audio_rx_dev_t* pd = &audio_rx_dev;
 	if(!pd->enc_used)
 		return AUDIO_ERR_NOT_INIT;
-    osMutexWait(pd->mutex, osWaitForever);
+	osMutexWait(pd->mutex, osWaitForever);
 	uint16_t aenc_ram_num_bytes = audio_get_aenc_bytes_in_ram();
-    if (aenc_ram_num_bytes > buf_sz)
-            aenc_ram_num_bytes = buf_sz;
+	if (aenc_ram_num_bytes > buf_sz)
+		aenc_ram_num_bytes = buf_sz;
 	for(uint16_t i = 0; i < aenc_ram_num_bytes; i++)
 		out_buf[i] = audio_rx_dma_read();
 	
 	*in_size = aenc_ram_num_bytes;
-    osMutexRelease(pd->mutex);
+	osMutexRelease(pd->mutex);
 	return pd->status;
 }
 
-int hal_audio_decode_start(uint8_t* in_buf, uint16_t* in_size) {
+int hal_audio_decode_start(uint8_t* in_buf, uint16_t buf_size, uint16_t* in_size) {
 	audio_tx_dev_t* pd = &audio_tx_dev;
 	if(!pd->dec_used)
 		return AUDIO_ERR_NOT_INIT;
@@ -1585,7 +1609,7 @@ int hal_audio_decode_start(uint8_t* in_buf, uint16_t* in_size) {
 #endif
 
 	uint16_t adec_ram_num_bytes = audio_get_adec_bytes_in_ram(), max_wr_size = audio_tx_get_adec_max_addr();
-	uint16_t wr_size = (max_wr_size - adec_ram_num_bytes < *in_size) ? (max_wr_size - adec_ram_num_bytes) : (*in_size);
+	uint16_t wr_size = (max_wr_size - adec_ram_num_bytes < buf_size) ? (max_wr_size - adec_ram_num_bytes) : (buf_size);
 	for(uint16_t i = 0; i < wr_size; i++)
 		audio_tx_dma_write(in_buf[i]);
 	
@@ -1597,18 +1621,17 @@ int hal_audio_decode_start(uint8_t* in_buf, uint16_t* in_size) {
 	return pd->status;
 }
 
-int hal_audio_decode_process(uint8_t* in_buf, uint16_t* in_size) {
+int hal_audio_decode_process(uint8_t* in_buf, uint16_t buf_size, uint16_t* in_size) {
 	audio_tx_dev_t* pd = &audio_tx_dev;
 	if(!pd->dec_used)
 		return AUDIO_ERR_NOT_INIT;
 
 	uint16_t adec_ram_num_bytes = audio_get_adec_bytes_in_ram(), max_wr_size = audio_tx_get_adec_max_addr();
-	uint16_t wr_size = (max_wr_size - adec_ram_num_bytes < *in_size) ? (max_wr_size - adec_ram_num_bytes) : (*in_size);
+	uint16_t wr_size = (max_wr_size - adec_ram_num_bytes < buf_size) ? (max_wr_size - adec_ram_num_bytes) : (buf_size);
 	for(uint16_t i = 0; i < wr_size; i++)
 		audio_tx_dma_write(in_buf[i]);
 	
 	*in_size = wr_size;
-	
 	return pd->status;
 }
 
@@ -1678,7 +1701,6 @@ int hal_audio_encode_stop() {
 	if(!pd->enc_used)
 		return AUDIO_ERR_NOT_INIT;
     osMutexWait(pd->mutex, osWaitForever);
-	//audio_rx_disable_clk();	//move to close function, and use clk_audio_en() instead
 	audio_aenc_disable();
 	audio_rx_pdm_disable();	
 	audio_rx_disable_rd_dma_ack();
@@ -1706,6 +1728,7 @@ int hal_audio_decode_stop() {
 	//audio_tx_disable_clk();	
 
 	audio_dec_disable();
+	audio_autx_sdm_disable();
 	audio_tx_out_disable();
 	audio_afifo_en_wr_disable();
 	audio_afifo_en_rd_disable();

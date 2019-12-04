@@ -5,7 +5,7 @@
  *
  * @brief SPI flash header file  
  *
- * Copyright (C) Inplay Technologies Inc. 2018-2020
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
  *
  ****************************************************************************************
  */
@@ -39,7 +39,7 @@ void spi_flash_clk(void);
  ****************************************************************************************
  * @brief SPI flash pin mux function
  * @note This function is used to configure the SPI flash pins mux. The pin mux should be configured by the
- * inplay configuration tool and in the in_config.h header file. 
+ * Tropos configuration tool and in the in_config.h header file. 
  *
  *
  * @return This function has no return value. 

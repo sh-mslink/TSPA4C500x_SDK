@@ -7,9 +7,7 @@
  *
  * @brief RAM functions to support external SPI flash
  *
- *		  
- *
- * Copyright (C) Inplay Technologies Inc. 2018-2020
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
  *
  ****************************************************************************************
  */
@@ -164,6 +162,7 @@ __asm void warm_boot_jump(uint32_t pcr, uint32_t stk)
 
 static void clk_cfg_save(void)
 {
+#if !CFG_FPGA
 	g_clk.clkd0_enable1 = 	RD_WORD(GLOBAL_REG_CLKD0_ENABLE_1);
 	g_clk.clkd0_enable2 = 	RD_WORD(GLOBAL_REG_CLKD0_ENABLE_2);
 	g_clk.clkd1_enable1 = 	RD_WORD(GLOBAL_REG_CLKD1_ENABLE_1);
@@ -172,10 +171,12 @@ static void clk_cfg_save(void)
 
 	g_clk.clk_ctrl_1 = 	RD_WORD(GLOBAL_REG_CLK_CTRL_1);
 	g_clk.clk_ctrl_2 = 	RD_WORD(GLOBAL_REG_CLK_CTRL_2);
+#endif
 }
 
 static void clk_cfg_retore(void)
 {
+#if !CFG_FPGA
 	WR_WORD(GLOBAL_REG_CLKD0_ENABLE_1, g_clk.clkd0_enable1);
 	WR_WORD(GLOBAL_REG_CLKD0_ENABLE_2, g_clk.clkd0_enable2);
 	WR_WORD(GLOBAL_REG_CLKD1_ENABLE_1, g_clk.clkd1_enable1);
@@ -184,6 +185,7 @@ static void clk_cfg_retore(void)
 
 	WR_WORD(GLOBAL_REG_CLK_CTRL_1, g_clk.clk_ctrl_1);
 	WR_WORD(GLOBAL_REG_CLK_CTRL_2, g_clk.clk_ctrl_2);
+#endif
 }
 
 #if CFG_EXT_SPI_FLASH
@@ -197,14 +199,17 @@ static void time_delay(uint32_t us)
 
 static void spi_flash_power_on(void)
 {
+#if !CFG_FPGA
 	/// Turn on power
 	aon_qspi_vddio(1);
 	/// Wait
 	time_delay(CFG_EXT_SPI_FLASH_POWER_ON_SETTLE_TIME);
+#endif
 }
 
 static int boot_spi_flash_open(void)
 {
+#if !CFG_FPGA
 	int qspi_need_pin_cfg = 0;
 
 	/// external SPI flash
@@ -222,6 +227,7 @@ static int boot_spi_flash_open(void)
 		
 	/// QSPI pin mux
 	spi_flash_pin_mux(qspi_need_pin_cfg);		
+#endif
 
 	/// 
 	if (!spi_flash_init()) {
@@ -304,6 +310,7 @@ static int boot_spi_flash_read_stub(uint32_t addr, uint8_t *data, uint32_t data_
 #if CFG_EXT_SPI_FLASH
 static void qspi_set_up(int cold_boot)
 {
+#if !CFG_FPGA
 	int qspi_need_pin_cfg = 0;
 
 	/// external SPI flash efuse bit is not set
@@ -335,6 +342,7 @@ static void qspi_set_up(int cold_boot)
 	//if (efuse_get_flash_secure_boot_enable())
 	if (efuse_get_flash_encryption_enable())//turn on icache dec when flash is encripted
 		spi_flash_icache_dec(1);
+#endif
 
 	/// XIP enable
 	spi_flash_xip_enable(CFG_QSPI_SPEED);
@@ -396,6 +404,7 @@ void boot_load_fw_upd_code(void)
 
 static void boot_cold(void)
 {
+#if !CFG_FPGA
 	/// Clock configure
 	clk_cfg();
 
@@ -428,6 +437,7 @@ static void boot_cold(void)
 	}	
 #endif
 #endif	// CFG_EXT_SPI_FLASH
+#endif
 
 	// Set vector table offset
 	SCB->VTOR = CFG_BRAM_COLD_BOOT_ADDR & SCB_VTOR_TBLOFF_Msk; 
@@ -447,6 +457,7 @@ static void boot_warm(uint32_t addr)
 	pcr &= ~0x80000000;
 	//aon_write(0x11A4, pcr);
 
+#if !CFG_FPGA
 	/// Restore clock configuration
 	clk_cfg_retore();
 
@@ -462,6 +473,7 @@ static void boot_warm(uint32_t addr)
 
 	/// Secure Ram app???
 #endif	// CFG_EXT_SPI_FLASH
+#endif
 
 	// Set vector table offset
 	SCB->VTOR = CFG_BRAM_COLD_BOOT_ADDR & SCB_VTOR_TBLOFF_Msk; 

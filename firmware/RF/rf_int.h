@@ -3,7 +3,7 @@
  *
  * @file rf_int.h
  *
- * @brief RF internal functions  
+ * @brief RF interface functions  
  *
  * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
  *

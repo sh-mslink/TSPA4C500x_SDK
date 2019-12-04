@@ -3,6 +3,7 @@
 
 #include "stdint.h"
 
+
 typedef struct _plat_fun {
 	void (*srand)(uint32_t seed);
 	uint32_t (*rand)(void);
@@ -45,7 +46,7 @@ typedef struct _plat_fun {
 	int (*get_conn_pool_size)(void);
 	void (*uart_deinit)(void *hdl);
 	void (*platform_reset)(uint32_t reson);
-
+	uint32_t (*get_chip_pn)(void);
 }  plat_fun_t;
 
 extern const plat_fun_t plat_fun;

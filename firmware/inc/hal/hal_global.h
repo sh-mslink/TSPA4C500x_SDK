@@ -42,6 +42,10 @@ static __inline uint32_t chip_get_id(void)
 {
 	return (RD_WORD(GLOBAL_REG_CHIP_ID) & (GLOBAL_REG_CHIP_ID_VERSION|GLOBAL_REG_CHIP_ID_SUBVERSION));
 }
+static __inline uint32_t fw_get_version(void)
+{
+	return RD_WORD(0x3FFF8) ;
+}
 
 static __inline uint32_t chip_sleep(void)
 {

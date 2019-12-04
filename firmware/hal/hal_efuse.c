@@ -94,7 +94,7 @@ int hal_efuse_close(void)
 		pd->mutex = NULL;
 	}	
 
-	hal_clk_efuse_en(0);
+	//hal_clk_efuse_en(0);
 	
 	return EFUSE_ERR_OK;
 }

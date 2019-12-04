@@ -37,7 +37,7 @@
 #define MSRCU_VOICE_ENABLE          (1)//Enable voice functions
 #define MSRCU_MOTION_ENABLE         (1)//Enable motion functions
 #define MSRCU_IR_SEND_ENABLE        (1)//Enable IR send functions
-#define MSRCU_IR_LEARN_ENABLE       (1)//Enable IR learn functions
+#define MSRCU_IR_LEARN_ENABLE       (0)//Enable IR learn functions
 
 ///BLE parameters
 #define MSRCU_BLE_ADV_INTERVAL_MIN  (0x0020)//unit: 0.625ms, range: 20ms(0x0020)~10.24s(0x4000)
@@ -52,6 +52,7 @@
 #define MSRCU_BLE_DIRECT_ADV_ENABLE (1)//Use direct adv after bonded
 #if MSRCU_VOICE_ENABLE
 #define MSRCU_BLE_VOICE_ATV_ENABLE  (0)//Use ATV Voice Service
+#define MSRCU_BLE_VOICE_SAMPLE_RATE (16000)//unit: 1Hz, range: 8000/16000
 #endif
 
 ///Power parameters
@@ -99,8 +100,7 @@
 #if (MSRCU_IR_SEND_ENABLE || MSRCU_IR_LEARN_ENABLE)
     #define MSRCU_IR_CMD_NB             (3)//The number of ir send cmd
     #define MSRCU_IR_NEC_CARRIER_DUTY_RATIO (25)//1~99, recommended 25~33
-    #define MSRCU_IR_NEC_ADD_L          (0xAA)//Extended NEC protocol address lower byte
-    #define MSRCU_IR_NEC_ADD_H          (0x55)//Extended NEC protocol address higher byte
+    #define MSRCU_IR_NEC_ADDRESS        (0x08F7)//Extended NEC protocol address
     #define MSRCU_IR_LEARN_NB           (4)//The number of ir learn code could be stored
 #endif
 
@@ -140,9 +140,12 @@
 //#endif
 #endif
 
-#if (MSRCU_IR_SEND_ENABLE || MSRCU_IR_LEARN_ENABLE)
+#if MSRCU_IR_SEND_ENABLE
 #define MSRCU_DEV_IR_SEND_GPIO_PORT         (2)
 #define MSRCU_DEV_IR_SEND_GPIO_PIN          (4)
+#endif
+
+#if MSRCU_IR_LEARN_ENABLE
 #define MSRCU_DEV_IR_LEARN_GPIO_PORT        (2)
 #define MSRCU_DEV_IR_LEARN_GPIO_PIN         (7)
 #define MSRCU_DEV_IR_LEARN_CTRL_GPIO_PORT   (4)
@@ -186,19 +189,19 @@ enum
 typedef enum
 {    
     HID_KEYCODE_NULL    = 0x0000,
-    HID_KEYCODE_POWER   = 0x0001,
-    HID_KEYCODE_UP      = 0x0002,
-    HID_KEYCODE_DOWN    = 0x0003,
-    HID_KEYCODE_LEFT    = 0x0004,
-    HID_KEYCODE_RIGHT   = 0x0005,
-    HID_KEYCODE_ENTER   = 0x0006,
-    HID_KEYCODE_BACK    = 0x0007,
-    HID_KEYCODE_VOLUP   = 0x0008,
-    HID_KEYCODE_VOLDOWN = 0x0009,
-    HID_KEYCODE_SEARCH  = 0x0100,
-    HID_KEYCODE_HOME    = 0x0200,
-    HID_KEYCODE_MUTE    = 0x0300,
-    HID_KEYCODE_MENU    = 0x0400,
+    HID_KEYCODE_POWER   = 0x0100,
+    HID_KEYCODE_UP      = 0x0200,
+    HID_KEYCODE_DOWN    = 0x0300,
+    HID_KEYCODE_LEFT    = 0x0400,
+    HID_KEYCODE_RIGHT   = 0x0500,
+    HID_KEYCODE_ENTER   = 0x0600,
+    HID_KEYCODE_BACK    = 0x0700,
+    HID_KEYCODE_VOLUP   = 0x0800,
+    HID_KEYCODE_VOLDOWN = 0x0900,
+    HID_KEYCODE_SEARCH  = 0x0A00,
+    HID_KEYCODE_HOME    = 0x0B00,
+    HID_KEYCODE_MUTE    = 0x0C00,
+    HID_KEYCODE_MENU    = 0x0D00,
 }hidKeycode_t;
 
 #if MSRCU_IR_SEND_ENABLE 

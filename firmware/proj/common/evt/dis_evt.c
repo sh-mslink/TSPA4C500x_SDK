@@ -29,7 +29,7 @@
 #define APP_DIS_SERIAL_NB_STR_LEN       (10)
 
 /// Firmware Revision
-#define APP_DIS_FIRM_REV_STR            ("1.0.17")
+#define APP_DIS_FIRM_REV_STR            ("1.0.18")
 #define APP_DIS_FIRM_REV_STR_LEN        (6)
 
 /// System ID Value - LSB -> MSB
@@ -41,7 +41,7 @@
 #define APP_DIS_HARD_REV_STR_LEN        (5)
 
 /// Software Revision String
-#define APP_DIS_SW_REV_STR              ("SDK_0.4.2")
+#define APP_DIS_SW_REV_STR              ("SDK_0.5.0")
 #define APP_DIS_SW_REV_STR_LEN          (9)
 
 /// IEEE

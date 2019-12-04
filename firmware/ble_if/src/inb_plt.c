@@ -27,6 +27,8 @@
 #include ".\hal\hal_uart.h"
 #include ".\hal\hal_smem.h"
 #include ".\hal\hal_clk.h"
+#include ".\hal\hal_efuse.h"
+#include ".\hal\hal_global.h"
 
 #if CFG_PM_EN
 #include ".\hal\hal_power.h"
@@ -35,13 +37,15 @@
 #include "..\inc\inb_plt.h"
 #include ".\ble\inb_api.h"
 
+#define ASSERT_RESET
+
 #if CFG_PM_EN
 static struct pm_module g_ble_pm;
 #endif
 
 #ifdef ASSERT_DISPLAY
 uint8_t assert_display_flag=0;
- char assert_file[16]={0}; 
+char assert_file[16]={0}; 
 int assert_line=0;
 int assert_param0=0;
 int assert_param1=0;
@@ -83,9 +87,9 @@ static uint32_t inb_rand(void)
 static void *inb_uart_init(void)
 {
 #if CFG_HCI
-    if(!isHciEnable())
-        return NULL;
-    
+	if(!isHciEnable())
+		return NULL;
+
 	//int id = CFG_HCI_UART_ID;
 	void *h_uart;
 
@@ -94,7 +98,7 @@ static void *inb_uart_init(void)
 	return h_uart;
 #else
 	return NULL;
-#endif	
+#endif
 }
 
 static void inb_uart_deinit(void *hdl)
@@ -262,7 +266,7 @@ static void inb_os_mutex_unlock(void *h)
 #endif
 }
 
-static void *inb_os_semaphore_create(void)	
+static void *inb_os_semaphore_create(void)
 {
 #if 0
 #if BLE_NB_SEMAPHORE
@@ -301,7 +305,7 @@ static void *inb_os_semaphore_create(void)
 #endif
 }
 
-static void inb_os_semaphore_delete(void *h)	
+static void inb_os_semaphore_delete(void *h)
 {
 #if 0
 #if BLE_NB_SEMAPHORE
@@ -330,7 +334,7 @@ static void inb_os_semaphore_delete(void *h)
 #endif
 }
 
-static int inb_os_semaphore_wait(void *h)	
+static int inb_os_semaphore_wait(void *h)
 {
 #if 0
 	osSemaphoreId sma = (osSemaphoreId)h;
@@ -338,13 +342,13 @@ static int inb_os_semaphore_wait(void *h)
 
 	res = osSemaphoreWait(sma, osWaitForever);
 
-	return res;		
+	return res;
 #else
 	return 0;
 #endif
 }
 
-static int inb_os_semaphore_release(void *h)	
+static int inb_os_semaphore_release(void *h)
 {
 #if 0
 	osSemaphoreId sma = (osSemaphoreId)h;
@@ -355,9 +359,9 @@ static int inb_os_semaphore_release(void *h)
 	if (status != osOK)
 		return -1;
 
-	return 0;		
+	return 0;
 #else
-	return 0;		
+	return 0;
 #endif
 }
 
@@ -412,7 +416,7 @@ static int inb_os_task_wait(void *h)
 	evt = osSignalWait(0, osWaitForever);
 	
 	if (evt.status == osEventSignal) {
-		ret = evt.value.signals;		
+		ret = evt.value.signals;
 	} else {
 		if (evt.status == osEventTimeout) {
 			ret = -1;
@@ -542,6 +546,9 @@ void inb_assert_error(const char *file, int line)
 		
 	}
 	#endif
+	#ifdef ASSERT_RESET
+	hal_global_sys_reset();
+	#endif
 }
 
 static void inb_assert_param(const char *file, int line, int param0, int param1)
@@ -557,6 +564,9 @@ static void inb_assert_param(const char *file, int line, int param0, int param1)
 		assert_param1=param1;
 		assert_display_flag=1;
 	}
+	#endif
+	#ifdef ASSERT_RESET
+	hal_global_sys_reset();
 	#endif
 }
 
@@ -575,6 +585,9 @@ static void inb_assert_warn(const char *file, int line, int param0, int param1)
 	}
 	#endif
 	// TODO
+	#ifdef ASSERT_RESET
+	hal_global_sys_reset();
+	#endif
 }
 
 static void inb_trace(uint32_t flag, char *fmt, ...)
@@ -586,7 +599,7 @@ static void inb_trace(uint32_t flag, char *fmt, ...)
 	vsnprintf(str, 64, fmt, args);
 	va_end(args);
 	
-	PRINTD(DBG_TRACE, str);		
+	PRINTD(DBG_TRACE, str);
 
 	return;
 }
@@ -642,10 +655,17 @@ int inb_get_conn_pool_size(void)	/// Not used
 	return 0;
 }
 
-void inb_platform_reset(uint32_t reson)		
+void inb_platform_reset(uint32_t reson)
 {
 	// TODO
 	__breakpoint(3);
+}
+
+uint32_t inb_chip_pn(void)
+{
+	uint32_t pn = efuse_read_word(EFUSE1_ID, 0, 0);
+
+	return pn;
 }
 
 uint32_t get_rtc_clk(void)
@@ -700,5 +720,6 @@ const plat_fun_t plat_fun = {
 
 	inb_uart_deinit,
 	inb_platform_reset,
+	inb_chip_pn,
 };
 

@@ -682,7 +682,7 @@ int hal_spi_close(void *hdl);
  * @param[in] cs				The SPI slave select.  This is only valid for SPI master and the possible value are 0 or 1.
  * @param[in] speed			The SPI serial clock rate.  They can be 16, 8, 4, 2, or 1 Mhz. Only for master.
  * @param[in] phase			The SPI clock phase. 0: first edge of SPI clock, 1: trailing edge of SPI clock.
- * @param[in] poplarity	The SPI clock polarity. 0: rising, 1: falling.
+ * @param[in] polarity	The SPI clock polarity. 0: rising, 1: falling.
  * @param[in] dfs				The data frame size, @see enum spi_dfs_bit.
  * @param[in] buffer		The void pointer point to the TX buffer.  This pointer, depends on the data frame size,
  *										will be cast by the driver to byte, short, or long.
@@ -705,7 +705,7 @@ int hal_spi_tx(void *hdl, int cs, int speed, int phase, int polarity, int dfs, v
  * @param[in] cs				The SPI slave select.  This is only valid for master SPI and the possible value are 0 or 1.
  * @param[in] speed			The SPI serial clock rate.  They can be 16, 8, 4, 2, or 1 Mhz.  Only for master.
  * @param[in] phase			The SPI clock phase. 0: first edge of SPI clock, 1: trailing edge of SPI clock.
- * @param[in] poplarity	The SPI clock polarity. 0: rising, 1: falling.
+ * @param[in] polarity	The SPI clock polarity. 0: rising, 1: falling.
  * @param[in] dfs				The data frame size, @see enum spi_dfs_bit.
  * @param[in] buffer		The void pointer point to the RX buffer.  This pointer, depends on the data frame size,
  *										will be cast by the driver to byte, short, or long.
@@ -730,13 +730,13 @@ int hal_spi_rx(void *hdl, int cs, int speed, int phase, int polarity, int dfs, v
  * @param[in] cs				The SPI slave select.  This is only valid for master SPI and the possible value are 0 or 1.
  * @param[in] speed			The SPI serial clock rate.  They can be 16, 8, 4, 2, or 1 Mhz. Only for master.
  * @param[in] phase			The SPI clock phase. 0: first edge of SPI clock, 1: trailing edge of SPI clock.
- * @param[in] poplarity	The SPI clock polarity. 0: rising, 1: falling.
+ * @param[in] polarity	The SPI clock polarity. 0: rising, 1: falling.
  * @param[in] dfs				The data frame size, @see enum spi_dfs_bit.
  * @param[in] wbuf			The void pointer point to the TX buffer.  This pointer, depends on the data frame size,
  *										will be cast by the driver to byte, short, or long.
  * @param[in] rbuf			The void pointer point to the RX buffer.  This pointer, depends on the data frame size,
  *										will be cast by the driver to byte, short, or long.
- * @param[in] buffer_len	The TX and RX buffer length.       
+ * @param[in] buf_len	The TX and RX buffer length.       
  *
  * @return SPI_ERR_OK if successful, otherwise failed. @see enum spi_err. 
  ****************************************************************************************
@@ -758,7 +758,7 @@ int hal_spi_trx(void *hdl, int cs, int speed, int phase, int polarity, int dfs, 
  * @param[in] cs				The SPI slave select.  This is only valid for SPI master and the possible value are 0 or 1.
  * @param[in] speed			The SPI serial clock rate.  They can be 16, 8, 4, 2, or 1 Mhz. Only for master.
  * @param[in] phase			The SPI clock phase. 0: first edge of SPI clock, 1: trailing edge of SPI clock.
- * @param[in] poplarity	The SPI clock polarity. 0: rising, 1: falling.
+ * @param[in] polarity	The SPI clock polarity. 0: rising, 1: falling.
  * @param[in] dfs				The data frame size, @see enum spi_dfs_bit.
  * @param[in] buffer		The void pointer point to the TX buffer.  This pointer, depends on the data frame size,
  *										will be cast by the driver to byte, short, or long.
@@ -767,7 +767,7 @@ int hal_spi_trx(void *hdl, int cs, int speed, int phase, int polarity, int dfs, 
  * @return SPI_ERR_OK if successful, otherwise failed. @see enum spi_err. 
  ****************************************************************************************
  */
-int hal_spi_tx_dma(void *h, int cs, int speed, int phase, int polarity, int dfs, void *buffer, uint16_t buffer_len);
+int hal_spi_tx_dma(void *hdl, int cs, int speed, int phase, int polarity, int dfs, void *buffer, uint16_t buffer_len);
 
 /**
  ****************************************************************************************
@@ -781,7 +781,7 @@ int hal_spi_tx_dma(void *h, int cs, int speed, int phase, int polarity, int dfs,
  * @param[in] cs				The SPI slave select.  This is only valid for master SPI and the possible value are 0 or 1.
  * @param[in] speed			The SPI serial clock rate.  They can be 16, 8, 4, 2, or 1 Mhz.  Only for master.
  * @param[in] phase			The SPI clock phase. 0: first edge of SPI clock, 1: trailing edge of SPI clock.
- * @param[in] poplarity	The SPI clock polarity. 0: rising, 1: falling.
+ * @param[in] polarity	The SPI clock polarity. 0: rising, 1: falling.
  * @param[in] dfs				The data frame size, @see enum spi_dfs_bit.
  * @param[in] buffer		The void pointer point to the RX buffer.  This pointer, depends on the data frame size,
  *										will be cast by the driver to byte, short, or long.
@@ -790,7 +790,7 @@ int hal_spi_tx_dma(void *h, int cs, int speed, int phase, int polarity, int dfs,
  * @return SPI_ERR_OK if successful, otherwise failed. @see enum spi_err. 
  ****************************************************************************************
  */
-int hal_spi_rx_dma(void *h, int cs, int speed, int phase, int polarity, int dfs, void *buffer, uint16_t buffer_len);
+int hal_spi_rx_dma(void *hdl, int cs, int speed, int phase, int polarity, int dfs, void *buffer, uint16_t buffer_len);
 
 /**
  ****************************************************************************************
@@ -806,7 +806,7 @@ int hal_spi_rx_dma(void *h, int cs, int speed, int phase, int polarity, int dfs,
  * @param[in] cs				The SPI slave select.  This is only valid for master SPI and the possible value are 0 or 1.
  * @param[in] speed			The SPI serial clock rate.  They can be 16, 8, 4, 2, or 1 Mhz. Only for master.
  * @param[in] phase			The SPI clock phase. 0: first edge of SPI clock, 1: trailing edge of SPI clock.
- * @param[in] poplarity	The SPI clock polarity. 0: rising, 1: falling.
+ * @param[in] polarity	The SPI clock polarity. 0: rising, 1: falling.
  * @param[in] dfs				The data frame size, @see enum spi_dfs_bit.
  * @param[in] wbuf			The void pointer point to the TX buffer.  This pointer, depends on the data frame size,
  *										will be cast by the driver to byte, short, or long.
@@ -817,15 +817,81 @@ int hal_spi_rx_dma(void *h, int cs, int speed, int phase, int polarity, int dfs,
  * @return SPI_ERR_OK if successful, otherwise failed. @see enum spi_err. 
  ****************************************************************************************
  */
-int hal_spi_trx_dma(void *h, int cs, int speed, int phase, int polarity, int dfs, void *wbuf, void *rbuf, uint16_t buffer_len);
+int hal_spi_trx_dma(void *hdl, int cs, int speed, int phase, int polarity, int dfs, void *wbuf, void *rbuf, uint16_t buffer_len);
 
 
 /**
  * Experimental slave SPI API 
  */
-int hal_spi_slv_tx(void *hdl, int cs, int speed, int phase, int polarity, int dfs, void *buffer, uint16_t buffer_len, uint16_t *tx_len);
-int hal_spi_slv_rx(void *hdl, int cs, int speed, int phase, int polarity, int dfs, void *buffer, uint16_t buffer_len, uint16_t *rx_len);
-int hal_spi_slv_stop(void *hdl);
+ /**
+ ****************************************************************************************
+ * @brief Slave SPI transmit function
+ * @note 
+ *				1. For SPI slave transmit, the master needs to provide the "Slave Select" signal.  The SPI slave will 
+ *					transmit one unit (could be byte, short, or long depends on the data frame size) out per "Slave Select"
+ *					signal.  SPI slave can't do multiple transfer within one "Slave Select" signal. 
+ *				2.	SPI slave can only support speed up to D0 clock divided by 4.  If D0 clock is 32 Mhz, then SPI master
+ *					speed has to be less or equal to 8 Mhz.    
+ *					 
+ *
+ * @param[in] hdl				The handle from the "open" function call.   
+ * @param[in] phase			The SPI clock phase. 0: first edge of SPI clock, 1: trailing edge of SPI clock.
+ * @param[in] polarity	The SPI clock polarity. 0: rising, 1: falling.
+ * @param[in] dfs				The data frame size, @see enum spi_dfs_bit.
+ * @param[in] buffer		The void pointer point to the TX buffer.  This pointer, depends on the data frame size,
+ *										will be cast by the driver to byte, short, or long.
+ * @param[in] buffer_len	The TX buffer length.       
+ * @param[out] tx_len		Actual TX length.
+ *
+ * @return SPI_ERR_OK if successful, otherwise failed. @see enum spi_err. 
+ ****************************************************************************************
+ */
+int hal_spi_slv_tx(void *hdl, int phase, int polarity, int dfs, void *buffer, uint16_t buffer_len, uint16_t *tx_len);
+/**
+ ****************************************************************************************
+ * @brief  Slave SPI Receive function
+ * @note 
+ *				1. SPI slave can receive multiple uint within one "Slave Select" signal. 
+ *				2.	SPI slave can only support speed up to D0 clock divided by 4.  If D0 clock is 32 Mhz, then SPI master
+ *					speed has to be less or equal to 8 Mhz.    
+ *
+ * @param[in] hdl				The handle from the "open" function call.   
+ * @param[in] phase			The SPI clock phase. 0: first edge of SPI clock, 1: trailing edge of SPI clock.
+ * @param[in] polarity	The SPI clock polarity. 0: rising, 1: falling.
+ * @param[in] dfs				The data frame size, @see enum spi_dfs_bit.
+ * @param[in] buffer		The void pointer point to the RX buffer.  This pointer, depends on the data frame size,
+ *										will be cast by the driver to byte, short, or long.
+ * @param[in] buffer_len	The RX buffer length.       
+ * @param[out] rx_len		Actual RX length.
+ *
+ * @return SPI_ERR_OK if successful, otherwise failed. @see enum spi_err. 
+ ****************************************************************************************
+ */
+
+int hal_spi_slv_rx(void *hdl,  int phase, int polarity, int dfs, void *buffer, uint16_t buffer_len, uint16_t *rx_len);
+
+/**
+ ****************************************************************************************
+ * @brief  Slave SPI stop function
+ *
+ * @param[in] hdl				The handle from the "open" function call.   
+ *
+ * @return None. 
+ ****************************************************************************************
+ */
+
+void hal_spi_slv_stop(void *hdl);
+
+/**
+ ****************************************************************************************
+ * @brief  Get SPI busy status.
+ *
+ * @param[in] hdl				The handle from the "open" function call.   
+ *
+ * @return 1 if busy, otherwise 0 
+ ****************************************************************************************
+ */
+
 int hal_spi_busy(void *hdl);
 /// @} HAL_SPI
 

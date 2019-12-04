@@ -2,7 +2,6 @@
  ****************************************************************************************
  *
  * Auto Generated Project Configuration File
- *		Do not modify !!!
  *
  * @file IN_CONFIG(PROJ_TPPC).H
  *
@@ -18,6 +17,8 @@
 /// @Misc::TSPA4C500X
 #define CFG_TSPA4C500X	1
 #define CFG_FPGA	0
+/// @Misc::OTA
+#define CFG_FW_UPD_EN	0
 /// @Misc::PM
 #define CFG_PM_EN	1
 #define CFG_PM_DEEP_SLEEP_THRD	5
@@ -59,8 +60,9 @@
 #define CFG_QSPI_CLK	64000000
 #define CFG_AUDIO_CODEC_CLK_MUX	0
 #define CFG_SI2S_CLK_MUX	1
-#define CFG_RTC_EN	1
-#define CFG_RTC_CLK	32768
+#define CFG_RTC_EN	0
+#define CFG_RTC_CLK	0
+#define CFG_RC_PPM_OFFSET 760
 /// @Misc::SMEM
 /// [0:15]: size
 /// [16:31]: address offset
@@ -199,7 +201,7 @@
 /// @BLE::PLT
 #define CFG_BLE_PARAM_BD_ADDR	0x11, 0x11, 0x11, 0x11, 0x11, 0x11
 #define CFG_BLE_PARAM_SLP_ALGO_DUR	200
-#define CFG_BLE_PARAM_LPC_DRIFT	500
+#define CFG_BLE_PARAM_LPC_DRIFT	1000
 #define CFG_BLE_PARAM_RADIO_WUP_TIME	625
 #define CFG_BLE_PARAM_OSC_WUP_TIME	2500
 #define CFG_BLE_PARAM_MAX_SLEEP_DURATION_TIME	0x0000fa00

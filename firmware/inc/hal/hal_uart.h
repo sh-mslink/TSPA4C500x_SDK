@@ -302,6 +302,7 @@ static __inline int uart_fifo_enable_status(uint32_t uart_base)
 
 static __inline void uart_set_fcr(uint32_t uart_base, int fifo_enable, int fifo_tx_thold, int fifo_rx_thold, int dma_mode)			
 {
+	// This is a write only register.
 	uint32_t reg = 0;
 
 	if (fifo_enable) {
@@ -327,6 +328,7 @@ static __inline void uart_auto_fc(uint32_t uart_base, int fc)
 {
 	WR_WORD(uart_base + UART_REG_MCR_OFS, (fc ? (RD_WORD(uart_base + UART_REG_MCR_OFS)|UART_MCR_AFCE) : (RD_WORD(uart_base + UART_REG_MCR_OFS)&~UART_MCR_AFCE)));		
 }
+
 
 static __inline void uart_xmit_ready(uint32_t uart_base)
 {
@@ -460,15 +462,17 @@ int hal_uart_rcvd_poll(void *hdl, uint8_t *buffer, uint32_t buffer_len);
 /**
  ****************************************************************************************
  * @brief Uart TX by interrupt
- * @note This function can be in either block or non-block mode. If callback is not specified, then the function
- *				will be blocked until TX completed.  Otherwise, the completion will be called from the uart interrupt
- *				service routine and user can deal with completion thru call back. 
+ * @note This function can be in either block or non-block mode. If TX completion call back function is not 
+ *				specified, this function will be blocked until TX completed.  Otherwise, this function will return 
+ *				(non-block) 	without waiting for the TX completion.  Later on, the TX completion callback function 
+ *				will be called from the driver's interrupt service routine to indicate transfer completed, the exact 
+ *				transmit bytes and any errors.   
  *
  * @param[in] hdl					Uart handle from the open API
  * @param[in] buffer			Data buffer to TX
  * @param[in] buffer_len		Data buffer length
- * @param[in] cb_arg			Argument that user wants to pass to the call back function
- * @param[in] callback			Function provided by the user 
+ * @param[in] cb_arg			Argument that user wants to pass to the TX completion call back function
+ * @param[in] callback			TX completion call back function provided by the user 
  *
  * @return Driver error return code, @see enum uart_err 
  ****************************************************************************************
@@ -478,21 +482,40 @@ int hal_uart_xmit_intr(void *hdl, uint8_t *buffer, uint32_t buffer_len, void *cb
 /**
  ****************************************************************************************
  * @brief Uart RX by interrupt
- * @note This function can be in either block or non-block mode. If callback is not specified, then the function
- *				will be blocked until RX completed.  Otherwise, the completion will be called from the uart interrupt
- *				service routine and user can deal with completion thru call back. 
+ * @note This function can be in either block or non-block mode. If RX completion call back function is not 
+ *				specified, this function will be blocked until RX completed.  Otherwise, this function will return 
+ *				(non-block) 	without waiting for the RX completion.  Later on, the RX completion callback function 
+ *				will be called from the driver's interrupt service routine to indicate transfer completed, the exact 
+ *				receive bytes and any errors.   
  *
  * @param[in] hdl					Uart handle from the open API
  * @param[in] buffer			Data buffer to RX
  * @param[in] buffer_len		Data buffer length
- * @param[in] cb_arg			Argument that user wants to pass to the call back function
- * @param[in] callback			Function provided by the user 
+ * @param[in] cb_arg			Argument that user wants to pass to the RX completion call back function
+ * @param[in] callback			RX completion call back function provided by the user 
  *
  * @return Driver error return code, @see enum uart_err 
  ****************************************************************************************
  */
 
 int hal_uart_rcvd_intr(void *hdl, uint8_t *buffer, uint32_t buffer_len, void *cb_arg, void (*callback)(void *arg, int length, int error));
+
+/**
+ ****************************************************************************************
+ * @brief Uart RX by interrupt with timeout
+ * @note This function is a blocking call. It will return when there is no transmit for 4 characters time.  
+ *				And it will return after tmo time too.
+ *
+ * @param[in] hdl					Uart handle from the open API
+ * @param[in] buffer			Data buffer to RX
+ * @param[in] buffer_len		Data buffer length
+ * @param[out] rx_len        Recieved data length
+ * @param[in] tmo             Timeout, don't set it to 0.
+ *
+ * @return Driver error return code, @see enum uart_err 
+ ****************************************************************************************
+ */
+int hal_uart_rcvd_intr_tmo(void *hdl, uint8_t *buffer, uint32_t buffer_len, uint32_t *rx_len, uint32_t tmo);
 
 /**
  ****************************************************************************************
@@ -527,7 +550,67 @@ int hal_uart_flow_off(void *hdl);
  */
 int hal_uart_wait_break(void *hdl);
 
+/**
+ ****************************************************************************************
+ * @brief Uart TX by DMA
+ *
+ * @param[in] hdl					Uart handle from the open API
+ * @param[in] buffer			Data buffer to TX
+ * @param[in] buffer_len		Data buffer length
+ * @param[in] arg					Argument that user wants to pass to the call back function
+ * @param[in] callback			Callback function provided by the user for the driver ISR to indicate that 
+ *											the transfer is completed, the exact transmit bytes and any errors.   
+ *
+ * @return Driver error return code, @see enum uart_err 
+ ****************************************************************************************
+ */
+int hal_uart_xmit_dma(void *hdl, uint8_t *buffer, uint32_t buffer_len, void *arg, void (*callback)(void *arg, int length, int error));
+
+/**
+ ****************************************************************************************
+ * @brief Uart RX by DMA
+ *
+ * @param[in] hdl							Uart handle from the open API
+ * @param[in] buffer					Data buffer pointer for RX
+ * @param[in] buffer_len				Data buffer length
+ * @param[out]actual_rx_len	Blocking call return the exact RX bytes
+ * @param[in] arg							Argument that user wants to pass to the call back function
+ * @param[in] callback					Callback function provided by the user for the driver ISR to indicate that 
+ *													the transfer is completed, the exact receive bytes and any errors.   
+ *
+ * @return Driver error return code, @see enum uart_err 
+ ****************************************************************************************
+ */
+int hal_uart_rcvd_dma(void *hdl, uint8_t *buffer, uint32_t buffer_len, uint32_t *actual_rx_len, void *arg, void (*callback)(void *arg, int length, int error));
+
+/**
+ ****************************************************************************************
+ * @brief Uart RX by DMA with timeout
+ *
+ * @param[in] hdl							Uart handle from the open API
+ * @param[in] buffer					Data buffer pointer for RX
+ * @param[in] buffer_len				Data buffer length
+ * @param[out]actual_rx_len	Blocking call return the exact RX bytes
+ * @param[in] tmo						Timeout. Function will return after tmo ms.
+ *
+ * @return Driver error return code, @see enum uart_err 
+ ****************************************************************************************
+ */
+
+int hal_uart_rcvd_dma_tmo(void *hdl, uint8_t *buffer, uint32_t buffer_len, uint32_t *actual_rx_len, uint32_t tmo);
+
+/**
+ ****************************************************************************************
+ * @brief Clear RX FIFO
+ *
+ * @param[in] hdl							Uart handle from the open API  
+ *
+ * @return Driver error return code, @see enum uart_err 
+ ****************************************************************************************
+ */
+int hal_uart_clear_rx_fifo(void* hdl);
 /// @} HAL_UART
+
 
 #endif	// HAL_UART_H
 

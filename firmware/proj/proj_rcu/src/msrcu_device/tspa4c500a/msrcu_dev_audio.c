@@ -159,6 +159,9 @@ static msrcuErr_t msrcu_dev_audio_adpcm_block_callback(uint8_t *buf)
     sendBuf[1] = gAdpcmBlkNb & 0xFF;
     sendBuf[2] = 0x00;
     
+    for(i = 3; i < ADPCM_BLOCK_SIZE_DEV; i++)
+        buf[i] = buf[i] << 4 | buf[i] >> 4;
+    
     //1st package
     memcpy(sendBuf + 3, buf, VOICE_BLE_PKG_SIZE - 3);
     err = msrcu_dev_audio_ble_package_send(sendBuf, VOICE_BLE_PKG_SIZE);

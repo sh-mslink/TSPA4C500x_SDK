@@ -60,8 +60,8 @@
 #define CFG_QSPI_CLK	64000000
 #define CFG_AUDIO_CODEC_CLK_MUX	0
 #define CFG_SI2S_CLK_MUX	1
-#define CFG_RTC_EN	0
-#define CFG_RTC_CLK	0
+#define CFG_RTC_EN	1
+#define CFG_RTC_CLK	32768
 #define CFG_RC_PPM_OFFSET 760
 /// @Misc::SMEM
 /// [0:15]: size

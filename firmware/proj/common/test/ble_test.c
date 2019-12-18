@@ -115,7 +115,7 @@ int start_adv(void)
     adv.option = 0;
     adv.own_addr_type = 0;
     adv.adv_param.type = ADV_TYPE_LEGACY;
-    adv.adv_param.disc_mode = ADV_MODE_LIM_DISC;
+    adv.adv_param.disc_mode = ADV_MODE_GEN_DISC;
     adv.adv_param.prop = ADV_PROP_UNDIR_CONN;
     adv.adv_param.max_tx_pwr = 0;
     adv.adv_param.filter_pol = ADV_FILT_ALLOW_SCAN_ANY_CON_ANY;

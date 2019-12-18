@@ -16,12 +16,9 @@
 
 enum
 {
-    ATVV_IDX_SVC,
-    
     ATVV_IDX_CHAR_TX,
     ATVV_IDX_CHAR_TX_VAL,
-    ATVV_IDX_CHAR_TX_USER_DESP,
-
+    
     ATVV_IDX_CHAR_RX,
     ATVV_IDX_CHAR_RX_VAL,
     ATVV_IDX_CHAR_RX_CFG,
@@ -29,7 +26,7 @@ enum
     ATVV_IDX_CHAR_CTL,
     ATVV_IDX_CHAR_CTL_VAL,
     ATVV_IDX_CHAR_CTL_CFG,
-
+    
     ATVV_IDX_NB,
 };
 

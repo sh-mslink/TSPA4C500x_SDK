@@ -5,7 +5,7 @@
  *
  * @brief Porting to support BLE statck source code 
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  *
  ****************************************************************************************
@@ -720,6 +720,5 @@ const plat_fun_t plat_fun = {
 
 	inb_uart_deinit,
 	inb_platform_reset,
-	inb_chip_pn,
 };
 

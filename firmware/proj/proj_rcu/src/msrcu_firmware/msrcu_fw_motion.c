@@ -3,11 +3,11 @@
  *
  * @file msrcu_fw_motion.c
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
- 
+
 /* Include Files
  ****************************************************************************************
  */
@@ -48,7 +48,7 @@ static bool isStop = true;
 #if MSRCU_BMI160_I2C
 static struct bmi160_dev bm160Dev = {0};
 #endif
- 
+
 /* Function Definition
  ****************************************************************************************
  */
@@ -428,7 +428,7 @@ msrcuErr_t msrcu_fw_motion_get_data(msrcuMotionAcc_t *acc, msrcuMotionGyro_t *gy
         amD.sensor.accZ = bAcc.z;
         amD.sensor.gyroX = bGyro.x;
         amD.sensor.gyroY = bGyro.y;
-        amD.sensor.gyroZ = bGyro.z; 
+        amD.sensor.gyroZ = bGyro.z;
         
 //        MSPRINT("accG: %f %f %f, gyro: %d %d %d.\r\n",
 //                amD.sensor.accX/4096.0, amD.sensor.accY/4096.0, amD.sensor.accZ/4096.0,
@@ -481,18 +481,23 @@ msrcuErr_t msrcu_fw_motion_mouse_hid_send(uint8_t conIndex, msrcuMouseButton_t b
     
     msrcuErr_t err = ERR_DEVICE;
     
-    msrcuBleHidReport_t report = {0};
+    msrcuBleHidReport_t *report = malloc(sizeof(msrcuBleHidReport_t));
+    if(!report)
+        return ERR_NO_MEMORY;
     
-    report.conIndex = conIndex;
-    report.instance = HID_MOUSE_INSTANCE;
-    report.length = MOUSE_HID_PKG_SIZE;
-    report.data[MOUSE_HID_PKG_KEY_IDX] = button;
-    report.data[MOUSE_HID_PKG_X_IDX] = mouse->x;
-    report.data[MOUSE_HID_PKG_Y_IDX] = mouse->y;
+    report->conIndex = conIndex;
+    report->instance = HID_MOUSE_INSTANCE;
+    report->length = MOUSE_HID_PKG_SIZE;
+    report->data[MOUSE_HID_PKG_KEY_IDX] = button;
+    report->data[MOUSE_HID_PKG_X_IDX] = mouse->x;
+    report->data[MOUSE_HID_PKG_Y_IDX] = mouse->y;
     
 #if MSRCU_DEV == MSRCU_DEV_TSPA4C500X
-    err = msrcu_dev_ble_hid_send(&report);
+    err = msrcu_dev_ble_hid_send(report);
 #endif
+    
+    if(report)
+        free(report);
     
     return err;
 }

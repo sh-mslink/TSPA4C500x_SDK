@@ -3,11 +3,11 @@
  *
  * @file msrcu_debug.h
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
- 
+
 #ifndef MSRCU_DEBUG_H
 #define MSRCU_DEBUG_H
 

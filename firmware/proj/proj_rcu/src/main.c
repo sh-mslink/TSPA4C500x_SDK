@@ -1,3 +1,16 @@
+/**
+ ****************************************************************************************
+ *
+ * @file main.c
+ *
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
+ *
+ ****************************************************************************************
+ */
+ 
+/* Include Files
+ ****************************************************************************************
+ */
 #include "in_config.h"
 
 #include <stdio.h>
@@ -8,6 +21,14 @@
 #include "in_debug.h"
 #include "inb_config.h"
 #include "rf_int.h"
+
+#include "spi_flash.h"
+#include "cmsis_os.h"
+
+#include "msg.h"
+#include "ble_app.h"
+#include "ble_evt.h"
+
 #include "hal_uart.h"
 #include "hal_gpio.h"
 #include "hal_power.h"
@@ -16,21 +37,14 @@
 #include "hal_adc.h"
 #include "hal_clk.h"
 #include "hal_keyboard.h"
+#include "hal_flash.h"
 #include "hal_global.h"
-#include "spi_flash.h"
-
-#include "cmsis_os.h"
-
-#include "msg.h"
-#include "ble_test.h"
-#include "gap_test.h"
 
 #include "msrcu_app.h"
-#if MSRCU_BLE_VOICE_ATV_ENABLE
-#include "prf_atv_task.h"
-#endif
-#include "airmouse.h"
 
+/* Macro Definition
+ ****************************************************************************************
+ */
 
 #define LED_R   0
 #define LED_G   1
@@ -42,50 +56,65 @@
 
 #define BOND_DATA_FLASH_OFFSET  (0x7E000)
 
+/* Enum Definition
+ ****************************************************************************************
+ */
 
+/* Struct Definition
+ ****************************************************************************************
+ */
+
+/* Function Declaration
+ ****************************************************************************************
+ */
+static void user_rcu_power_timer_callback(void const *arg);
+static void user_rcu_longpress_timer_callback(void const *arg);
+static void user_rcu_led_timer_callback(void const *arg);
+static void user_rcu_rf_test_timer_callback(void const *arg);
+static void user_rcu_adv_timer_callback(void const *arg);
+static void user_rcu_connect_timer_callback(void const *arg);
+static void user_rcu_bond_timer_callback(void const *arg);
+#if MSRCU_MOTION_ENABLE
+static void user_rcu_motion_timer_callback(void const *arg);
+#endif
+
+static msrcuErr_t user_rcu_ble_bond_data_clear(msrcuBleBondData_t* data);
+static msrcuErr_t user_rcu_ble_adv_start(void);
+static msrcuErr_t user_rcu_ble_adv_stop(void);
+
+
+/* Global Variable
+ ****************************************************************************************
+ */
 msrcuBleBondData_t msrcuBondData = {0};
-extern int hal_spi_flash_prog(uint32_t erase_addr, uint32_t erase_size, uint32_t prog_addr, uint32_t prog_size, uint8_t *prog_data, int verify);
 static msrcuAppCallback_t userAppCb = {0};
 
 static msrcuPowerSt userPowerState = POWER_STATE_NORMAL;
-static void user_rcu_power_timer_callback(void const *arg);
 static osTimerId msrcuAppPowerTimerId;
 static osTimerDef(msrcuAppPowerTimer, user_rcu_power_timer_callback);
 
 static int userLongpressDuration = 0;
-static void user_rcu_longpress_timer_callback(void const *arg);
 static osTimerId msrcuAppLongpressTimerId;
 static osTimerDef(msrcuAppLongpressTimer, user_rcu_longpress_timer_callback);
 
 static msrcuLedSt userLedSt = LED_STATE_NULL;
 static int userLedDuration = 0;
-static void user_rcu_led_timer_callback(void const *arg);
 static osTimerId msrcuAppLedTimerId;
 static osTimerDef(msrcuAppLedTimer, user_rcu_led_timer_callback);
 static msrcuErr_t user_rcu_led_set(msrcuLedSt newSt);
 
-static void user_rcu_rf_test_timer_callback(void const *arg);
 static osTimerId msrcuAppRfTestTimerId;
 static osTimerDef(msrcuAppRfTestTimer, user_rcu_rf_test_timer_callback);
 
-static void user_rcu_adv_timer_callback(void const *arg);
 static osTimerId msrcuAppAdvTimerId;
 static osTimerDef(msrcuAppAdvTimer, user_rcu_adv_timer_callback);
 
-static void user_rcu_connect_timer_callback(void const *arg);
 static osTimerId msrcuAppConnectTimerId;
 static osTimerDef(msrcuAppConnectTimer, user_rcu_connect_timer_callback);
 
 static bool userBondEnable = false;
-static void user_rcu_bond_timer_callback(void const *arg);
 static osTimerId msrcuAppBondTimerId;
 static osTimerDef(msrcuAppBondTimer, user_rcu_bond_timer_callback);
-static msrcuErr_t user_rcu_ble_bond_data_clear(msrcuBleBondData_t* data);
-
-static bool userConParamUpdFlag = false;
-
-static msrcuErr_t user_rcu_ble_adv_start(void);
-static msrcuErr_t user_rcu_ble_adv_stop(void);
 
 #if MSRCU_VOICE_ENABLE
 static bool userVoiceIsStop = true;
@@ -94,7 +123,7 @@ static bool userVoiceIsStop = true;
 #if MSRCU_MOTION_ENABLE
 bool userMotionIsStop = true;
 bool userMotionIsPause = false;
-static void user_rcu_motion_timer_callback(void const *arg);
+static msrcuMouseButton_t userMouseButton = MOUSE_BUTTON_NULL;
 osTimerId msrcuAppMotionTimerId;
 osTimerDef(msrcuAppMotionTimer, user_rcu_motion_timer_callback);
 #endif
@@ -108,18 +137,54 @@ static msrcuIrCode_t userIrCode;
 static bool userIrLearnIsStop = true;
 #endif
 
-static int handle_msg(msg_t *p_msg)
+/* Function Definition
+ ****************************************************************************************
+ */
+static int handle_main_msg(msg_t *msg)
 {
-    //PRINTD(DBG_TRACE, "main evt %d...\r\n", p_msg->msg_id);
-    
-    switch(p_msg->msg_id)
+    switch(msg->msgId)
     {
+        case MSG_MSRCU_MOTION_MOUSE_SEND:
+            {
+                msg_msrcu_motion_mouse_send_t *p = (msg_msrcu_motion_mouse_send_t *)msg;
+                if(!userMotionIsStop && BLE_STATE_READY == msrcu_app_ble_get_state())
+                    msrcu_app_motion_mouse_hid_send(p->button, &(p->mouse));
+            }
+            break;
+        
         default:
-            handle_default_msg(p_msg);
             break;
     }
+    
     return 0;
 }
+
+#if MSRCU_MOTION_ENABLE
+static void user_rcu_motion_timer_callback(void const *arg)
+{
+    if(!userMotionIsStop && BLE_STATE_READY == msrcu_app_ble_get_state())
+    {
+        msrcuMotionMouse_t mouse = {0};
+        if(!msrcu_app_motion_get_data(NULL, NULL, &mouse))
+        {
+            //MSPRINT("x %d,y %d\r\n", mouse->x, mouse->y);
+            if(mouse.x || mouse.y)//mouse move
+            {
+                msg_msrcu_motion_mouse_send_t *msg = malloc(sizeof(msg_msrcu_motion_mouse_send_t));
+                if(!msg)
+                    return;
+                msg->msgId = MSG_MSRCU_MOTION_MOUSE_SEND;
+                msg->button = userMouseButton;
+                msg->mouse.x = mouse.x;
+                msg->mouse.y = mouse.y;
+                msg_put(msg);
+            }
+        }
+        else
+            MSPRINT("Motion get data error.\r\n");
+    }
+}
+#endif
 
 static void user_rcu_power_update_battery_level(void)
 {
@@ -186,50 +251,50 @@ static void user_rcu_led_timer_callback(void const *arg)
             break;
         
         case LED_STATE_POWER_LOW:
-        {
-            if(msrcu_app_led_is_on(LED_R))
             {
-                userLedDuration -= MSRCU_LED_POWER_LOW_ON_TIME;
-                if(userLedDuration)
+                if(msrcu_app_led_is_on(LED_R))
                 {
-                    msrcu_app_led_off(LED_R);
-                    osTimerStart(msrcuAppLedTimerId, MSRCU_LED_POWER_LOW_OFF_TIME);
+                    userLedDuration -= MSRCU_LED_POWER_LOW_ON_TIME;
+                    if(userLedDuration)
+                    {
+                        msrcu_app_led_off(LED_R);
+                        osTimerStart(msrcuAppLedTimerId, MSRCU_LED_POWER_LOW_OFF_TIME);
+                    }
                 }
-            }
-            else
-            {
-                userLedDuration -= MSRCU_LED_POWER_LOW_OFF_TIME;
-                if(userLedDuration)
+                else
                 {
-                    msrcu_app_led_on(LED_R);
-                    osTimerStart(msrcuAppLedTimerId, MSRCU_LED_POWER_LOW_ON_TIME);
+                    userLedDuration -= MSRCU_LED_POWER_LOW_OFF_TIME;
+                    if(userLedDuration)
+                    {
+                        msrcu_app_led_on(LED_R);
+                        osTimerStart(msrcuAppLedTimerId, MSRCU_LED_POWER_LOW_ON_TIME);
+                    }
                 }
             }
             break;
-        }
         
         case LED_STATE_POWER_EMPTY:
-        {
-            if(msrcu_app_led_is_on(LED_R))
             {
-                userLedDuration -= MSRCU_LED_POWER_EMPTY_ON_TIME;
-                if(userLedDuration)
+                if(msrcu_app_led_is_on(LED_R))
                 {
-                    msrcu_app_led_off(LED_R);
-                    osTimerStart(msrcuAppLedTimerId, MSRCU_LED_POWER_EMPTY_OFF_TIME);
+                    userLedDuration -= MSRCU_LED_POWER_EMPTY_ON_TIME;
+                    if(userLedDuration)
+                    {
+                        msrcu_app_led_off(LED_R);
+                        osTimerStart(msrcuAppLedTimerId, MSRCU_LED_POWER_EMPTY_OFF_TIME);
+                    }
                 }
-            }
-            else
-            {
-                userLedDuration -= MSRCU_LED_POWER_EMPTY_OFF_TIME;
-                if(userLedDuration)
+                else
                 {
-                    msrcu_app_led_on(LED_R);
-                    osTimerStart(msrcuAppLedTimerId, MSRCU_LED_POWER_EMPTY_ON_TIME);
+                    userLedDuration -= MSRCU_LED_POWER_EMPTY_OFF_TIME;
+                    if(userLedDuration)
+                    {
+                        msrcu_app_led_on(LED_R);
+                        osTimerStart(msrcuAppLedTimerId, MSRCU_LED_POWER_EMPTY_ON_TIME);
+                    }
                 }
             }
             break;
-        }
         
         case LED_STATE_FUNC_VOICE_START:
         case LED_STATE_FUNC_VOICE_STOP:
@@ -239,27 +304,27 @@ static void user_rcu_led_timer_callback(void const *arg)
             break;
             
         case LED_STATE_BOND_START:
-        {
-            if(msrcu_app_led_is_on(LED_R))
             {
-                userLedDuration -= MSRCU_LED_BOND_START_ON_TIME;
-                if(userLedDuration)
+                if(msrcu_app_led_is_on(LED_R))
                 {
-                    msrcu_app_led_off(LED_R);
-                    osTimerStart(msrcuAppLedTimerId, MSRCU_LED_BOND_START_OFF_TIME);
+                    userLedDuration -= MSRCU_LED_BOND_START_ON_TIME;
+                    if(userLedDuration)
+                    {
+                        msrcu_app_led_off(LED_R);
+                        osTimerStart(msrcuAppLedTimerId, MSRCU_LED_BOND_START_OFF_TIME);
+                    }
                 }
-            }
-            else
-            {
-                userLedDuration -= MSRCU_LED_BOND_START_OFF_TIME;
-                if(userLedDuration)
+                else
                 {
-                    msrcu_app_led_on(LED_R);
-                    osTimerStart(msrcuAppLedTimerId, MSRCU_LED_BOND_START_ON_TIME);
+                    userLedDuration -= MSRCU_LED_BOND_START_OFF_TIME;
+                    if(userLedDuration)
+                    {
+                        msrcu_app_led_on(LED_R);
+                        osTimerStart(msrcuAppLedTimerId, MSRCU_LED_BOND_START_ON_TIME);
+                    }
                 }
             }
             break;
-        }
         
         case LED_STATE_BOND_SUCCESS:
         case LED_STATE_BOND_FAIL:
@@ -267,29 +332,29 @@ static void user_rcu_led_timer_callback(void const *arg)
             break;
         
         case LED_STATE_BOND_CLEAR:
-        {
-            if(msrcu_app_led_is_on(LED_R))
             {
-                userLedDuration -= MSRCU_LED_BOND_CLEAR_ON_TIME;
-                if(userLedDuration)
+                if(msrcu_app_led_is_on(LED_R))
                 {
-                    msrcu_app_led_off(LED_R);
-                    msrcu_app_led_on(LED_B);
-                    osTimerStart(msrcuAppLedTimerId, MSRCU_LED_BOND_CLEAR_OFF_TIME);
+                    userLedDuration -= MSRCU_LED_BOND_CLEAR_ON_TIME;
+                    if(userLedDuration)
+                    {
+                        msrcu_app_led_off(LED_R);
+                        msrcu_app_led_on(LED_B);
+                        osTimerStart(msrcuAppLedTimerId, MSRCU_LED_BOND_CLEAR_OFF_TIME);
+                    }
                 }
-            }
-            else
-            {
-                userLedDuration -= MSRCU_LED_BOND_CLEAR_OFF_TIME;
-                if(userLedDuration)
+                else
                 {
-                    msrcu_app_led_off(LED_B);
-                    msrcu_app_led_on(LED_R);
-                    osTimerStart(msrcuAppLedTimerId, MSRCU_LED_BOND_CLEAR_ON_TIME);
+                    userLedDuration -= MSRCU_LED_BOND_CLEAR_OFF_TIME;
+                    if(userLedDuration)
+                    {
+                        msrcu_app_led_off(LED_B);
+                        msrcu_app_led_on(LED_R);
+                        osTimerStart(msrcuAppLedTimerId, MSRCU_LED_BOND_CLEAR_ON_TIME);
+                    }
                 }
             }
             break;
-        }
         
         case LED_STATE_IR_LEARN_START:
         case LED_STATE_IR_LEARN_SUCCESS:
@@ -325,94 +390,94 @@ static msrcuErr_t user_rcu_led_set(msrcuLedSt newSt)
     switch(newSt)
     {
         case LED_STATE_KEY_PRESS:
-        {
-            if(BLE_STATE_READY == msrcu_app_ble_get_state())
-                msrcu_app_led_on(LED_B);
-            else
-                msrcu_app_led_on(LED_R);
-            osTimerStart(msrcuAppLedTimerId, MSRCU_LED_KEY_PRESS_ON_TIME);
+            {
+                if(BLE_STATE_READY == msrcu_app_ble_get_state())
+                    msrcu_app_led_on(LED_B);
+                else
+                    msrcu_app_led_on(LED_R);
+                osTimerStart(msrcuAppLedTimerId, MSRCU_LED_KEY_PRESS_ON_TIME);
+            }
             break;
-        }
         
         case LED_STATE_KEY_RELEASE:
-        {
-            osTimerStop(msrcuAppLedTimerId);
-            user_rcu_led_all_off();
-            newSt = LED_STATE_NULL;
+            {
+                osTimerStop(msrcuAppLedTimerId);
+                user_rcu_led_all_off();
+                newSt = LED_STATE_NULL;
+            }
             break;
-        }
         
         case LED_STATE_POWER_LOW:
-        {
-            msrcu_app_led_on(LED_R);
-            userLedDuration = MSRCU_LED_POWER_LOW_DURATION;
-            osTimerStart(msrcuAppLedTimerId, MSRCU_LED_POWER_LOW_ON_TIME);
+            {
+                msrcu_app_led_on(LED_R);
+                userLedDuration = MSRCU_LED_POWER_LOW_DURATION;
+                osTimerStart(msrcuAppLedTimerId, MSRCU_LED_POWER_LOW_ON_TIME);
+            }
             break;
-        }
         
         case LED_STATE_POWER_EMPTY:
-        {
-            msrcu_app_led_on(LED_R);
-            userLedDuration = MSRCU_LED_POWER_EMPTY_DURATION;
-            osTimerStart(msrcuAppLedTimerId, MSRCU_LED_POWER_EMPTY_ON_TIME);
+            {
+                msrcu_app_led_on(LED_R);
+                userLedDuration = MSRCU_LED_POWER_EMPTY_DURATION;
+                osTimerStart(msrcuAppLedTimerId, MSRCU_LED_POWER_EMPTY_ON_TIME);
+            }
             break;
-        }
         
         case LED_STATE_FUNC_VOICE_START:
-        {
-            msrcu_app_led_on(LED_G);
+            {
+                msrcu_app_led_on(LED_G);
+            }
             break;
-        }
         
         case LED_STATE_FUNC_VOICE_STOP:
-        {
-            msrcu_app_led_off(LED_G);
-            newSt = LED_STATE_NULL;
+            {
+                msrcu_app_led_off(LED_G);
+                newSt = LED_STATE_NULL;
+            }
             break;
-        }
         
         case LED_STATE_FUNC_MOTION_START:
-        {
-            msrcu_app_led_on(LED_B);
+            {
+                msrcu_app_led_on(LED_B);
+            }
             break;
-        }
         
         case LED_STATE_FUNC_MOTION_STOP:
-        {
-            msrcu_app_led_off(LED_B);
-            newSt = LED_STATE_NULL;
+            {
+                msrcu_app_led_off(LED_B);
+                newSt = LED_STATE_NULL;
+            }
             break;
-        }
         
         case LED_STATE_BOND_START:
-        {
-            msrcu_app_led_on(LED_R);
-            userLedDuration = MSRCU_LED_BOND_START_DURATION;
-            osTimerStart(msrcuAppLedTimerId, MSRCU_LED_BOND_START_ON_TIME);
+            {
+                msrcu_app_led_on(LED_R);
+                userLedDuration = MSRCU_LED_BOND_START_DURATION;
+                osTimerStart(msrcuAppLedTimerId, MSRCU_LED_BOND_START_ON_TIME);
+            }
             break;
-        }
         
         case LED_STATE_BOND_SUCCESS:
-        {
-            msrcu_app_led_on(LED_B);
-            osTimerStart(msrcuAppLedTimerId, MSRCU_LED_BOND_SUCCESS_ON_TIME);
+            {
+                msrcu_app_led_on(LED_B);
+                osTimerStart(msrcuAppLedTimerId, MSRCU_LED_BOND_SUCCESS_ON_TIME);
+            }
             break;
-        }
         
         case LED_STATE_BOND_FAIL:
-        {
-            msrcu_app_led_on(LED_R);
-            osTimerStart(msrcuAppLedTimerId, MSRCU_LED_BOND_FAIL_ON_TIME);
+            {
+                msrcu_app_led_on(LED_R);
+                osTimerStart(msrcuAppLedTimerId, MSRCU_LED_BOND_FAIL_ON_TIME);
+            }
             break;
-        }
         
         case LED_STATE_BOND_CLEAR:
-        {
-            msrcu_app_led_on(LED_R);
-            userLedDuration = MSRCU_LED_BOND_CLEAR_DURATION;
-            osTimerStart(msrcuAppLedTimerId, MSRCU_LED_BOND_CLEAR_ON_TIME);
+            {
+                msrcu_app_led_on(LED_R);
+                userLedDuration = MSRCU_LED_BOND_CLEAR_DURATION;
+                osTimerStart(msrcuAppLedTimerId, MSRCU_LED_BOND_CLEAR_ON_TIME);
+            }
             break;
-        }
         
         case LED_STATE_IR_LEARN_START:
         case LED_STATE_IR_LEARN_SUCCESS:
@@ -466,7 +531,56 @@ static void user_rcu_longpress_timer_callback(void const *arg)
     }
 }
 
-#if MSRCU_VOICE_ENABLE 
+#if MSRCU_MOTION_ENABLE 
+void user_rcu_motion_start(void)
+{
+#if MSRCU_VOICE_ENABLE
+    if(userVoiceIsStop && (userMotionIsStop || userMotionIsPause))
+#else
+    if(userMotionIsStop || userMotionIsPause)
+#endif
+    {
+#if MSRCU_MOTION_SENSOR_POWER_CTRL_ENABLE
+        if(msrcu_app_motion_reinit())
+        {
+            MSPRINT("Motion reinit error.\r\n");
+            return;
+        }
+        msrcu_app_motion_power_on();
+#endif
+        if(!msrcu_app_motion_start())
+        {
+            userMotionIsStop = false;
+            MSPRINT("Motion start.\r\n");
+            osTimerStart(msrcuAppMotionTimerId, MOTION_TIMER_MS);
+            user_rcu_led_set(LED_STATE_FUNC_MOTION_START);
+        }
+        else
+            MSPRINT("Motion start error.\r\n");
+    }
+}
+
+void user_rcu_motion_stop(void)
+{
+    if(!userMotionIsStop)
+    {
+        if(!msrcu_app_motion_stop())
+        {
+            userMotionIsStop = true;
+            osTimerStop(msrcuAppMotionTimerId);
+            MSPRINT("Motion stop.\r\n"); 
+            user_rcu_led_set(LED_STATE_FUNC_MOTION_STOP);
+        }
+        else
+            MSPRINT("Motion stop error.\r\n");
+#if MSRCU_MOTION_SENSOR_POWER_CTRL_ENABLE
+        msrcu_app_motion_power_off();
+#endif
+    }
+}
+#endif
+
+#if MSRCU_VOICE_ENABLE
 void user_rcu_voice_start(void)
 {
     if(userVoiceIsStop)
@@ -474,14 +588,8 @@ void user_rcu_voice_start(void)
 #if MSRCU_MOTION_ENABLE 
         if(!userMotionIsStop)
         {
-            msrcu_app_motion_stop(); 
-#if MSRCU_MOTION_SENSOR_POWER_CTRL_ENABLE
-            msrcu_app_motion_power_off();
-#endif
-            osTimerStop(msrcuAppMotionTimerId);
+            user_rcu_motion_stop();
             userMotionIsPause = true;
-            MSPRINT("Motion stop.\r\n");
-            user_rcu_led_set(LED_STATE_FUNC_MOTION_STOP);
         }
 #endif
         if(!msrcu_app_voice_start())
@@ -507,22 +615,11 @@ void user_rcu_voice_stop(void)
         }
         else
             MSPRINT("Voice stop error.\r\n");
-#if MSRCU_MOTION_ENABLE 
+#if MSRCU_MOTION_ENABLE
         if(userMotionIsPause)
         {
-#if MSRCU_MOTION_SENSOR_POWER_CTRL_ENABLE
-            if(msrcu_app_motion_reinit())
-            {
-                MSPRINT("Motion reinit error.\r\n");
-                return;
-            }
-            msrcu_app_motion_power_on();
-#endif
-            msrcu_app_motion_start();
+            user_rcu_motion_start();
             userMotionIsPause = false;
-            MSPRINT("Motion start.\r\n");
-            osTimerStart(msrcuAppMotionTimerId, MOTION_TIMER_MS);
-            user_rcu_led_set(LED_STATE_FUNC_MOTION_START);
         }
 #endif
     }
@@ -648,7 +745,7 @@ static void user_rcu_ble_rf_test(void)
             osTimerStart(msrcuAppRfTestTimerId, MSRCU_RF_TEST_DURATION);
         }
         
-        ble_config(0);
+        ble_config();
         
         rf_em_init();
         rf_int_prog_pll_trx_trig(0); 
@@ -657,26 +754,6 @@ static void user_rcu_ble_rf_test(void)
     }
     
     while(1);//continue to test forever until chip reset
-}
-
-static msrcuErr_t user_rcu_ble_update_connection_parameter(void)
-{
-    msg_con_param_upd_req_t *msg = malloc(sizeof(msg_con_param_upd_req_t));
-    if(!msg)
-        return ERR_NO_MEMORY;
-    
-    msg->msg_id = MSG_CON_PARAM_UPD_REQ;
-    msg->conidx = BLE_CON_IDX;
-    msg->interval_min = MSRCU_BLE_CNT_INTERVAL_MIN;
-    msg->interval_max = MSRCU_BLE_CNT_INTERVAL_MAX;
-    msg->latency = MSRCU_BLE_CNT_LATENCY;
-    msg->time_out = MSRCU_BLE_CNT_TIMEOUT;
-    msg->ce_len_min = 0x0001;
-    msg->ce_len_max = 0xffff;
-    
-    msg_put(msg);
-    
-    return ERR_NO_ERROR;
 }
 
 static msrcuErr_t user_rcu_ble_bond_data_save(msrcuBleBondData_t* data)
@@ -705,7 +782,7 @@ static msrcuErr_t user_rcu_ble_bond_data_clear(msrcuBleBondData_t* data)
 {
     if(data->status)
     {
-        memset(&ble_bond_data, 0, sizeof(ble_bond_data));
+        memset(&gBondData, 0, sizeof(gBondData));
         memset(data, 0, sizeof(msrcuBleBondData_t));
         
         // make sure ble is not busy
@@ -816,136 +893,102 @@ static void user_rcu_ble_callback(msrcuEvtBle_t *evt)
     switch(evt->code)
     {
         case EVT_BLE_CONNETED:
-        {
-            msrcuBleConInd_t* conInd = &evt->param.conInd;
-            MSPRINT("Connected, idx:%d, interval=0x%X, latency=%d, timeout=%dms, addrType:%d, addr:%02X %02X %02X %02X %02X %02X.\r\n", 
-                    conInd->conIndex, conInd->conInterval, conInd->conLatency, conInd->conTimeOut * 10, conInd->peerAddrType,
-                    conInd->peerAddr.addr[0], conInd->peerAddr.addr[1], conInd->peerAddr.addr[2],
-                    conInd->peerAddr.addr[3], conInd->peerAddr.addr[4], conInd->peerAddr.addr[5]);
-            
-            if(MSRCU_BLE_CNT_DURATION)
-                osTimerStart(msrcuAppConnectTimerId, MSRCU_BLE_CNT_DURATION);
-            
-            msrcuBondData.peerAddrType = conInd->peerAddrType;
-            memcpy(msrcuBondData.peerAddr.addr, conInd->peerAddr.addr, BLE_ADDR_LEN);
-            
-            if((conInd->conInterval < MSRCU_BLE_CNT_INTERVAL_MIN)
-                    || (conInd->conInterval > MSRCU_BLE_CNT_INTERVAL_MAX)
-                    || (conInd->conLatency != MSRCU_BLE_CNT_LATENCY)
-                    || (conInd->conTimeOut != MSRCU_BLE_CNT_TIMEOUT))
-                userConParamUpdFlag = true;//wait for BLE_STATE_READY
-            else
-                userConParamUpdFlag = false;
-            
+            {
+                msrcuBleConInd_t* conInd = &evt->param.conInd;
+                MSPRINT("Connected, idx:%d, interval=0x%X, latency=%d, timeout=%dms, addrType:%d, addr:%02X %02X %02X %02X %02X %02X.\r\n", 
+                        conInd->conIndex, conInd->conInterval, conInd->conLatency, conInd->conTimeOut * 10, conInd->peerAddrType,
+                        conInd->peerAddr.addr[0], conInd->peerAddr.addr[1], conInd->peerAddr.addr[2],
+                        conInd->peerAddr.addr[3], conInd->peerAddr.addr[4], conInd->peerAddr.addr[5]);
+                
+                if(MSRCU_BLE_CNT_DURATION)
+                    osTimerStart(msrcuAppConnectTimerId, MSRCU_BLE_CNT_DURATION);
+                
+                msrcuBondData.peerAddrType = conInd->peerAddrType;
+                memcpy(msrcuBondData.peerAddr.addr, conInd->peerAddr.addr, BLE_ADDR_LEN);
+            }
             break;
-        }
         
         case EVT_BLE_DISCONNETED:
-        {
-            msrcuBleDisconInd_t* disconInd = &evt->param.disconInd;
-            MSPRINT("Disconnected, idx:%d, reason:0x%02X.\r\n", disconInd->conIndex, disconInd->reason);
-            
-            if(MSRCU_BLE_CNT_DURATION)
-                osTimerStop(msrcuAppConnectTimerId);
-            
-            userConParamUpdFlag = false;
-            
-            msrcuLedSt ledSt = LED_STATE_NULL;
-#if MSRCU_VOICE_ENABLE
-#if MSRCU_BLE_VOICE_ATV_ENABLE
-            atv_task_send_disable();
-#endif
-            if(!userVoiceIsStop)
             {
-                if(!msrcu_app_voice_stop())
-                {
-                    userVoiceIsStop = true;
-                    MSPRINT("Voice stop.\r\n");
-                    
-                    ledSt = LED_STATE_FUNC_VOICE_STOP;
-                }
-                else
-                    MSPRINT("Voice stop error.\r\n");
+                msrcuBleDisconInd_t* disconInd = &evt->param.disconInd;
+                MSPRINT("Disconnected, idx:%d, reason:0x%02X.\r\n", disconInd->conIndex, disconInd->reason);
                 
-            }
+                if(MSRCU_BLE_CNT_DURATION)
+                    osTimerStop(msrcuAppConnectTimerId);
+                
+                msrcuLedSt ledSt = LED_STATE_NULL;
+#if MSRCU_VOICE_ENABLE
+                if(!userVoiceIsStop)
+                {
+                    if(!msrcu_app_voice_stop())
+                    {
+                        userVoiceIsStop = true;
+                        MSPRINT("Voice stop.\r\n");
+                        
+                        ledSt = LED_STATE_FUNC_VOICE_STOP;
+                    }
+                    else
+                        MSPRINT("Voice stop error.\r\n");
+                    
+                }
 #endif
 #if MSRCU_MOTION_ENABLE
-            if(!userMotionIsStop)
-            {
-                if(!msrcu_app_motion_stop())
+                if(!userMotionIsStop)
                 {
-                    userMotionIsStop = true;
-                    MSPRINT("Motion stop.\r\n");
-                    
-                    osTimerStop(msrcuAppMotionTimerId);
-                    
-                    ledSt = LED_STATE_FUNC_MOTION_STOP;
-                }
-                else
-                    MSPRINT("Motion stop error.\r\n"); 
+                    if(!msrcu_app_motion_stop())
+                    {
+                        userMotionIsStop = true;
+                        MSPRINT("Motion stop.\r\n");
+                        
+                        osTimerStop(msrcuAppMotionTimerId);
+                        
+                        ledSt = LED_STATE_FUNC_MOTION_STOP;
+                    }
+                    else
+                        MSPRINT("Motion stop error.\r\n"); 
 #if MSRCU_MOTION_SENSOR_POWER_CTRL_ENABLE
-                msrcu_app_motion_power_off();
+                    msrcu_app_motion_power_off();
 #endif
+                    userMouseButton = MOUSE_BUTTON_NULL;
+                }
+#endif
+                if(msrcuBondData.status
+                        && disconInd->reason != BLE_ERROR_CON_TERM_BY_LOCAL_HOST
+                        && disconInd->reason != BLE_ERROR_REMOTE_USER_TERM_CON )
+                    user_rcu_ble_adv_start();
+                
+                user_rcu_led_set(ledSt);
             }
-#endif
-            if(msrcuBondData.status
-                    && disconInd->reason != BLE_ERROR_CON_TERM_BY_LOCAL_HOST
-                    && disconInd->reason != BLE_ERROR_REMOTE_USER_TERM_CON )
-                user_rcu_ble_adv_start();
-            
-            user_rcu_led_set(ledSt);
-            
             break;
-        }
         
         case EVT_BLE_CON_PRAM_UPD:
-        {
-            msrcuBleConParamUpd_t* conParamUpd = &evt->param.conParamUpd;
-            MSPRINT("Connection parameter updated, idx:%d, interval=0x%X, latency=%d, timeout=%dms.\r\n", 
-                    conParamUpd->conIndex, conParamUpd->conInterval, 
-                    conParamUpd->conLatency, conParamUpd->conTimeOut * 10);
-            
-            if((conParamUpd->conInterval < MSRCU_BLE_CNT_INTERVAL_MIN)
-                    || (conParamUpd->conInterval > MSRCU_BLE_CNT_INTERVAL_MAX)
-                    || (conParamUpd->conLatency != MSRCU_BLE_CNT_LATENCY)
-                    || (conParamUpd->conTimeOut != MSRCU_BLE_CNT_TIMEOUT))
             {
-                if(BLE_STATE_READY == msrcu_app_ble_get_state())
-                    user_rcu_ble_update_connection_parameter();
-                else
-                    userConParamUpdFlag = true;//wait for BLE_STATE_READY
+                msrcuBleConParamUpd_t* conParamUpd = &evt->param.conParamUpd;
+                MSPRINT("Connection parameter updated, idx:%d, interval=0x%X, latency=%d, timeout=%dms.\r\n", 
+                        conParamUpd->conIndex, conParamUpd->conInterval, 
+                        conParamUpd->conLatency, conParamUpd->conTimeOut * 10);
             }
-            
             break;
-        }
         
         case EVT_BLE_RCU_READY:
-        {
-            if(userBondEnable)
             {
-                MSPRINT("Bond success.\r\n");
-                userBondEnable = false;
-                osTimerStop(msrcuAppBondTimerId);
-                user_rcu_led_set(LED_STATE_BOND_SUCCESS);
+                if(userBondEnable)
+                {
+                    MSPRINT("Bond success.\r\n");
+                    userBondEnable = false;
+                    osTimerStop(msrcuAppBondTimerId);
+                    user_rcu_led_set(LED_STATE_BOND_SUCCESS);
+                    
+                    msrcuBondData.status = 1;
+                    user_rcu_ble_bond_data_save(&msrcuBondData);
+                }
                 
-                msrcuBondData.status = 1;
-                if(user_rcu_ble_bond_data_save(&msrcuBondData))
-                    PRINTD(DBG_TRACE, "bond sata save error.\r\n");
+                user_rcu_power_update_battery_level();
             }
-            
-            user_rcu_power_update_battery_level();
-            
-            if(userConParamUpdFlag)
-            {
-                user_rcu_ble_update_connection_parameter();
-                userConParamUpdFlag = false;
-            }
-            
             break;
-        }
         
         default:
-        break;
+            break;
     }
 }
 
@@ -956,236 +999,66 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
     switch(param->behavior)
     {
         case EVT_KEY_PRESS:
-        {
-            MSPRINT("Key %02d is pressed.\r\n", param->code);
-            
-            //set LED
-            if(userPowerState == POWER_STATE_LOW)
-                ledSt = LED_STATE_POWER_LOW;
-            else if(userPowerState == POWER_STATE_EMPTY)
-                ledSt = LED_STATE_POWER_EMPTY;
-            else
-                ledSt = LED_STATE_KEY_PRESS;
-            
-            //BLE advertising on
-            if(BLE_STATE_IDLE == msrcu_app_ble_get_state() && msrcuBondData.status)
-                user_rcu_ble_adv_start();
-            
-            if(BLE_STATE_IDLE == msrcu_app_ble_get_state()
-                    || BLE_STATE_ADVERTISING == msrcu_app_ble_get_state()
-                    || BLE_STATE_CONNECTED == msrcu_app_ble_get_state())
             {
-#if MSRCU_IR_SEND_ENABLE
-                if(userIrSendIsStop)
-                {
-                    //IR send start
-                    userIrCode.protocol = IR_PROT_NEC;
-                    userIrCode.param.necCode.address = MSRCU_IR_NEC_ADDRESS;
-                    userIrCode.param.necCode.cmd = msrcuKeycodeToIrCmd(param->code); 
-                    
-                    if(!msrcu_app_ir_send_start(&userIrCode))
-                    {
-                        userIrSendIsStop = false;
-                        MSPRINT("IR send start.\r\n");
-                    }
-                    else
-                        MSPRINT("IR send start error.\r\n");
-                }
-#endif
-            }
-            else if(BLE_STATE_READY == msrcu_app_ble_get_state())
-            {
-                if(MSRCU_BLE_CNT_DURATION)
-                    osTimerStart(msrcuAppConnectTimerId, MSRCU_BLE_CNT_DURATION);
+                MSPRINT("Key %02d is pressed.\r\n", param->code);
                 
-                if(param->code != KEY_CODE_VOICE)
-                    msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(param->code, 0));
+                //set LED
+                if(userPowerState == POWER_STATE_LOW)
+                    ledSt = LED_STATE_POWER_LOW;
+                else if(userPowerState == POWER_STATE_EMPTY)
+                    ledSt = LED_STATE_POWER_EMPTY;
+                else
+                    ledSt = LED_STATE_KEY_PRESS;
+                
+                //BLE advertising on
+                if(BLE_STATE_IDLE == msrcu_app_ble_get_state() && msrcuBondData.status)
+                    user_rcu_ble_adv_start();
+                
+                if(BLE_STATE_IDLE == msrcu_app_ble_get_state()
+                        || BLE_STATE_ADVERTISING == msrcu_app_ble_get_state()
+                        || BLE_STATE_CONNECTED == msrcu_app_ble_get_state())
+                {
+#if MSRCU_IR_SEND_ENABLE
+                    if(userIrSendIsStop)
+                    {
+                        //IR send start
+                        userIrCode.protocol = IR_PROT_NEC;
+                        userIrCode.param.necCode.address = MSRCU_IR_NEC_ADDRESS;
+                        userIrCode.param.necCode.cmd = msrcuKeycodeToIrCmd(param->code); 
+                        
+                        if(!msrcu_app_ir_send_start(&userIrCode))
+                        {
+                            userIrSendIsStop = false;
+                            MSPRINT("IR send start.\r\n");
+                        }
+                        else
+                            MSPRINT("IR send start error.\r\n");
+                    }
+#endif
+                }
+                else if(BLE_STATE_READY == msrcu_app_ble_get_state())
+                {
+                    if(MSRCU_BLE_CNT_DURATION)
+                        osTimerStart(msrcuAppConnectTimerId, MSRCU_BLE_CNT_DURATION);
+                    
+                    if(param->code != KEY_CODE_VOICE)
+                        msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(param->code, 0));
+                }
             }
-        }
-        break;
+            break;
         
         case EVT_KEY_RELEASE:
-        {
-            MSPRINT("Key %02d is released.\r\n", param->code);
-            
-            //stop long press check
-            osTimerStop(msrcuAppLongpressTimerId);
-            
-            //set LED
-            ledSt = LED_STATE_KEY_RELEASE;
-            
-#if MSRCU_IR_SEND_ENABLE 
-            //IR send stop
-            if(!userIrSendIsStop)
             {
-                if(!msrcu_app_ir_send_stop())
-                {
-                    userIrSendIsStop = true;
-                    MSPRINT("IR send stop.\r\n");
-                }
-            }
-#endif
-            //HID keycode release
-            if(BLE_STATE_READY == msrcu_app_ble_get_state())
-            {
-                if(MSRCU_BLE_CNT_DURATION)
-                    osTimerStart(msrcuAppConnectTimerId, MSRCU_BLE_CNT_DURATION);
+                MSPRINT("Key %02d is released.\r\n", param->code);
                 
-                if(param->code != KEY_CODE_VOICE)
-                    msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(KEY_CODE_NULL, 0));
-            }
-        }
-        break;
-        
-        case EVT_KEY_LONG_PRESS:
-            //MSPRINT("Key %02d is long pressed.\r\n", param->code);
-        break;
-        
-        default:
-        break;
-    }
-    
-    switch(param->code)
-    {
-//        case KEY_CODE_POWER:
-//        {
-//            if(param->behavior == EVT_KEY_PRESS)
-//            {
-//#if MSRCU_IR_LEARN_ENABLE
-//                if(userIrLearnIsStop)
-//                {
-//                    userIrLearnIsStop = false;
-//                    MSPRINT("IR learn start.\r\n");
-//                    if(msrcu_app_ir_learn_start(1))//wait result at user_rcu_ir_callback
-//                    {
-//                        userIrLearnIsStop = true;
-//                        MSPRINT("IR learn start error.\r\n");
-//                    }
-//                }
-//                else
-//                {
-//                    if(msrcu_app_ir_learn_stop())//result at user_rcu_ir_callback
-//                        MSPRINT("IR learn stop error.\r\n");
-//                }
-//#endif
-//            }
-//            else if(param->behavior == EVT_KEY_RELEASE){}
-//            else if(param->behavior == EVT_KEY_LONG_PRESS){}
-//        }
-//        break; 
-        
-        case KEY_CODE_POWER:
-        {
-            if(param->behavior == EVT_KEY_PRESS)
-            {
-                msrcuKeySt keyEnterSt;
-                msrcu_app_key_state_get(KEY_CODE_ENTER, &keyEnterSt);
-                if(keyEnterSt == KEY_PRESSED)
-                {
-                    if(msrcuBondData.status)
-                        userLongpressDuration = MSRCU_KEY_LONGPRESS_TIME_BONDCLEAR;
-                    else
-                        userLongpressDuration = MSRCU_KEY_LONGPRESS_TIME_BONDSTART;
-                    osTimerStart(msrcuAppLongpressTimerId, KEY_LONGPRESS_CHECK_INTERVAL);
-                }
-            }
-            else if(param->behavior == EVT_KEY_RELEASE){}
-            else if(param->behavior == EVT_KEY_LONG_PRESS){}
-        }
-        break; 
-        
-        case KEY_CODE_VOICE:
-        {
-            if(param->behavior == EVT_KEY_PRESS)
-            {
-                if(BLE_STATE_READY == msrcu_app_ble_get_state())
-                {
-#if MSRCU_VOICE_ENABLE
-#if MSRCU_BLE_VOICE_ATV_ENABLE
-                    if(atv_task_send_is_enabled())
-                    {
-                        msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(param->code, 0));
-                        msrcu_app_voice_atv_start();
-                    }
-                    if(!userVoiceIsStop)
-                        user_rcu_voice_stop();
-#else
-                    user_rcu_voice_start();
-#endif
-#endif
-                }
-            }
-            else if(param->behavior == EVT_KEY_RELEASE)
-            {
-#if MSRCU_VOICE_ENABLE
-#if MSRCU_BLE_VOICE_ATV_ENABLE
-                if(BLE_STATE_READY == msrcu_app_ble_get_state())
-                    msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(KEY_CODE_NULL, 0));
-#else
-                user_rcu_voice_stop();
-#endif
-#endif
-            }
-        }
-        break;
-        
-        case KEY_CODE_MOTION:
-        {
-            if(param->behavior == EVT_KEY_PRESS)
-            {
-#if MSRCU_MOTION_ENABLE
-                if(BLE_STATE_READY == msrcu_app_ble_get_state())
-                {
-#if MSRCU_VOICE_ENABLE
-                    if(userVoiceIsStop && userMotionIsStop)
-#else
-                    if(userMotionIsStop)
-#endif
-                    {
-#if MSRCU_MOTION_SENSOR_POWER_CTRL_ENABLE
-                        if(msrcu_app_motion_reinit())
-                        {
-                            MSPRINT("Motion reinit error.\r\n");
-                            break;
-                        }
-                        msrcu_app_motion_power_on();
-#endif
-                        if(!msrcu_app_motion_start())
-                        {
-                            userMotionIsStop = false;
-                            MSPRINT("Motion start.\r\n");
-                            osTimerStart(msrcuAppMotionTimerId, MOTION_TIMER_MS);
-                            ledSt = LED_STATE_FUNC_MOTION_START;
-                        }
-                        else
-                            MSPRINT("Motion start error.\r\n");
-                    }
-                    else
-                    {
-                        if(!msrcu_app_motion_stop())
-                        {
-                            userMotionIsStop = true;
-                            osTimerStop(msrcuAppMotionTimerId);
-                            MSPRINT("Motion stop.\r\n"); 
-                            ledSt = LED_STATE_FUNC_MOTION_STOP;
-                        }
-                        else
-                            MSPRINT("Motion stop error.\r\n");
-#if MSRCU_MOTION_SENSOR_POWER_CTRL_ENABLE
-                        msrcu_app_motion_power_off();
-#endif
-                    }
-                }
-#endif
-            }
-            else if(param->behavior == EVT_KEY_RELEASE)
-            {
-            }
-            else if(param->behavior == EVT_KEY_LONG_PRESS)
-            {
-#if 0//MSRCU_IR_LEARN_ENABLE//IR learn function is unusable in this version of SDK
-#if MSRCU_IR_SEND_ENABLE
-                //stop ir send at first
+                //stop long press check
+                osTimerStop(msrcuAppLongpressTimerId);
+                
+                //set LED
+                ledSt = LED_STATE_KEY_RELEASE;
+                
+#if MSRCU_IR_SEND_ENABLE 
+                //IR send stop
                 if(!userIrSendIsStop)
                 {
                     if(!msrcu_app_ir_send_stop())
@@ -1195,157 +1068,270 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
                     }
                 }
 #endif
-                //ir learn start/stop
-                if(userIrLearnIsStop)
-                {
-                    userIrLearnIsStop = false;
-                    MSPRINT("IR learn start.\r\n");
-                    if(msrcu_app_ir_learn_start(1))//wait result at user_rcu_ir_callback
-                    {
-                        userIrLearnIsStop = true;
-                        MSPRINT("IR learn start error.\r\n");
-                    }
-                }
-                else
-                {
-                    if(msrcu_app_ir_learn_stop())//result at user_rcu_ir_callback
-                        MSPRINT("IR learn stop error.\r\n");
-                }
-#endif
-            }
-        }
-        break;
-        
-#if MSRCU_MOTION_ENABLE
-        case KEY_CODE_ENTER:
-        {
-            if(param->behavior == EVT_KEY_PRESS)
-            {
+                //HID keycode release
                 if(BLE_STATE_READY == msrcu_app_ble_get_state())
                 {
-                    if(userMotionIsStop)
+                    if(MSRCU_BLE_CNT_DURATION)
+                        osTimerStart(msrcuAppConnectTimerId, MSRCU_BLE_CNT_DURATION);
+                    
+                    if(param->code != KEY_CODE_VOICE)
+                        msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(KEY_CODE_NULL, 0));
+                }
+            }
+            break;
+        
+        case EVT_KEY_LONG_PRESS:
+            //MSPRINT("Key %02d is long pressed.\r\n", param->code);
+            break;
+        
+        default:
+            break;
+    }
+    
+    switch(param->code)
+    {
+//        case KEY_CODE_POWER:
+//            {
+//                if(param->behavior == EVT_KEY_PRESS)
+//                {
+//#if MSRCU_IR_LEARN_ENABLE
+//                    if(userIrLearnIsStop)
+//                    {
+//                        userIrLearnIsStop = false;
+//                        MSPRINT("IR learn start.\r\n");
+//                        if(msrcu_app_ir_learn_start(1))//wait result at user_rcu_ir_callback
+//                        {
+//                            userIrLearnIsStop = true;
+//                            MSPRINT("IR learn start error.\r\n");
+//                        }
+//                    }
+//                    else
+//                    {
+//                        if(msrcu_app_ir_learn_stop())//result at user_rcu_ir_callback
+//                            MSPRINT("IR learn stop error.\r\n");
+//                    }
+//#endif
+//                }
+//                else if(param->behavior == EVT_KEY_RELEASE){}
+//                else if(param->behavior == EVT_KEY_LONG_PRESS){}
+//            }
+//            break;
+        
+        case KEY_CODE_POWER:
+            {
+                if(param->behavior == EVT_KEY_PRESS)
+                {
+                    msrcuKeySt keyEnterSt;
+                    msrcu_app_key_state_get(KEY_CODE_ENTER, &keyEnterSt);
+                    if(keyEnterSt == KEY_PRESSED)
                     {
+                        if(msrcuBondData.status)
+                            userLongpressDuration = MSRCU_KEY_LONGPRESS_TIME_BONDCLEAR;
+                        else
+                            userLongpressDuration = MSRCU_KEY_LONGPRESS_TIME_BONDSTART;
+                        osTimerStart(msrcuAppLongpressTimerId, KEY_LONGPRESS_CHECK_INTERVAL);
+                    }
+                }
+                else if(param->behavior == EVT_KEY_RELEASE){}
+                else if(param->behavior == EVT_KEY_LONG_PRESS){}
+            }
+            break;
+        
+        case KEY_CODE_VOICE:
+            {
+                if(param->behavior == EVT_KEY_PRESS)
+                {
+                    if(BLE_STATE_READY == msrcu_app_ble_get_state())
+                    {
+#if MSRCU_VOICE_ENABLE
 #if MSRCU_BLE_VOICE_ATV_ENABLE
                         if(atv_task_send_is_enabled())
                         {
-                            uint8_t cmd[ATVV_CHAR_CTL_DPAP_SELECT_LEN] = {0};
-                            cmd[0] = ATVV_CHAR_CTL_DPAP_SELECT_CMD;
-                            atv_task_cmd_send(BLE_CON_IDX, cmd, ATVV_CHAR_CTL_DPAP_SELECT_LEN);
-                        }
+#if MSRCU_MOTION_ENABLE 
+                            if(!userMotionIsStop)
+                            {
+                                user_rcu_motion_stop();
+                                userMotionIsPause = true;
+                            }
 #endif
+                            msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(param->code, 0));
+                            msrcu_app_voice_atv_start();
+                        }
+                        if(!userVoiceIsStop)
+                            user_rcu_voice_stop();
+#else
+                        user_rcu_voice_start();
+#endif
+#endif
+                    }
+                }
+                else if(param->behavior == EVT_KEY_RELEASE)
+                {
+                    if(BLE_STATE_READY == msrcu_app_ble_get_state())
+                    {
+#if MSRCU_VOICE_ENABLE
+#if MSRCU_BLE_VOICE_ATV_ENABLE
+                        if(atv_task_send_is_enabled())
+                            msrcu_app_key_hid_send(msrcuKeycodeToHidKeycode(KEY_CODE_NULL, 0));
+#else
+                        user_rcu_voice_stop();
+#endif
+#endif
+                    }
+                }
+            }
+            break;
+        
+        case KEY_CODE_MOTION:
+            {
+                if(param->behavior == EVT_KEY_PRESS)
+                {
+#if MSRCU_MOTION_ENABLE
+                    if(BLE_STATE_READY == msrcu_app_ble_get_state())
+                    {
+#if MSRCU_VOICE_ENABLE
+                        if(userVoiceIsStop && userMotionIsStop)
+#else
+                        if(userMotionIsStop)
+#endif
+                        {
+                            user_rcu_motion_start();
+                        }
+                        else
+                        {
+                            user_rcu_motion_stop();
+                        }
+                    }
+#endif
+                }
+                else if(param->behavior == EVT_KEY_RELEASE)
+                {
+                }
+                else if(param->behavior == EVT_KEY_LONG_PRESS)
+                {
+#if 0//MSRCU_IR_LEARN_ENABLE//IR learn function is unusable in this version of SDK
+#if MSRCU_IR_SEND_ENABLE
+                    //stop ir send at first
+                    if(!userIrSendIsStop)
+                    {
+                        if(!msrcu_app_ir_send_stop())
+                        {
+                            userIrSendIsStop = true;
+                            MSPRINT("IR send stop.\r\n");
+                        }
+                    }
+#endif
+                    //ir learn start/stop
+                    if(userIrLearnIsStop)
+                    {
+                        userIrLearnIsStop = false;
+                        MSPRINT("IR learn start.\r\n");
+                        if(msrcu_app_ir_learn_start(1))//wait result at user_rcu_ir_callback
+                        {
+                            userIrLearnIsStop = true;
+                            MSPRINT("IR learn start error.\r\n");
+                        }
                     }
                     else
                     {
-                        msg_hogpd_ntf_t *msg = malloc(sizeof(msg_hogpd_ntf_t));
-                        if(!msg)
-                            return;
-                        msg->msg_id = MSG_HOGPD_NTF;
-                        msg->conIndex = BLE_CON_IDX;
-                        msg->instance = HID_MOUSE_INSTANCE;
-                        msg->length = MOUSE_HID_PKG_SIZE;
-                        uint8_t data[MOUSE_HID_PKG_SIZE] = {0};
-                        data[MOUSE_HID_PKG_KEY_IDX] = MOUSE_BUTTON_LEFT;
-//                        data[MOUSE_HID_PKG_X_IDX] = 0;
-//                        data[MOUSE_HID_PKG_Y_IDX] = 0;
-                        memcpy(msg->data, data, msg->length);
-                        msg_put(msg);
+                        if(msrcu_app_ir_learn_stop())//result at user_rcu_ir_callback
+                            MSPRINT("IR learn stop error.\r\n");
+                    }
+#endif
+                }
+            }
+            break;
+        
+        case KEY_CODE_ENTER:
+            {
+                if(param->behavior == EVT_KEY_PRESS)
+                {
+                    if(BLE_STATE_READY == msrcu_app_ble_get_state())
+                    {
+#if (MSRCU_VOICE_ENABLE && MSRCU_BLE_VOICE_ATV_ENABLE)
+#if MSRCU_MOTION_ENABLE
+                        if(userMotionIsStop)
+#endif
+                        {
+                            if(atv_task_send_is_enabled())
+                            {
+                                uint8_t cmd[ATVV_CHAR_CTL_DPAP_SELECT_LEN] = {0};
+                                cmd[0] = ATVV_CHAR_CTL_DPAP_SELECT_CMD;
+                                atv_task_cmd_send(BLE_CON_IDX, cmd, ATVV_CHAR_CTL_DPAP_SELECT_LEN);
+                            }
+                        }
+#endif
+#if MSRCU_MOTION_ENABLE
+                        if(!userMotionIsStop)
+                        {
+                            msrcuMotionMouse_t mouse = {0};
+                            userMouseButton = MOUSE_BUTTON_LEFT;
+                            msrcu_app_motion_mouse_hid_send(userMouseButton, &mouse);
+                        }
+#endif
+                    }
+                }
+                else if(param->behavior == EVT_KEY_RELEASE)
+                {
+                    if(BLE_STATE_READY == msrcu_app_ble_get_state())
+                    {
+#if MSRCU_MOTION_ENABLE
+                        msrcuMotionMouse_t mouse = {0};
+                        userMouseButton = MOUSE_BUTTON_NULL;
+                        msrcu_app_motion_mouse_hid_send(userMouseButton, &mouse);
+#endif
                     }
                 }
             }
-            else if(param->behavior == EVT_KEY_RELEASE)
-            {
-                if(BLE_STATE_READY == msrcu_app_ble_get_state())
-                {
-                    msg_hogpd_ntf_t *msg = malloc(sizeof(msg_hogpd_ntf_t));
-                    if(!msg)
-                        return;
-                    msg->msg_id = MSG_HOGPD_NTF;
-                    msg->conIndex = BLE_CON_IDX;
-                    msg->instance = HID_MOUSE_INSTANCE;
-                    msg->length = MOUSE_HID_PKG_SIZE;
-                    uint8_t data[MOUSE_HID_PKG_SIZE] = {0};
-//                    data[MOUSE_HID_PKG_KEY_IDX] = MOUSE_BUTTON_NULL;
-//                    data[MOUSE_HID_PKG_X_IDX] = 0;
-//                    data[MOUSE_HID_PKG_Y_IDX] = 0;
-                    memcpy(msg->data, data, msg->length);
-                    msg_put(msg);
-                }
-            }
-        }
-        break;
-#endif       
+            break;
+            
         case KEY_CODE_UP:
         case KEY_CODE_DOWN:
         case KEY_CODE_LEFT:
         case KEY_CODE_RIGHT:
         //case other key codes...
-        
         default:
-        {
-            if(param->behavior == EVT_KEY_PRESS){}
-            else if(param->behavior == EVT_KEY_RELEASE){}
-        }
-        break;
+            {
+                if(param->behavior == EVT_KEY_PRESS){}
+                else if(param->behavior == EVT_KEY_RELEASE){}
+            }
+            break;
     }
     
     user_rcu_led_set(ledSt);
 }
 
-#if (MSRCU_IR_SEND_ENABLE || MSRCU_IR_LEARN_ENABLE)
+#if MSRCU_IR_LEARN_ENABLE
 static void user_rcu_ir_callback(msrcuEvtIr_t *param)
 {
 #if MSRCU_IR_LEARN_ENABLE
     switch(param->lrnResult)
     {
         case EVT_IR_LRN_SUCCESS:
-        {
-            MSPRINT("IR learn stop: Success, idx:%d.\r\n", param->index);
-            userIrLearnIsStop = true;
-        }
-        break;
+            {
+                MSPRINT("IR learn stop: Success, idx:%d.\r\n", param->index);
+                userIrLearnIsStop = true;
+            }
+            break;
         
         case EVT_IR_LRN_FAIL:
-        {
-            MSPRINT("IR learn stop: Fail, idx:%d.\r\n", param->index);
-            userIrLearnIsStop = true;
-        }
-        break;
+            {
+                MSPRINT("IR learn stop: Fail, idx:%d.\r\n", param->index);
+                userIrLearnIsStop = true;
+            }
+            break;
         
         case EVT_IR_LRN_TERMINATE:
-        {
-            MSPRINT("IR learn stop: Terminate, idx:%d.\r\n", param->index);
-            userIrLearnIsStop = true;
-        }
-        break;
+            {
+                MSPRINT("IR learn stop: Terminate, idx:%d.\r\n", param->index);
+                userIrLearnIsStop = true;
+            }
+            break;
         
         default:
-        break;
+            break;
     }
 #endif
-}
-#endif
-
-#if MSRCU_MOTION_ENABLE
-static void user_rcu_motion_timer_callback(void const *arg)
-{
-    if(!userMotionIsStop && BLE_STATE_READY == msrcu_app_ble_get_state())
-    {
-        msg_hogpd_ntf_t *msg = malloc(sizeof(msg_hogpd_ntf_t));
-        if(!msg)
-            return;
-        
-        msg->msg_id = MSG_HOGPD_NTF;
-        msg->conIndex = BLE_CON_IDX;
-        msg->instance = HID_MOUSE_INSTANCE;
-        msg->length = MOUSE_HID_PKG_SIZE;
-        uint8_t data[MOUSE_HID_PKG_SIZE] = {0};
-//        data[MOUSE_HID_PKG_KEY_IDX] = MOUSE_BUTTON_NULL;
-//        data[MOUSE_HID_PKG_X_IDX] = mouse.x;
-//        data[MOUSE_HID_PKG_Y_IDX] = mouse.y;
-        memcpy(msg->data, data, msg->length);
-        
-        msg_put(msg);
-    }
 }
 #endif
 
@@ -1398,10 +1384,10 @@ static msrcuErr_t user_rcu_init(msrcuAppCallback_t *cb)
     //get bond data from FLASH
     user_rcu_ble_bond_data_read(&msrcuBondData);
     
-    memcpy(ble_bond_data[GAP_BOND_DATA].ltk.key, msrcuBondData.ltk.key, BLE_KEY_LEN);
-    ble_bond_data[GAP_BOND_DATA].ediv = msrcuBondData.ediv;
-    memcpy(ble_bond_data[GAP_BOND_DATA].randnb.nb, msrcuBondData.randNb.nb, BLE_RANDOM_NB_LEN);
-    ble_bond_data[GAP_BOND_DATA].key_size = msrcuBondData.keySize;
+    memcpy(&(gBondData.ltk.key), msrcuBondData.ltk.key, BLE_KEY_LEN);
+    gBondData.ediv = msrcuBondData.ediv;
+    memcpy(&(gBondData.randnb.nb), msrcuBondData.randNb.nb, BLE_RANDOM_NB_LEN);
+    gBondData.key_size = msrcuBondData.keySize;
     
     //user_rcu_ble_bond_data_clear(&msrcuBondData);//for test
     
@@ -1413,7 +1399,7 @@ static msrcuErr_t user_rcu_init(msrcuAppCallback_t *cb)
     //register callback
     cb->msrcu_app_ble_cb = user_rcu_ble_callback;
     cb->msrcu_app_key_cb = user_rcu_key_callback;
-#if (MSRCU_IR_LEARN_ENABLE)
+#if MSRCU_IR_LEARN_ENABLE
     cb->msrcu_app_ir_cb = user_rcu_ir_callback;
 #endif
     
@@ -1455,6 +1441,18 @@ static msrcuErr_t user_rcu_init(msrcuAppCallback_t *cb)
 #if 0
 int main (void)//for test
 {
+#if GLOBAL_FLASH_WRITE
+    uint32_t magciWord = 0;
+    uint8_t capOffset = 0x7;
+    inb_addr_t mac = {.addr = CFG_BLE_PARAM_BD_ADDR};
+    
+//    magciWord = hal_global_flash_magic_word_get();
+//    capOffset = hal_global_flash_cap_offset_get();
+//    hal_global_flash_ble_mac_get(&mac);
+    
+    hal_global_flash_set(magciWord, capOffset, &mac);
+#endif
+    
     hal_global_post_init();
     
     PRINTD(DBG_TRACE, "----------------\r\n");
@@ -1483,12 +1481,13 @@ int main (void)
     
     PRINTD(DBG_TRACE, "----------------\r\n");
     PRINTD(DBG_TRACE, "main start...\r\n");
+    PRINTD(DBG_TRACE, "Wafer Version: %02X\r\n", chip_get_id() & 0xff);
     
     //MessageQ for main thread.
     msg_init();
     
     //BLE init
-    ble_config(0);
+    ble_config();
     
     //RCU init
     msrcuErr_t err = user_rcu_init(&userAppCb);
@@ -1503,15 +1502,14 @@ int main (void)
     //Wait for message
     while(1)
     {
-        msg_t *p_msg;
+        msg_t *msg;
         
-        p_msg = msg_get(osWaitForever);
-        if(!p_msg)
-            break;
+        msg = msg_get(osWaitForever);
         
-        handle_msg(p_msg);
+        handle_main_msg(msg);
         
-        p_msg = msg_free(p_msg);
+        if(msg)
+            msg = msg_free(msg);
     }
 }
 #endif

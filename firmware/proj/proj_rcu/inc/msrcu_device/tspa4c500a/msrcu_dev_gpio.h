@@ -3,11 +3,11 @@
  *
  * @file msrcu_dev_gpio.h
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
- 
+
 #ifndef MSRCU_DEV_GPIO_H
 #define MSRCU_DEV_GPIO_H
 
@@ -34,7 +34,7 @@
 
 /* Function Declaration
  ****************************************************************************************
- */ 
+ */
 msrcuErr_t msrcu_dev_gpio_led_pin_init(void);
 msrcuErr_t msrcu_dev_gpio_led_on(uint8_t ledIdx);
 msrcuErr_t msrcu_dev_gpio_led_off(uint8_t ledIdx);

@@ -3,11 +3,11 @@
  *
  * @file msrcu_fw_ir.c
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
- 
+
 /* Include Files
  ****************************************************************************************
  */
@@ -37,12 +37,12 @@
 /* Global Variable
  ****************************************************************************************
  */
- 
+
 /* Function Definition
  ****************************************************************************************
  */
 msrcuErr_t msrcu_fw_ir_init(void (*cb)(msrcuEvtIr_t *evt))
-{   
+{
     msrcuErr_t err = ERR_DEVICE;
     msrcuIrEnv_t ir = {0};
     
@@ -124,4 +124,5 @@ msrcuErr_t msrcu_fw_ir_learn_stop(void)
     return err;
 }
 #endif
+
 #endif

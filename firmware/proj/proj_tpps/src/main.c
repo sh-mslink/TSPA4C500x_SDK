@@ -7,68 +7,146 @@
 
 #include "in_arm.h"
 #include "in_debug.h"
-#include "hal_uart.h"
-#include "hal_gpio.h"
-#include "hal_power.h"
-#include "hal_ir.h"
-#include "hal_audio.h"
-#include "hal_clk.h"
-#include "hal_keyboard.h"
 #include "hal_global.h"
 
 #include "cmsis_os.h"
 
 #include "msg.h"
-#include "ble_test.h"
-#include "gap_test.h"
+#include "msg.h"
+#include "ble_app.h"
+#include "ble_evt.h"
 
-#include "prf_tpps.h"
 
+static bool tppsIsConnected = false;
+static bool tppsNtfEnabled = false;
 
 //Timer for tpps notification
 void tpps_ntf_tmr_callback(void const *arg);
 osTimerId tppsNtfTimerId;
 osTimerDef(tppsNtfTimer, tpps_ntf_tmr_callback);
 
+
+static int handle_main_msg(msg_t *msg)
+{
+    switch(msg->msgId)
+    {
+        default:
+            break;
+    }
+    
+    return 0;
+}
+
 void tpps_ntf_tmr_callback(void const *arg)
 {
     static uint8_t testData[20] = {0};
     static uint8_t i = 0;
-    msg_tpps_ntf_t *msg;
     
-    if(!tppsIsConnected)
+    if(!tppsIsConnected || !tppsNtfEnabled)
     {
         osTimerStop(tppsNtfTimerId);
         return;
     }
     
-    msg = malloc(sizeof(msg_tpps_ntf_t));
-    if(!msg)
-    {
-        PRINTD(DBG_TRACE, "%s no memory.\r\n", __func__);
-        return;
-    }
-    
     testData[0] = i++;
-    msg->msg_id = MSG_TPPS_NTF;
-    msg->conIndex = 0;
-    msg->length = 20;
-    memcpy(msg->data, testData, msg->length);
-    
-    msg_put(msg);
+    tpps_send_notify(0, testData, sizeof(testData));
 }
 
-int handle_msg(msg_t *p_msg)
+void tpps_receive_write(int conIdx, uint8_t *buffer , uint8_t len)
 {
-    //PRINTD(DBG_TRACE, "main evt %d...\r\n", p_msg->msg_id);
-    
-    switch (p_msg->msg_id) 
+    PRINTD(DBG_TRACE, "TPPS receive, conidx:%d, length=%d, data: 0x", conIdx, len);
+//    for(int i = 0; i < len; i++)
+//        PRINTD(DBG_TRACE, " %02X", buffer[i]);
+    PRINTD(DBG_TRACE, " %02X...", buffer[0]);
+    PRINTD(DBG_TRACE, "\r\n");
+}
+
+void ble_app_event_callback(inb_evt_t *evt)
+{
+    switch(evt->evt_id)
     {
+        case GAP_EVT_CONN_REQ:
+            {
+                inb_evt_conn_req_t *p = (inb_evt_conn_req_t *)evt->param;
+                
+                PRINTD(DBG_TRACE, "Connected, idx:%d, ", p->conidx);
+                PRINTD(DBG_TRACE, "addr type:%d, ", p->peer_addr_type);
+                PRINTD(DBG_TRACE, "addr:0x %02X %02X %02X %02X %02X %02X, ", 
+                        p->peer_addr.addr[0], p->peer_addr.addr[1], p->peer_addr.addr[2], 
+                        p->peer_addr.addr[3], p->peer_addr.addr[4], p->peer_addr.addr[5]);
+                PRINTD(DBG_TRACE, "interval:0x%X, ", p->con_interval);
+                PRINTD(DBG_TRACE, "latency:%d, ", p->con_latency);
+                PRINTD(DBG_TRACE, "timeout:%dms.\r\n", p->sup_to * 10);
+                
+                tppsIsConnected = true;
+            }
+            break;
+        
+        case GAP_EVT_DISCONNECT:
+            {
+                inb_evt_disc_ind_t *p = (inb_evt_disc_ind_t *)evt->param;
+                
+                PRINTD(DBG_TRACE, "Disconnected, idx:%d, reason:0x%02X.\r\n", p->conidx, p->reason);
+                
+                tppsIsConnected = false;
+                tppsNtfEnabled = false;
+                
+                osTimerStop(tppsNtfTimerId);
+                
+                if(start_adv())
+                    return;
+            }
+            break;
+        
+        case GAP_EVT_LE_PKT_SIZE_IND:
+            {
+                inb_evt_le_pkt_size_t *p = (inb_evt_le_pkt_size_t*)evt->param;
+                
+                PRINTD(DBG_TRACE, "Peer max packet size, idx:%d, TX: %d Bytes %dms, RX: %d Bytes %dms.\r\n", 
+                        p->conidx, p->max_tx_octets, p->max_tx_time, p->max_rx_octets, p->max_rx_time);
+            }
+            break;
+        
+        case GAP_EVT_CONN_PARAM_UPD:
+            {
+                inb_evt_conn_param_upd_t *p = (inb_evt_conn_param_upd_t*)evt->param;
+                
+                PRINTD(DBG_TRACE, "Connection parameters updated, idx:%d, interval:0x%X, latency:%d, timeout:%dms.\r\n", 
+                        p->conidx, p->con_interval, p->con_latency, p->sup_to * 10);
+            }
+            break;
+        
+        case GATT_EVT_WRT_REQ:
+            {
+                inb_evt_write_req_ind_t *p = (inb_evt_write_req_ind_t*)evt->param;
+                
+                if(p->handle == tpps_get_svc_hdl() + TPP_IDX_NTF_VAL_CFG)
+                {
+                    if(p->value[1] == 0x00 && p->value[0] == 0x01)
+                    {
+                        PRINTD(DBG_TRACE, "Notify enable\r\n");
+                        tppsNtfEnabled = true;
+                        
+                        osTimerStart(tppsNtfTimerId, 100);//100ms for test
+                    }
+                    else if(p->value[1] == 0x00 && p->value[0] == 0x00)
+                    {
+                        PRINTD(DBG_TRACE, "Notify disable\r\n");
+                        tppsNtfEnabled = false;
+                        
+                        osTimerStop(tppsNtfTimerId);
+                    }
+                }
+                else if(p->handle == tpps_get_svc_hdl() + TPP_IDX_WR_DATA_VAL)
+                {
+                    tpps_receive_write(p->conidx, p->value, p->length);
+                }
+            }
+            break;
+        
         default:
-            handle_default_msg(p_msg);
             break;
     }
-    return 0;
 }
 
 /*
@@ -77,7 +155,6 @@ int handle_msg(msg_t *p_msg)
  *              main entry routine (OS is initialized 
  *              in there).
  */
-
 int main (void)
 {
     //Initialize platform.
@@ -85,6 +162,7 @@ int main (void)
     
     PRINTD(DBG_TRACE, "----------------\r\n");
     PRINTD(DBG_TRACE, "main start...\r\n");
+    PRINTD(DBG_TRACE, "Wafer Version: %02X\r\n", chip_get_id() & 0xff);
     
     //MessageQ for main thread.
     msg_init();
@@ -98,7 +176,7 @@ int main (void)
     }
     
     //BLE init
-    ble_config(0);
+    ble_config();
     
     //Start advertisng
     if(start_adv())
@@ -107,14 +185,13 @@ int main (void)
     //Wait for message
     while(1)
     {
-        msg_t *p_msg;
+        msg_t *msg;
         
-        p_msg = msg_get(osWaitForever);
-        if(!p_msg)
-            break;
+        msg = msg_get(osWaitForever);
         
-        handle_msg(p_msg);
+        handle_main_msg(msg);
         
-        p_msg = msg_free(p_msg);
+        if(msg)
+            msg = msg_free(msg);
     }
 }

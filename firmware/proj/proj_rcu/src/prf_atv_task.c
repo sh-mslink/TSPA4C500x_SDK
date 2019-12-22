@@ -32,12 +32,20 @@ static void set_caps_resp_cmd(uint8_t *cmd)
 
 void atv_task_send_enable(void)
 {
-    atvSendEnable = true;
+    if(!atvSendEnable)
+    {
+        atvSendEnable = true;
+        PRINTD(DBG_TRACE, "ATV send enabled.\r\n");
+    }
 }
 
 void atv_task_send_disable(void)
 {
-    atvSendEnable = false;
+    if(atvSendEnable)
+    {
+        atvSendEnable = false;
+        PRINTD(DBG_TRACE, "ATV send disabled.\r\n");
+    }
 }
 
 bool atv_task_send_is_enabled(void)

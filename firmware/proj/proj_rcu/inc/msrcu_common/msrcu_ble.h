@@ -3,11 +3,11 @@
  *
  * @file msrcu_ble.h
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
- 
+
 #ifndef MSRCU_BLE_H
 #define MSRCU_BLE_H
 
@@ -97,7 +97,8 @@ typedef enum
     BLE_ERROR_UNKNOWN_HANDLE                  = 0x46,
 
     BLE_ERROR_UNDEFINED                       = 0xFF,
-}bleError_t;
+}
+bleError_t;
 
 typedef enum
 {
@@ -119,8 +120,8 @@ msrcuBleAdvPduType_t;
 typedef enum 
 {
     ADV_CHANNEL_37          = 0x01,
-	ADV_CHANNEL_38          = 0x02,
-	ADV_CHANNEL_39          = 0x04,
+    ADV_CHANNEL_38          = 0x02,
+    ADV_CHANNEL_39          = 0x04,
     ADV_CHANNEL_37_38       = (ADV_CHANNEL_37 | ADV_CHANNEL_38),
     ADV_CHANNEL_37_39       = (ADV_CHANNEL_37 | ADV_CHANNEL_39),
     ADV_CHANNEL_38_39       = (ADV_CHANNEL_38 | ADV_CHANNEL_38),
@@ -134,7 +135,8 @@ msrcuBleAdvChnl_t;
 typedef struct 
 {
     uint8_t addr[BLE_ADDR_LEN];
-}bleAddr_t;//BLE Address
+}
+bleAddr_t;//BLE Address
 
 typedef struct 
 {
@@ -144,7 +146,8 @@ typedef struct
 typedef struct 
 {
     uint8_t nb[BLE_RANDOM_NB_LEN];
-}bleRandNb_t;//BLE Random Number
+}
+bleRandNb_t;//BLE Random Number
 
 //The maximum length of advertising data and scan response data is generally 31.
 //But the first 3 bytes are fixed as below. The rest 28 bytes are for user.
@@ -170,32 +173,36 @@ msrcuBleAdv_t;
 
 typedef struct 
 {
-	uint8_t conIndex;
+    uint8_t conIndex;
     uint16_t conInterval;
     uint16_t conLatency;
     uint16_t conTimeOut;
     uint8_t peerAddrType;
     bleAddr_t peerAddr;
-}msrcuBleConInd_t;
+}
+msrcuBleConInd_t;
 
 typedef struct 
 {
-	uint8_t conIndex;
+    uint8_t conIndex;
     bleError_t reason;
-}msrcuBleDisconInd_t;
+}
+msrcuBleDisconInd_t;
 
 typedef struct 
 {
-	uint8_t conIndex;
+    uint8_t conIndex;
     uint16_t conInterval;
     uint16_t conLatency;
     uint16_t conTimeOut;
-}msrcuBleConParamUpd_t;
+}
+msrcuBleConParamUpd_t;
 
 typedef struct 
 {
-	uint8_t conIndex;
-}msrcuBleRcuReady_t;
+    uint8_t conIndex;
+}
+msrcuBleRcuReady_t;
 
 typedef struct 
 {
@@ -206,7 +213,8 @@ typedef struct
     uint16_t ediv;//Encryption diversifier
     bleRandNb_t randNb;//Random number
     uint8_t keySize;//Encryption key size (7 to 16)
-}msrcuBleBondData_t;
+}
+msrcuBleBondData_t;
 
 typedef struct 
 {
@@ -214,7 +222,8 @@ typedef struct
     uint8_t instance;//related to HID Report ID
     uint8_t length;
     uint8_t data[244];
-}msrcuBleHidReport_t;
+}
+msrcuBleHidReport_t;
 
 /* Global Variable
  ****************************************************************************************

@@ -3,11 +3,11 @@
  *
  * @file msrcu_dev_adc.h
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
- 
+
 #ifndef MSRCU_DEV_ADC_H
 #define MSRCU_DEV_ADC_H
 
@@ -34,7 +34,8 @@
 
 /* Function Declaration
  ****************************************************************************************
- */ 
+ */
 msrcuErr_t msrcu_dev_adc_bat_voltage_get(uint16_t *mV);
 msrcuErr_t msrcu_dev_adc_init(void);
+
 #endif

@@ -3,11 +3,11 @@
  *
  * @file msrcu_app.c
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
- 
+
 /* Include Files
  ****************************************************************************************
  */
@@ -48,16 +48,11 @@
 
 /* Function Definition
  ****************************************************************************************
- */ 
+ */
 msrcuBleState_t msrcu_app_ble_get_state(void)
-{    
+{
     return msrcu_fw_ble_get_state();
 }
-
-//void msrcu_app_ble_set_state(msrcuBleState_t state)
-//{    
-//    msrcu_fw_ble_set_state(state);    
-//}
 
 msrcuErr_t msrcu_app_ble_adv_start(msrcuBleAdv_t* adv)
 {
@@ -204,6 +199,11 @@ msrcuErr_t msrcu_app_motion_get_data(msrcuMotionAcc_t *acc, msrcuMotionGyro_t *g
     
     return err;
 }
+
+msrcuErr_t msrcu_app_motion_mouse_hid_send(msrcuMouseButton_t button, msrcuMotionMouse_t *mouse)
+{
+    return msrcu_fw_motion_mouse_hid_send(BLE_CON_IDX, button, mouse);
+}
 #endif
 
 #if (MSRCU_IR_SEND_ENABLE || MSRCU_IR_LEARN_ENABLE)
@@ -283,7 +283,7 @@ static msrcuErr_t msrcu_app_env_init(void)
 msrcuErr_t msrcu_app_init(msrcuAppCallback_t *cb)
 {
     msrcuErr_t err = ERR_NO_ERROR;
-        
+    
     msrcu_app_env_init();
     
     err = msrcu_fw_device_init();
@@ -299,16 +299,16 @@ msrcuErr_t msrcu_app_init(msrcuAppCallback_t *cb)
         MSPRINT("msrcu_fw_ble_init error.\r\n");
         return err;
     }
-
+    
     err = msrcu_fw_key_init(cb->msrcu_app_key_cb);
     if(err)
     {
         MSPRINT("msrcu_fw_key_init error.\r\n");
         return err;
     }
-
+    
     msrcu_fw_led_init();
-
+    
 #if MSRCU_VOICE_ENABLE
     err = msrcu_fw_voice_init();
     if(err)
@@ -317,16 +317,16 @@ msrcuErr_t msrcu_app_init(msrcuAppCallback_t *cb)
         return err;
     }
 #endif
-
+    
 #if MSRCU_MOTION_ENABLE
     err = msrcu_fw_motion_init();
     if(err)
     {
         MSPRINT("msrcu_fw_motion_init error.\r\n");
         return err;
-    }   
-#endif    
-
+    }
+#endif
+    
 #if (MSRCU_IR_SEND_ENABLE || MSRCU_IR_LEARN_ENABLE)
     err = msrcu_fw_ir_init(cb->msrcu_app_ir_cb);
     if(err)
@@ -334,7 +334,7 @@ msrcuErr_t msrcu_app_init(msrcuAppCallback_t *cb)
         MSPRINT("msrcu_fw_ir_init error.\r\n");
         return err;
     }
-#endif    
+#endif
     
     return err;
 }

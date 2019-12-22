@@ -6,7 +6,7 @@
  *
  * @brief Keyboard driver implementation file  
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
@@ -165,7 +165,7 @@ static void kb_pm_down(void *arg, uint32_t sleep_duration)
             int pin = cfg_gpio_pin[i] & 0xF;
             int port = (cfg_gpio_pin[i] >> GPIO_CFG_PORT_SHIFT) & 0xF;
             int oe = (cfg_gpio_pin[i] >> GPIO_CFG_OE_IE_SHIFT) & 0x1;
-            int ie = (cfg_gpio_pin[i] >> (GPIO_CFG_OE_IE_SHIFT+1)) & 0x1;
+//            int ie = (cfg_gpio_pin[i] >> (GPIO_CFG_OE_IE_SHIFT+1)) & 0x1;
              
             if (oe) {
                 //hal_gpio_pin_mux(port, pin, 2, 0);

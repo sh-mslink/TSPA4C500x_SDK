@@ -3,11 +3,11 @@
  *
  * @file msrcu_fw_device.h
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
- 
+
 #ifndef MSRCU_FW_DEVICE_H
 #define MSRCU_FW_DEVICE_H
 

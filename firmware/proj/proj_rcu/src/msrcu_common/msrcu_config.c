@@ -3,11 +3,11 @@
  *
  * @file msrcu_config.c
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
- 
+
 /* Include Files
  ****************************************************************************************
  */
@@ -92,13 +92,13 @@ irCmd_t msrcuKeycodeToIrCmd(unsigned char keycode)
         case KEY_CODE_VOLDOWN:
             return IR_CMD_VOLDOWN;
         case KEY_CODE_VOICE:
-            return IR_CMD_VOICE;                
+            return IR_CMD_VOICE;
         case KEY_CODE_RIGHT:
             return IR_CMD_RIGHT;
         case KEY_CODE_LEFT:
             return IR_CMD_LEFT;
         case KEY_CODE_ENTER:
-            return IR_CMD_ENTER;        
+            return IR_CMD_ENTER;
         case KEY_CODE_MUTE:
             return IR_CMD_MUTE;
         case KEY_CODE_HOME:
@@ -108,7 +108,7 @@ irCmd_t msrcuKeycodeToIrCmd(unsigned char keycode)
         case KEY_CODE_MENU:
             return IR_CMD_MENU;
         case KEY_CODE_BACK:
-            return IR_CMD_BACK;        
+            return IR_CMD_BACK;
         case KEY_CODE_DOWN: 
             return IR_CMD_DOWN;
         default:

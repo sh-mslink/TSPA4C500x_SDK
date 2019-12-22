@@ -3,11 +3,11 @@
  *
  * @file msrcu_dev_gpio.c
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
- 
+
 /* Include Files
  ****************************************************************************************
  */
@@ -35,7 +35,8 @@ typedef struct
     uint8_t pin;
     bool onLevel;
     bool isOn;
-}ledDev_t;
+}
+ledDev_t;
 
 /* Function Declaration
  ****************************************************************************************
@@ -74,7 +75,7 @@ static void msrcu_dev_gpio_pin_init(uint8_t port, uint8_t pin, uint8_t direction
 }
 
 msrcuErr_t msrcu_dev_gpio_led_pin_init(void)
-{    
+{
     uint8_t i = 0;
     
     ledDev[0].port = MSRCU_DEV_LED_0_GPIO_PORT;
@@ -94,7 +95,7 @@ msrcuErr_t msrcu_dev_gpio_led_pin_init(void)
 }
 
 msrcuErr_t msrcu_dev_gpio_led_on(uint8_t ledIdx)
-{             
+{
     if(ledIdx >= LED_NUMBER_MAX)
         return ERR_NOT_SUPPORT;
     
@@ -106,7 +107,7 @@ msrcuErr_t msrcu_dev_gpio_led_on(uint8_t ledIdx)
 }
 
 msrcuErr_t msrcu_dev_gpio_led_off(uint8_t ledIdx)
-{         
+{
     if(ledIdx >= LED_NUMBER_MAX)
         return ERR_NOT_SUPPORT;
     
@@ -118,7 +119,7 @@ msrcuErr_t msrcu_dev_gpio_led_off(uint8_t ledIdx)
 }
 
 msrcuErr_t msrcu_dev_gpio_led_toggle(uint8_t ledIdx)
-{         
+{
     if(ledIdx >= LED_NUMBER_MAX)
         return ERR_NOT_SUPPORT;
     
@@ -131,7 +132,7 @@ msrcuErr_t msrcu_dev_gpio_led_toggle(uint8_t ledIdx)
 }
 
 msrcuErr_t msrcu_dev_gpio_mic_power_pin_init(void)
-{    
+{
 #if (MSRCU_VOICE_ENABLE && !MSRCU_DEV_MIC_POWER_USE_VDDIO_SENSOR)
     msrcu_dev_gpio_pin_init(
             MSRCU_DEV_MIC_POWER_GPIO_PORT,
@@ -146,14 +147,14 @@ msrcuErr_t msrcu_dev_gpio_mic_power_pin_init(void)
 }
 
 msrcuErr_t msrcu_dev_gpio_mic_power_on(void)
-{        
+{
 #if (MSRCU_VOICE_ENABLE && !MSRCU_DEV_MIC_POWER_USE_VDDIO_SENSOR) 
     msrcu_dev_gpio_mic_power_pin_init();
     msrcu_dev_gpio_output(
             MSRCU_DEV_MIC_POWER_GPIO_PORT, 
             MSRCU_DEV_MIC_POWER_GPIO_PIN, 
             MSRCU_DEV_MIC_POWER_ON_LEVEL);
-		
+    
     return ERR_NO_ERROR;
 #else
     return ERR_NOT_SUPPORT;
@@ -161,7 +162,7 @@ msrcuErr_t msrcu_dev_gpio_mic_power_on(void)
 }
 
 msrcuErr_t msrcu_dev_gpio_mic_power_off(void)
-{      
+{
 #if (MSRCU_VOICE_ENABLE && !MSRCU_DEV_MIC_POWER_USE_VDDIO_SENSOR)  
     msrcu_dev_gpio_mic_power_pin_init();
     msrcu_dev_gpio_output(
@@ -176,7 +177,7 @@ msrcuErr_t msrcu_dev_gpio_mic_power_off(void)
 }
 
 msrcuErr_t msrcu_dev_gpio_motion_sensor_power_pin_init(void)
-{    
+{
 #if (MSRCU_MOTION_ENABLE && MSRCU_MOTION_SENSOR_POWER_CTRL_ENABLE)
     msrcu_dev_gpio_pin_init(
             MSRCU_DEV_MOTION_SENSOR_POWER_GPIO_PORT,
@@ -191,7 +192,7 @@ msrcuErr_t msrcu_dev_gpio_motion_sensor_power_pin_init(void)
 }
 
 msrcuErr_t msrcu_dev_gpio_motion_sensor_power_on(void)
-{         
+{
 #if (MSRCU_MOTION_ENABLE && MSRCU_MOTION_SENSOR_POWER_CTRL_ENABLE)
     msrcu_dev_gpio_motion_sensor_power_pin_init();
     msrcu_dev_gpio_output(
@@ -221,7 +222,7 @@ msrcuErr_t msrcu_dev_gpio_motion_sensor_power_off(void)
 }
 
 msrcuErr_t msrcu_dev_gpio_ir_learn_ctrl_pin_init(void)
-{    
+{
 #if MSRCU_IR_LEARN_ENABLE
     msrcu_dev_gpio_pin_init(
             MSRCU_DEV_IR_LEARN_CTRL_GPIO_PORT,
@@ -236,7 +237,7 @@ msrcuErr_t msrcu_dev_gpio_ir_learn_ctrl_pin_init(void)
 }
 
 msrcuErr_t msrcu_dev_gpio_ir_learn_ctrl_on(void)
-{     
+{
 #if MSRCU_IR_LEARN_ENABLE    
     msrcu_dev_gpio_ir_learn_ctrl_pin_init();
     msrcu_dev_gpio_output(
@@ -251,7 +252,7 @@ msrcuErr_t msrcu_dev_gpio_ir_learn_ctrl_on(void)
 }
 
 msrcuErr_t msrcu_dev_gpio_ir_learn_ctrl_off(void)
-{     
+{
 #if MSRCU_IR_LEARN_ENABLE    
     msrcu_dev_gpio_ir_learn_ctrl_pin_init();
     msrcu_dev_gpio_output(

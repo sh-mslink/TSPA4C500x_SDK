@@ -3,11 +3,11 @@
  *
  * @file msrcu_dev_keyboard.c
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
- 
+
 /* Include Files
  ****************************************************************************************
  */
@@ -96,20 +96,20 @@ static void msrcu_dev_keyboard_task(const void *arg)
                 case KB_MSG_PRESS:
                     msKeyEvt->behavior = EVT_KEY_PRESS;
                     keySt[msKeyEvt->code] = KEY_PRESSED;
-                break;
+                    break;
                 
                 case KB_MSG_RELEASE:
                     msKeyEvt->behavior = EVT_KEY_RELEASE;
                     keySt[msKeyEvt->code] = KEY_RELEASED;
-                break;
+                    break;
                 
                 case KB_MSG_LONG_PRESS:
                     msKeyEvt->behavior = EVT_KEY_LONG_PRESS;
                     keySt[msKeyEvt->code] = KEY_PRESSED;
-                break;
+                    break;
                 
                 default:
-                break;
+                    break;
             }
         }
         else

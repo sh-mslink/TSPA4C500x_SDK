@@ -5,7 +5,7 @@
  *
  * @brief HAL Global   
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
@@ -14,6 +14,8 @@
 #define HAL_GLOBAL_H
 
 #include "in_mmap.h"
+
+#include ".\ble\inb_gap.h"
 
 /**
  ****************************************************************************************
@@ -25,13 +27,20 @@
  */
 
 /*
+ * Definition
+ ****************************************************************************************
+ */
+#define GLOBAL_FLASH_WRITE  (1)
+
+/*
  * Enumeration
  ****************************************************************************************
  */
-enum data_ram_access_prio {
-	DATA_RAM_ACCESS_PRIO_1=0,	// Highest
-	DATA_RAM_ACCESS_PRIO_2=1,
-	DATA_RAM_ACCESS_PRIO_3=2,
+enum data_ram_access_prio
+{
+    DATA_RAM_ACCESS_PRIO_1=0,// Highest
+    DATA_RAM_ACCESS_PRIO_2=1,
+    DATA_RAM_ACCESS_PRIO_3=2,
 };
 
 /*
@@ -40,25 +49,23 @@ enum data_ram_access_prio {
  */
 static __inline uint32_t chip_get_id(void)
 {
-	return (RD_WORD(GLOBAL_REG_CHIP_ID) & (GLOBAL_REG_CHIP_ID_VERSION|GLOBAL_REG_CHIP_ID_SUBVERSION));
+    return (RD_WORD(GLOBAL_REG_CHIP_ID) & (GLOBAL_REG_CHIP_ID_VERSION|GLOBAL_REG_CHIP_ID_SUBVERSION));
 }
 static __inline uint32_t fw_get_version(void)
 {
-	return RD_WORD(0x3FFF8) ;
+    return RD_WORD(0x3FFF8) ;
 }
-
 static __inline uint32_t chip_sleep(void)
 {
-	return (WR_WORD(GLOBAL_REG_SLEEP_CTRL, 1));
+    return (WR_WORD(GLOBAL_REG_SLEEP_CTRL, 1));
 }
-
 static __inline void data_ram_access_prio(int cpu_i_prio, int cpu_d_prio, int dma_prio)
 {
-	uint32_t reg = RD_WORD(GLOBAL_REG_AHB_CTRL_1);
-
-	reg &= ~GLOBAL_REG_AHB_CTRL_1_CTL_ICM_D2_DATA_CODE_RAM_PRIORITY ;
-	reg |= ((cpu_i_prio & 0x3) << 0) | ((cpu_d_prio & 0x3) << 2) | ((dma_prio & 0x3) << 4);
-	WR_WORD(GLOBAL_REG_AHB_CTRL_1, reg);
+    uint32_t reg = RD_WORD(GLOBAL_REG_AHB_CTRL_1);
+    
+    reg &= ~GLOBAL_REG_AHB_CTRL_1_CTL_ICM_D2_DATA_CODE_RAM_PRIORITY ;
+    reg |= ((cpu_i_prio & 0x3) << 0) | ((cpu_d_prio & 0x3) << 2) | ((dma_prio & 0x3) << 4);
+    WR_WORD(GLOBAL_REG_AHB_CTRL_1, reg);
 }
 
 /*
@@ -117,6 +124,13 @@ void hal_global_resume(void);
 void hal_global_sys_reset(void);
 
 void hal_global_debug_uart_init(void);
+
+#if GLOBAL_FLASH_WRITE
+void hal_global_flash_set(uint32_t magicWord, uint8_t capOffset, inb_addr_t *mac);
+#endif
+uint32_t hal_global_flash_magic_word_get(void);
+uint8_t hal_global_flash_cap_offset_get(void);
+void hal_global_flash_ble_mac_get(inb_addr_t *mac);
 
 /// @} HAL_GLOBAL
 

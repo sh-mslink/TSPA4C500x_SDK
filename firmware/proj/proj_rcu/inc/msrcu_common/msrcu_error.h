@@ -3,11 +3,11 @@
  *
  * @file msrcu_error.h
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
- 
+
 #ifndef MSRCU_ERROR_H
 #define MSRCU_ERROR_H
 

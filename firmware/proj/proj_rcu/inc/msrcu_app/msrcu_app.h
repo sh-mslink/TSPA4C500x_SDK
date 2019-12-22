@@ -3,11 +3,11 @@
  *
  * @file msrcu_app.h
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
- 
+
 #ifndef MSRCU_APP_H
 #define MSRCU_APP_H
 
@@ -16,6 +16,14 @@
  */
 #include "msrcu_event.h" 
 
+#if MSRCU_BLE_VOICE_ATV_ENABLE
+#include "prf_atv.h"
+#include "prf_atv_task.h"
+#endif
+#if MSRCU_MOTION_ENABLE
+#include "airmouse.h"
+#endif
+
 /* Macro Definition
  ****************************************************************************************
  */
@@ -23,7 +31,7 @@
 /* Enum Definition
  ****************************************************************************************
  */
- 
+
 /* Struct Definition
  ****************************************************************************************
  */
@@ -31,12 +39,11 @@
 /* Global Variable
  ****************************************************************************************
  */
- 
+
 /* Function Declaration
  ****************************************************************************************
  */
 msrcuBleState_t msrcu_app_ble_get_state(void);
-//void msrcu_app_ble_set_state(msrcuBleState_t state);
 msrcuErr_t msrcu_app_ble_adv_start(msrcuBleAdv_t* adv);
 msrcuErr_t msrcu_app_ble_adv_stop(void);
 msrcuErr_t msrcu_app_ble_disconnect(void);
@@ -50,7 +57,7 @@ bool msrcu_app_led_is_on(uint8_t ledIdx);
 msrcuErr_t msrcu_app_led_on(uint8_t ledIdx);
 msrcuErr_t msrcu_app_led_off(uint8_t ledIdx);
 msrcuErr_t msrcu_app_led_toggle(uint8_t ledIdx);
-    
+
 #if MSRCU_VOICE_ENABLE
 bool msrcu_app_voice_is_stop(void);
 #if MSRCU_BLE_VOICE_ATV_ENABLE
@@ -70,6 +77,7 @@ bool msrcu_app_motion_is_stop(void);
 msrcuErr_t msrcu_app_motion_start(void);
 msrcuErr_t msrcu_app_motion_stop(void);
 msrcuErr_t msrcu_app_motion_get_data(msrcuMotionAcc_t *acc, msrcuMotionGyro_t *gyro, msrcuMotionMouse_t *mouse);
+msrcuErr_t msrcu_app_motion_mouse_hid_send(msrcuMouseButton_t button, msrcuMotionMouse_t *mouse);
 #endif
 
 #if (MSRCU_IR_SEND_ENABLE || MSRCU_IR_LEARN_ENABLE)

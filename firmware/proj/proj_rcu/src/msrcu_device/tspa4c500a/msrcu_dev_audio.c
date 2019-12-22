@@ -3,11 +3,11 @@
  *
  * @file msrcu_dev_audio.c
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
- 
+
 /* Include Files
  ****************************************************************************************
  */
@@ -21,7 +21,6 @@
 
 #define VOICE_SAMPLE_RATE       MSRCU_BLE_VOICE_SAMPLE_RATE//no use for atv voice
 #define VOICE_SAMPLE_GAIN       (256)
-
 
 #if MSRCU_BLE_VOICE_ATV_ENABLE
 #define ADPCM_BLOCK_SAMPLE      ((ATVV_BYTES_PER_FRAME - 6) * 2)
@@ -54,6 +53,9 @@
 
 #define AUDIO_HAL_BUF_LENGTH    (CFG_SMEM_AUDIO_RX & 0xFFFF)
 
+/* Enum Definition
+ ****************************************************************************************
+ */
 enum
 {
 #if MSRCU_BLE_VOICE_ATV_ENABLE
@@ -64,10 +66,6 @@ enum
     AUDIO_ENC_GETSEND,
     AUDIO_ENC_STOP,
 };
-
-/* Enum Definition
- ****************************************************************************************
- */
 
 /* Struct Definition
  ****************************************************************************************
@@ -102,7 +100,7 @@ void msrcu_dev_audio_atv_set_sample_rate(uint16_t sampleRate)
 #endif
 
 static msrcuErr_t msrcu_dev_audio_ble_package_send(uint8_t *buf, uint8_t len)
-{    
+{
 //    for(uint32_t i = 0; i < voiceHidPkgSize; i++)
 //        MSPRINT("%02X|", buf[i]);
 //    MSPRINT("\r\n");
@@ -123,7 +121,7 @@ static msrcuErr_t msrcu_dev_audio_ble_package_send(uint8_t *buf, uint8_t len)
     report->length = len;
     memcpy(report->data, buf, report->length);
     
-    err = msrcu_dev_ble_hid_send2(report);
+    err = msrcu_dev_ble_hid_send(report);
     
     if(report)
         free(report);
@@ -244,186 +242,186 @@ static void msrcu_dev_audio_task(const void *arg)
         {
 #if MSRCU_BLE_VOICE_ATV_ENABLE
             case AUDIO_ATV_SEARCH_KEY://ATVV_CHAR_CTL_START_SEARCH
-            {
-                if(BLE_STATE_READY == msrcu_dev_ble_get_state())
                 {
-                    uint8_t cmd[ATVV_CHAR_CTL_START_SEARCH_LEN] = {0};
-                    cmd[0] = ATVV_CHAR_CTL_START_SEARCH_CMD;
-                    atv_task_cmd_send(BLE_CON_IDX, cmd, ATVV_CHAR_CTL_START_SEARCH_LEN);
+                    if(BLE_STATE_READY == msrcu_dev_ble_get_state())
+                    {
+                        uint8_t cmd[ATVV_CHAR_CTL_START_SEARCH_LEN] = {0};
+                        cmd[0] = ATVV_CHAR_CTL_START_SEARCH_CMD;
+                        atv_task_cmd_send(BLE_CON_IDX, cmd, ATVV_CHAR_CTL_START_SEARCH_LEN);
+                    }
                 }
-            }
-            break;
+                break;
             
             case AUDIO_ATV_AUDIO_START://ATVV_CHAR_CTL_AUDIO_START
-            {
-                if(BLE_STATE_READY == msrcu_dev_ble_get_state())
                 {
-                    uint8_t cmd[ATVV_CHAR_CTL_AUDIO_START_LEN] = {0};
-                    cmd[0] = ATVV_CHAR_CTL_AUDIO_START_CMD;
-                    atv_task_cmd_send(BLE_CON_IDX, cmd, ATVV_CHAR_CTL_AUDIO_START_LEN);
-                    
-                    res = osMessagePut(msrcuAuEncMsgQId, AUDIO_ENC_START, 0);
-                    if(res)
-                        MSPRINT("AUDIO_ENC_GETSEND MSG put err:%d\r\n", res);
+                    if(BLE_STATE_READY == msrcu_dev_ble_get_state())
+                    {
+                        uint8_t cmd[ATVV_CHAR_CTL_AUDIO_START_LEN] = {0};
+                        cmd[0] = ATVV_CHAR_CTL_AUDIO_START_CMD;
+                        atv_task_cmd_send(BLE_CON_IDX, cmd, ATVV_CHAR_CTL_AUDIO_START_LEN);
+                        
+                        res = osMessagePut(msrcuAuEncMsgQId, AUDIO_ENC_START, 0);
+                        if(res)
+                            MSPRINT("AUDIO_ENC_GETSEND MSG put err:%d\r\n", res);
+                    }
                 }
-            }
-            break;
+                break;
 #endif
             case AUDIO_ENC_START:
-            {
-                //MSPRINT("AT\r\n");
-                if(gAudioIsStart && BLE_STATE_READY == msrcu_dev_ble_get_state())
                 {
-                    gAdpcmBlkNb = 0;
-                    adLen = 0;
-                    
+                    //MSPRINT("AT\r\n");
+                    if(gAudioIsStart && BLE_STATE_READY == msrcu_dev_ble_get_state())
+                    {
+                        gAdpcmBlkNb = 0;
+                        adLen = 0;
+                        
 #if !MSRCU_BLE_VOICE_ATV_ENABLE
-                    //voice start package
-                    hidBuf[VOICE_BLE_PKG_HEAD_IDX] = VOICE_BLE_PKG_HEAD;
-                    msrcu_dev_audio_ble_package_send(hidBuf, VOICE_BLE_PKG_SIZE);
+                        //voice start package
+                        hidBuf[VOICE_BLE_PKG_HEAD_IDX] = VOICE_BLE_PKG_HEAD;
+                        msrcu_dev_audio_ble_package_send(hidBuf, VOICE_BLE_PKG_SIZE);
 #endif
-                    res = hal_audio_enc_set_config(1, 0, PDM_CLK, gAudioSampleRate, 0, ADPCM_BLOCK_SIZE_DEV, VOICE_SAMPLE_GAIN);
-                    MSPRINT("hal_audio_enc_set_config sample rate:%d.\r\n", gAudioSampleRate);
-                    
-                    if(res)
-                    {
-                        MSPRINT("hal_audio_enc_set_config err:%d.\r\n", res);
-                        break;
+                        res = hal_audio_enc_set_config(1, 0, PDM_CLK, gAudioSampleRate, 0, ADPCM_BLOCK_SIZE_DEV, VOICE_SAMPLE_GAIN);
+                        MSPRINT("hal_audio_enc_set_config sample rate:%d.\r\n", gAudioSampleRate);
+                        
+                        if(res)
+                        {
+                            MSPRINT("hal_audio_enc_set_config err:%d.\r\n", res);
+                            break;
+                        }
+                        
+                        res = hal_audio_encode_start();
+                        if(res)
+                        {
+                            MSPRINT("hal_audio_encode_start err:%d.\r\n", res);
+                            break;
+                        }
+                        
+                        res = osMessagePut(msrcuAuEncMsgQId, AUDIO_ENC_GETSEND, 0);
+                        if(res)
+                            MSPRINT("AUDIO_ENC_START MSG put err:%d.\r\n", res);
                     }
-                    
-                    res = hal_audio_encode_start();
-                    if(res)
-                    {
-                        MSPRINT("hal_audio_encode_start err:%d.\r\n", res);
-                        break;
-                    }
-                    
-                    res = osMessagePut(msrcuAuEncMsgQId, AUDIO_ENC_GETSEND, 0);
-                    if(res)
-                        MSPRINT("AUDIO_ENC_START MSG put err:%d.\r\n", res);
                 }
-            }
-            break;
+                break;
             
             case AUDIO_ENC_GETSEND:
-            {
-                //MSPRINT(".");
-                if(gAudioIsStart && BLE_STATE_READY == msrcu_dev_ble_get_state())
                 {
-                    res = hal_audio_encode_process(gHalAdBuf + halAdLen, AUDIO_HAL_BUF_LENGTH - halAdLen, (uint16_t *)&len);
-                    if(res)
+                    //MSPRINT(".");
+                    if(gAudioIsStart && BLE_STATE_READY == msrcu_dev_ble_get_state())
                     {
-                        MSPRINT("hal_audio_encode_process err:%d.\r\n", res);
-                        msrcu_dev_audio_stop();
-                        goto jumpOut;
-                    }
-//                    MSPRINT("len %d\r\n", len);
-                    if(len >= AUDIO_HAL_BUF_LENGTH - halAdLen)
-                    {
-                        MSPRINT("Voice overflow!!!\r\n");
-                        msrcu_dev_audio_stop();
-                        goto jumpOut;
-                    }
-//                    for(uint32_t i = 0; i < len; i++)
-//                        MSPRINT("%02X ", gHalAdBuf[halAdLen + i]);
-//                    MSPRINT("\r\n");
-
-                    adLen += len;
-                    halAdLen += len;
-                    byteCt += len;
-//                    MSPRINT("%d ", byteCt);
-                    
-                    halBlkCt = 0;
-                    while(adLen >= ADPCM_BLOCK_SIZE_DEV)
-                    {
-//                        MSPRINT("-ad %d, blk %d|0x%02X\r\n", adLen, gAdpcmBlkNb + 1, gAdpcmBlkNb + 1);
-//                        for (i = 0; i < ADPCM_BLOCK_SIZE_DEV; i++)
-//                            MSPRINT("%02X ", gHalAdBuf[halBlkCt * ADPCM_BLOCK_SIZE_DEV + i]);
+                        res = hal_audio_encode_process(gHalAdBuf + halAdLen, AUDIO_HAL_BUF_LENGTH - halAdLen, (uint16_t *)&len);
+                        if(res)
+                        {
+                            MSPRINT("hal_audio_encode_process err:%d.\r\n", res);
+                            msrcu_dev_audio_stop();
+                            goto jumpOut;
+                        }
+//                        MSPRINT("len %d\r\n", len);
+                        if(len >= AUDIO_HAL_BUF_LENGTH - halAdLen)
+                        {
+                            MSPRINT("Voice overflow!!!\r\n");
+                            msrcu_dev_audio_stop();
+                            goto jumpOut;
+                        }
+//                        for(uint32_t i = 0; i < len; i++)
+//                            MSPRINT("%02X ", gHalAdBuf[halAdLen + i]);
 //                        MSPRINT("\r\n");
-                        memcpy(adBlkBuf, gHalAdBuf + halBlkCt * ADPCM_BLOCK_SIZE_DEV, ADPCM_BLOCK_SIZE_DEV);
-                        halBlkCt++;
                         
-                        //MSPRINT("gAdpcmBlkNb%d\r\n", gAdpcmBlkNb);
+                        adLen += len;
+                        halAdLen += len;
+                        byteCt += len;
+//                        MSPRINT("%d ", byteCt);
+                        
+                        halBlkCt = 0;
+                        while(adLen >= ADPCM_BLOCK_SIZE_DEV)
+                        {
+//                            MSPRINT("-ad %d, blk %d|0x%02X\r\n", adLen, gAdpcmBlkNb + 1, gAdpcmBlkNb + 1);
+//                            for (i = 0; i < ADPCM_BLOCK_SIZE_DEV; i++)
+//                                MSPRINT("%02X ", gHalAdBuf[halBlkCt * ADPCM_BLOCK_SIZE_DEV + i]);
+//                            MSPRINT("\r\n");
+                            memcpy(adBlkBuf, gHalAdBuf + halBlkCt * ADPCM_BLOCK_SIZE_DEV, ADPCM_BLOCK_SIZE_DEV);
+                            halBlkCt++;
+                            
+                            //MSPRINT("gAdpcmBlkNb%d\r\n", gAdpcmBlkNb);
 #if MSRCU_BLE_VOICE_ATV_ENABLE
-                        if(msrcu_dev_audio_adpcm_block_callback(adBlkBuf))
-                        {
-                            msrcu_dev_audio_stop();
-                            goto jumpOut;
-                        }
-                        
-                        gAdpcmBlkNb++;
-                        
-                        if(gAdpcmBlkNb && (gAdpcmBlkNb % 15 == 0))//send ATVV_CHAR_CTL_AUDIO_SYNC per 15 block
-                        {
-                            uint8_t cmd[ATVV_CHAR_CTL_AUDIO_SYNC_LEN] = {0};
-                            cmd[0] = ATVV_CHAR_CTL_AUDIO_SYNC_CMD;
-                            cmd[1] = (gAdpcmBlkNb >> 8) & 0xFF;
-                            cmd[2] = gAdpcmBlkNb & 0xFF;
-                            atv_task_cmd_send(BLE_CON_IDX, cmd, ATVV_CHAR_CTL_AUDIO_SYNC_LEN);
-                        }
-                        
-                        if(gAdpcmBlkNb == 0)//roll over
-                        {
-                            msrcu_dev_audio_stop();
-                            goto jumpOut;
-                        }
-#else
-                        gAdpcmBlkNb++;//start from 0x0001
-                        if(gAdpcmBlkNb)
-                        {
                             if(msrcu_dev_audio_adpcm_block_callback(adBlkBuf))
                             {
                                 msrcu_dev_audio_stop();
                                 goto jumpOut;
                             }
-                        }
-                        else//gAdpcmBlkNb reach to 0xFFFF
-                        {
-                            msrcu_dev_audio_stop();
-                            goto jumpOut;
-                        }
+                            
+                            gAdpcmBlkNb++;
+                            
+                            if(gAdpcmBlkNb && (gAdpcmBlkNb % 15 == 0))//send ATVV_CHAR_CTL_AUDIO_SYNC per 15 block
+                            {
+                                uint8_t cmd[ATVV_CHAR_CTL_AUDIO_SYNC_LEN] = {0};
+                                cmd[0] = ATVV_CHAR_CTL_AUDIO_SYNC_CMD;
+                                cmd[1] = (gAdpcmBlkNb >> 8) & 0xFF;
+                                cmd[2] = gAdpcmBlkNb & 0xFF;
+                                atv_task_cmd_send(BLE_CON_IDX, cmd, ATVV_CHAR_CTL_AUDIO_SYNC_LEN);
+                            }
+                            
+                            if(gAdpcmBlkNb == 0)//roll over
+                            {
+                                msrcu_dev_audio_stop();
+                                goto jumpOut;
+                            }
+#else
+                            gAdpcmBlkNb++;//start from 0x0001
+                            if(gAdpcmBlkNb)
+                            {
+                                if(msrcu_dev_audio_adpcm_block_callback(adBlkBuf))
+                                {
+                                    msrcu_dev_audio_stop();
+                                    goto jumpOut;
+                                }
+                            }
+                            else//gAdpcmBlkNb reach to 0xFFFF
+                            {
+                                msrcu_dev_audio_stop();
+                                goto jumpOut;
+                            }
 #endif
-                        adLen -= ADPCM_BLOCK_SIZE_DEV;
+                            adLen -= ADPCM_BLOCK_SIZE_DEV;
+                        }
+                        halAdLen = adLen;
+                        memcpy(gHalAdBuf, gHalAdBuf + halBlkCt * ADPCM_BLOCK_SIZE_DEV, halAdLen);
+                        
+                        res = osMessagePut(msrcuAuEncMsgQId, AUDIO_ENC_GETSEND, 0);
+                        if(res)
+                            MSPRINT("MSG put err:%d\r\n", res);
                     }
-                    halAdLen = adLen;
-                    memcpy(gHalAdBuf, gHalAdBuf + halBlkCt * ADPCM_BLOCK_SIZE_DEV, halAdLen);
-                    
-                    res = osMessagePut(msrcuAuEncMsgQId, AUDIO_ENC_GETSEND, 0);
-                    if(res)
-                        MSPRINT("MSG put err:%d\r\n", res);
                 }
-            }
 jumpOut:
-            break;
+                break;
             
             case AUDIO_ENC_STOP:
-            {
-                //MSPRINT("AP\r\n");
-                res = hal_audio_encode_stop();
-                if(res)
-                    MSPRINT("AUDIO_ENC_STOP: hal_audio_encode_stop err:%d\r\n", res);
-                
+                {
+                    //MSPRINT("AP\r\n");
+                    res = hal_audio_encode_stop();
+                    if(res)
+                        MSPRINT("AUDIO_ENC_STOP: hal_audio_encode_stop err:%d\r\n", res);
+                    
 #if MSRCU_BLE_VOICE_ATV_ENABLE
-                //atv voice stop package
-                uint8_t cmd[ATVV_CHAR_CTL_AUDIO_STOP_LEN] = {0};
-                cmd[0] = ATVV_CHAR_CTL_AUDIO_STOP_CMD;
-                atv_task_cmd_send(BLE_CON_IDX, cmd, ATVV_CHAR_CTL_AUDIO_STOP_LEN);
+                    //atv voice stop package
+                    uint8_t cmd[ATVV_CHAR_CTL_AUDIO_STOP_LEN] = {0};
+                    cmd[0] = ATVV_CHAR_CTL_AUDIO_STOP_CMD;
+                    atv_task_cmd_send(BLE_CON_IDX, cmd, ATVV_CHAR_CTL_AUDIO_STOP_LEN);
 #else
-                //voice stop package
-                hidBuf[VOICE_BLE_PKG_HEAD_IDX] = 0;
-                if(BLE_STATE_READY == msrcu_dev_ble_get_state())
-                    msrcu_dev_audio_ble_package_send(hidBuf, VOICE_BLE_PKG_SIZE);
-#endif                
-                MSPRINT("ADPCM total bytes: %d.\r\n", byteCt - adLen);
-                MSPRINT("Voice time: %fs\r\n", 
-                        1.0 * ADPCM_BLOCK_SAMPLE * (byteCt - adLen) / ADPCM_BLOCK_SIZE_DEV / gAudioSampleRate);
-                
-                byteCt = 0;
-            }
-            break;
+                    //voice stop package
+                    hidBuf[VOICE_BLE_PKG_HEAD_IDX] = 0;
+                    if(BLE_STATE_READY == msrcu_dev_ble_get_state())
+                        msrcu_dev_audio_ble_package_send(hidBuf, VOICE_BLE_PKG_SIZE);
+#endif
+                    MSPRINT("ADPCM total bytes: %d.\r\n", byteCt - adLen);
+                    MSPRINT("Voice time: %fs\r\n", 
+                            1.0 * ADPCM_BLOCK_SAMPLE * (byteCt - adLen) / ADPCM_BLOCK_SIZE_DEV / gAudioSampleRate);
+                    
+                    byteCt = 0;
+                }
+                break;
             
             default:
-            break;
+                break;
         }
     }
 }
@@ -435,9 +433,9 @@ msrcuErr_t msrcu_dev_audio_init(void)
     
     //device hal
     if(hal_audio_enc_open())
-        return ERR_DEVICE_DRIVER; 
+        return ERR_DEVICE_DRIVER;
     if(hal_audio_enc_set_pdm_mic_inp(0, 1, 0))//left channel PDM_DATA0
-        return ERR_DEVICE_DRIVER; 
+        return ERR_DEVICE_DRIVER;
     if(hal_audio_enc_set_predict_endianness(0))//big endian
         return ERR_DEVICE_DRIVER;
     
@@ -451,7 +449,7 @@ msrcuErr_t msrcu_dev_audio_init(void)
     auEncDef.stacksize = MSRCU_DEV_AUDIO_TASK_SIZE; 
     osThreadId msrcuDevAuEncId = osThreadCreate(&auEncDef, NULL);
     if(msrcuDevAuEncId == NULL)
-        return ERR_OS; 
+        return ERR_OS;
     
     gAudioSampleRate = VOICE_SAMPLE_RATE;
     
@@ -476,6 +474,9 @@ msrcuErr_t msrcu_dev_audio_start(void)
     if(!msrcuEnv.enVoice)
         return ERR_NOT_SUPPORT;
     
+    if(gAudioIsStart)
+        return ERR_NOT_SUPPORT;
+    
 #if MSRCU_BLE_VOICE_ATV_ENABLE
     if(osMessagePut(msrcuAuEncMsgQId, AUDIO_ATV_AUDIO_START, 0))
 #else
@@ -484,6 +485,7 @@ msrcuErr_t msrcu_dev_audio_start(void)
         return ERR_OS;
     
     gAudioIsStart = true;
+    
     return ERR_NO_ERROR; 
 }
 
@@ -492,9 +494,13 @@ msrcuErr_t msrcu_dev_audio_stop(void)
     if(!msrcuEnv.enVoice)
         return ERR_NOT_SUPPORT;
     
+    if(!gAudioIsStart)
+        return ERR_NOT_SUPPORT;
+    
     if(osMessagePut(msrcuAuEncMsgQId, AUDIO_ENC_STOP, 0))
         return ERR_OS;
     
     gAudioIsStart = false;
+    
     return ERR_NO_ERROR;
 }

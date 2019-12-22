@@ -3,11 +3,11 @@
  *
  * @file msrcu_dev_ble.h
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
- 
+
 #ifndef MSRCU_DEV_BLE_H
 #define MSRCU_DEV_BLE_H
 
@@ -44,6 +44,5 @@ msrcuErr_t msrcu_dev_ble_adv_start(msrcuBleAdv_t* adv);
 msrcuErr_t msrcu_dev_ble_adv_stop(void);
 msrcuErr_t msrcu_dev_ble_disconnect(void);
 msrcuErr_t msrcu_dev_ble_hid_send(msrcuBleHidReport_t *param);
-msrcuErr_t msrcu_dev_ble_hid_send2(msrcuBleHidReport_t *param);
 
 #endif

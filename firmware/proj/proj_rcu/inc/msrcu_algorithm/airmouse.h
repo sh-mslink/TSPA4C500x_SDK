@@ -3,7 +3,7 @@
  *
  * @file airmouse.h
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
@@ -36,26 +36,26 @@
  */
 typedef struct 
 {
-	int16_t accX;
-	int16_t accY;
-	int16_t accZ;
-	int16_t gyroX;
-	int16_t gyroY;
-	int16_t gyroZ;
+    int16_t accX;
+    int16_t accY;
+    int16_t accZ;
+    int16_t gyroX;
+    int16_t gyroY;
+    int16_t gyroZ;
 }
 amSensor_t;
 
 typedef struct 
 {
-	int8_t x;
-	int8_t y;
+    int8_t x;
+    int8_t y;
 }
 amMouse_t;
 
 typedef struct 
 {
-	amSensor_t sensor;
-	amMouse_t mouse;
+    amSensor_t sensor;
+    amMouse_t mouse;
 }
 amAirMouse_t;
 

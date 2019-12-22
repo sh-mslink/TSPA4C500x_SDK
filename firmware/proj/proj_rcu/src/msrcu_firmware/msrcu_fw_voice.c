@@ -3,11 +3,11 @@
  *
  * @file msrcu_fe_voice.c
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
- 
+
 /* Include Files
  ****************************************************************************************
  */
@@ -123,5 +123,5 @@ msrcuErr_t msrcu_fw_voice_stop(void)
     
     return err;
 }
- 
+
 #endif

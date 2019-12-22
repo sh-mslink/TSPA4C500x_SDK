@@ -88,7 +88,7 @@
             <nStopA1X>0</nStopA1X>
             <nStopA2X>0</nStopA2X>
           </AfterMake>
-          <SelectedForBatchBuild>1</SelectedForBatchBuild>
+          <SelectedForBatchBuild>0</SelectedForBatchBuild>
           <SVCSIdString></SVCSIdString>
         </TargetCommonOption>
         <CommonProperty>
@@ -487,12 +487,12 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>profile_ota</GroupName>
+          <GroupName>profile</GroupName>
           <Files>
             <File>
               <FileName>prf_otas.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\common\ota\prf_otas.c</FilePath>
+              <FilePath>..\..\..\common\ble\ota\prf_otas.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -515,34 +515,24 @@
               <FilePath>..\..\..\common\ARM\Retarget.c</FilePath>
             </File>
             <File>
-              <FileName>l2cc_evt.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\common\evt\l2cc_evt.c</FilePath>
-            </File>
-            <File>
-              <FileName>gap_evt.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\common\evt\gap_evt.c</FilePath>
-            </File>
-            <File>
-              <FileName>gatt_evt.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\common\evt\gatt_evt.c</FilePath>
-            </File>
-            <File>
-              <FileName>test_svc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\common\test\test_svc.c</FilePath>
-            </File>
-            <File>
               <FileName>msg.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\common\util\msg.c</FilePath>
             </File>
             <File>
-              <FileName>ble_test.c</FileName>
+              <FileName>gap_evt.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\common\test\ble_test.c</FilePath>
+              <FilePath>..\..\..\common\ble\evt\gap_evt.c</FilePath>
+            </File>
+            <File>
+              <FileName>gatt_evt.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\common\ble\evt\gatt_evt.c</FilePath>
+            </File>
+            <File>
+              <FileName>ble_app.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\common\ble\ble_app.c</FilePath>
             </File>
           </Files>
         </Group>

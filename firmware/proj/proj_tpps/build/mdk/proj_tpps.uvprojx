@@ -88,7 +88,7 @@
             <nStopA1X>0</nStopA1X>
             <nStopA2X>0</nStopA2X>
           </AfterMake>
-          <SelectedForBatchBuild>1</SelectedForBatchBuild>
+          <SelectedForBatchBuild>0</SelectedForBatchBuild>
           <SVCSIdString></SVCSIdString>
         </TargetCommonOption>
         <CommonProperty>
@@ -333,7 +333,7 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls>--diag_suppress 3731 --bss_threshold=0</MiscControls>
-              <Define>__CORTEX_M4F __FPU_PRESENT=1 __CMSIS_RTOS DBG_MSG CFG_PROJ_TPPS</Define>
+              <Define>__CORTEX_M4F __FPU_PRESENT=1 __CMSIS_RTOS DBG_MSG</Define>
               <Undefine></Undefine>
               <IncludePath>..\..\..\common\ARM\CMSIS\Include;..\..\..\common\inc;..\..\..\..\ble_if\inc;..\..\..\..\inc;..\..\..\..\inc\hal;..\..\..\..\spi_flash\inc;..\..\..\..\bootloader\inc;..\..\..\..\RF;..\..\..\..\thirdparty\rtx\src;..\..\..\..\thirdparty\rtx\inc;..\..\inc</IncludePath>
             </VariousControls>
@@ -464,6 +464,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\..\hal\hal_dma.c</FilePath>
             </File>
+            <File>
+              <FileName>hal_spi_flash.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\hal\hal_spi_flash.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -482,12 +487,12 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>profile_tpp</GroupName>
+          <GroupName>profile</GroupName>
           <Files>
             <File>
               <FileName>prf_tpps.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\src\prf_tpps.c</FilePath>
+              <FilePath>..\..\..\common\ble\tpp\prf_tpps.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -510,34 +515,24 @@
               <FilePath>..\..\..\common\ARM\Retarget.c</FilePath>
             </File>
             <File>
-              <FileName>l2cc_evt.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\common\evt\l2cc_evt.c</FilePath>
-            </File>
-            <File>
-              <FileName>gap_evt.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\common\evt\gap_evt.c</FilePath>
-            </File>
-            <File>
-              <FileName>gatt_evt.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\common\evt\gatt_evt.c</FilePath>
-            </File>
-            <File>
-              <FileName>test_svc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\common\test\test_svc.c</FilePath>
-            </File>
-            <File>
               <FileName>msg.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\common\util\msg.c</FilePath>
             </File>
             <File>
-              <FileName>ble_test.c</FileName>
+              <FileName>gap_evt.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\common\test\ble_test.c</FilePath>
+              <FilePath>..\..\..\common\ble\evt\gap_evt.c</FilePath>
+            </File>
+            <File>
+              <FileName>gatt_evt.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\common\ble\evt\gatt_evt.c</FilePath>
+            </File>
+            <File>
+              <FileName>ble_app.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\common\ble\ble_app.c</FilePath>
             </File>
           </Files>
         </Group>

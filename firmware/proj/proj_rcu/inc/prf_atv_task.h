@@ -67,8 +67,6 @@
 #define ATVV_BYTES_PER_CHAR     (0x0014)//20
 
 
-void atv_task_send_enable(void);
-void atv_task_send_disable(void);
 bool atv_task_send_is_enabled(void);
 void atv_task_cmd_receive(int conIdx, uint8_t *buffer, uint8_t len);
 void atv_task_cmd_send(int conIdx, uint8_t *buffer, uint8_t len);

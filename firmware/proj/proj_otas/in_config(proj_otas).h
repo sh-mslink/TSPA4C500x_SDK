@@ -7,7 +7,7 @@
  *
  * @brief Project Configuration File
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
@@ -195,7 +195,7 @@
 /// @BLE::BLE
 #define CFG_PERIPHERAL
 #define CFG_SEC_CON
-#define CFG_CON	3
+#define CFG_CON	4
 #define CFG_SDR	0
 #define CFG_HCI	0
 /// @BLE::PLT
@@ -240,7 +240,7 @@
 #define CFG_BLE_PARAM_TRACE_FLAG	0
 #define CFG_BLE_STK_MEM_EN	1
 #define CFG_OS_BLE_NB_TASK	3
-#define CFG_BLE_STK_MEM_USAGE_PRF_EN	1
+#define CFG_BLE_STK_MEM_USAGE_PRF_EN	0
 #define CFG_BLE_STK_ENV_MEM_SIZE	1024
 #define CFG_BLE_STK_DB_MEM_SIZE	1024
 #define CFG_BLE_STK_MSG_MEM_SIZE	4096
@@ -316,7 +316,9 @@
 #define CFG_PRF_SCPPS_EN	0
 #define CFG_PRF_TIPC_EN	0
 #define CFG_PRF_TIPS_EN	0
-#define CFG_NB_PRF	0
+#define CFG_PRF_TPPC_EN	0
+#define CFG_PRF_TPPS_EN	0
+#define CFG_NB_PRF	(0 + CFG_FW_UPD_EN)
 /// @BLE::ADV
 #define CFG_BLE_ADV_SET_NB	0
 #endif	// BLE_BUILD_INTERNAL

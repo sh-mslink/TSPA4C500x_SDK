@@ -6,7 +6,7 @@
  *
  * @brief ADC driver implementation file  
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
@@ -418,8 +418,6 @@ int hal_adc_stream_mode_start(adc_dev_t* dev)
      * Only use semaphore as a binary sem. osSemaphoreRelease will add sem count without check init count.
      * So here we make sure the count is 0 using osSemaphoreWait(0) , then call  osSemaphoreWait(millisec).   
      */
-    int ret;
-
     adc_clean_fifo();
     adc_start(0);
     osDelay(10);

@@ -3,11 +3,11 @@
  *
  * @file msrcu_fw_ir.h
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
- 
+
 #ifndef MSRCU_FW_IR_H
 #define MSRCU_FW_IR_H
 
@@ -45,6 +45,7 @@ msrcuErr_t msrcu_fw_ir_send_stop(void);
 #if MSRCU_IR_LEARN_ENABLE
 msrcuErr_t msrcu_fw_ir_learn_start(msrcuIrLrnIdx keyIndex);
 msrcuErr_t msrcu_fw_ir_learn_stop(void);
-#endif 
 #endif
+#endif
+
 #endif

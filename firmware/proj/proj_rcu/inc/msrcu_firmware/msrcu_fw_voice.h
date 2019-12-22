@@ -3,11 +3,11 @@
  *
  * @file msrcu_fw_voice.h
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
- 
+
 #ifndef MSRCU_FW_VOICE_H
 #define MSRCU_FW_VOICE_H
 
@@ -43,6 +43,6 @@ msrcuErr_t msrcu_fw_voice_atv_start(void);
 #endif
 msrcuErr_t msrcu_fw_voice_start(void);
 msrcuErr_t msrcu_fw_voice_stop(void);
- 
-#endif 
+#endif
+
 #endif

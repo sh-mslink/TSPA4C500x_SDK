@@ -3,11 +3,11 @@
  *
  * @file msrcu_fw_ble.c
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
- 
+
 /* Include Files
  ****************************************************************************************
  */
@@ -57,11 +57,6 @@ msrcuBleState_t msrcu_fw_ble_get_state(void)
 {
     return msrcu_dev_ble_get_state();
 }
-
-//void msrcu_fw_ble_set_state(msrcuBleState_t state)
-//{
-//    msrcu_dev_ble_set_state(state);
-//}
 
 msrcuErr_t msrcu_fw_ble_adv_start(msrcuBleAdv_t* adv)
 {

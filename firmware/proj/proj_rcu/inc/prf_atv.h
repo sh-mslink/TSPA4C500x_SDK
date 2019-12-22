@@ -31,11 +31,8 @@ enum
 };
 
 
-extern bool atvIsConnected;
-extern uint16_t g_AtvPrimarySvc_shl;
-//extern uint16_t g_AtvSecondarySvc_shl;
-
 int atv_add_svc(void);
+uint16_t atv_get_svc_hdl(void);
 void atv_voice_char_tx_receive(int conIdx, uint8_t *buffer , uint8_t len);
 int atv_voice_char_rx_send(int conIdx, uint8_t *buffer, uint8_t len);
 int atv_voice_char_ctl_send(int conIdx, uint8_t *buffer, uint8_t len);

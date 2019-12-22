@@ -3,11 +3,11 @@
  *
  * @file msrcu_config.h
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
- 
+
 #ifndef MSRCU_CONFIG_H
 #define MSRCU_CONFIG_H
 
@@ -51,7 +51,7 @@
 
 #define MSRCU_BLE_DIRECT_ADV_ENABLE (1)//Use direct adv after bonded
 #if MSRCU_VOICE_ENABLE
-#define MSRCU_BLE_VOICE_ATV_ENABLE  (0)//Use ATV Voice Service
+#define MSRCU_BLE_VOICE_ATV_ENABLE  (1)//Use ATV Voice Service
 #define MSRCU_BLE_VOICE_SAMPLE_RATE (16000)//unit: 1Hz, range: 8000/16000
 #endif
 
@@ -187,7 +187,7 @@ enum
 //High byte for USAGE_PAGE Consumer Devices
 //Related to HID Report Map
 typedef enum
-{    
+{
     HID_KEYCODE_NULL    = 0x0000,
     HID_KEYCODE_POWER   = 0x0100,
     HID_KEYCODE_UP      = 0x0200,
@@ -224,7 +224,6 @@ typedef enum
     IR_CMD_DOWN     = 0xEE,
 }irCmd_t;
 #endif
-
 
 /* Struct Definition
  ****************************************************************************************

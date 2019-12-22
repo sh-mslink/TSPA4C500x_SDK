@@ -9,7 +9,7 @@
  *
  * @brief Platform uart functions  
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
@@ -328,7 +328,7 @@ static void uart_isr_handler(uart_dev_t *pd)
 	if (iid == UART_IT_ID_LINE_STATUS) {
 		uint32_t lsr = uart_line_status(pd->base);
 
-PRINTD(DBG_ERR, "lsr=%08X\r\n", lsr);
+//PRINTD(DBG_ERR, "lsr=%08X\r\n", lsr);
 
 		/// Disable UART LINE interrupt
 		uart_intr_disable(pd->base, UART_IER_ELSI);

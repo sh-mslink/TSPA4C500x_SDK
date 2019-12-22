@@ -3,11 +3,11 @@
  *
  * @file msrcu_dev_keyboard.h
  *
- * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2019
+ * Copyright (C) Shanghai Tropos Microelectronics Co., Ltd. 2018~2020
  *
  ****************************************************************************************
  */
- 
+
 #ifndef MSRCU_DEV_KEYBOARD_H
 #define MSRCU_DEV_KEYBOARD_H
 
@@ -31,7 +31,7 @@
 /* Global Variable
  ****************************************************************************************
  */
- 
+
 /* Function Declaration
  ****************************************************************************************
  */

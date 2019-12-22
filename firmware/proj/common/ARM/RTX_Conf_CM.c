@@ -186,7 +186,7 @@
 //   <i> Number of concurrent active timer callback functions.
 //   <i> Default: 4
 #ifndef OS_TIMERCBQS
- #define OS_TIMERCBQS   4
+ #define OS_TIMERCBQS   8
 #endif
  
 // </e>

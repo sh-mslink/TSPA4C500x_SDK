@@ -522,7 +522,7 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>profiles</GroupName>
+          <GroupName>profile</GroupName>
           <Files>
             <File>
               <FileName>inb_prf_bas.lib</FileName>
@@ -552,7 +552,7 @@
             <File>
               <FileName>prf_otas.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\common\ota\prf_otas.c</FilePath>
+              <FilePath>..\..\..\common\ble\ota\prf_otas.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -575,54 +575,39 @@
               <FilePath>..\..\..\common\ARM\Retarget.c</FilePath>
             </File>
             <File>
-              <FileName>l2cc_evt.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\common\evt\l2cc_evt.c</FilePath>
-            </File>
-            <File>
-              <FileName>gap_evt.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\common\evt\gap_evt.c</FilePath>
-            </File>
-            <File>
-              <FileName>gatt_evt.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\common\evt\gatt_evt.c</FilePath>
-            </File>
-            <File>
-              <FileName>bas_evt.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\common\evt\bas_evt.c</FilePath>
-            </File>
-            <File>
-              <FileName>dis_evt.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\common\evt\dis_evt.c</FilePath>
-            </File>
-            <File>
-              <FileName>hogp_evt.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\common\evt\hogp_evt.c</FilePath>
-            </File>
-            <File>
-              <FileName>test_svc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\..\common\test\test_svc.c</FilePath>
-            </File>
-            <File>
               <FileName>msg.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\common\util\msg.c</FilePath>
             </File>
             <File>
-              <FileName>ble_test.c</FileName>
+              <FileName>gap_evt.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\common\test\ble_test.c</FilePath>
+              <FilePath>..\..\..\common\ble\evt\gap_evt.c</FilePath>
             </File>
             <File>
-              <FileName>drv_test.c</FileName>
+              <FileName>gatt_evt.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\common\test\drv_test.c</FilePath>
+              <FilePath>..\..\..\common\ble\evt\gatt_evt.c</FilePath>
+            </File>
+            <File>
+              <FileName>bas_evt.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\common\ble\evt\bas_evt.c</FilePath>
+            </File>
+            <File>
+              <FileName>dis_evt.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\common\ble\evt\dis_evt.c</FilePath>
+            </File>
+            <File>
+              <FileName>hogp_evt.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\common\ble\evt\hogp_evt.c</FilePath>
+            </File>
+            <File>
+              <FileName>ble_app.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\common\ble\ble_app.c</FilePath>
             </File>
           </Files>
         </Group>

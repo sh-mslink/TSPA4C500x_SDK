@@ -12,7 +12,6 @@
 
 #if (MSRCU_VOICE_ENABLE && MSRCU_BLE_VOICE_ATV_ENABLE)
 
-bool atvIsConnected = false;
 uint16_t g_AtvPrimarySvc_shl = 0;
 
 const inb_gatt_svc_desc_t g_AtvPrimarySvc =
@@ -101,6 +100,11 @@ int atv_add_svc(void)
     return ret;
 }
 
+uint16_t atv_get_svc_hdl(void)
+{
+    return (g_AtvPrimarySvc_shl + 1);
+}
+
 void atv_voice_char_tx_receive(int conIdx, uint8_t *buffer, uint8_t len)
 {
     PRINTD(DBG_TRACE, "ATVV_CHAR_TX receive, conidx:%d, length=%d, data: 0x", conIdx, len);
@@ -116,9 +120,6 @@ int atv_voice_char_rx_send(int conIdx, uint8_t *buffer, uint8_t len)
 {
     int res = 0;
     uint16_t handle = g_AtvPrimarySvc_shl + 1 + ATVV_IDX_CHAR_RX_VAL;
-    
-    if(!atvIsConnected)
-        return -1;
     
     res = inb_gatt_send_ntf(conIdx, handle, len, buffer);
     if(res)
@@ -139,9 +140,6 @@ int atv_voice_char_ctl_send(int conIdx, uint8_t *buffer, uint8_t len)
 {
     int res = 0;
     uint16_t handle = g_AtvPrimarySvc_shl + 1 + ATVV_IDX_CHAR_CTL_VAL;
-    
-    if(!atvIsConnected)
-        return -1;
     
     res = inb_gatt_send_ntf(conIdx, handle, len, buffer);
     if(res)

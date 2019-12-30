@@ -41,7 +41,7 @@
  */
 msrcuErr_t msrcu_fw_ble_init(void (*cb)(msrcuEvtBle_t *evt))
 {
-    msrcuErr_t err = ERR_DEVICE;  
+    msrcuErr_t err = ERR_DEVICE;
     
     if(!cb)
         return ERR_VALID_INPUT;

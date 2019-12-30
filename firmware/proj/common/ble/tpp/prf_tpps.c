@@ -76,9 +76,8 @@ int tpps_add_svc(void)
     memcpy(p_svc, &g_TppPrimarySvc, sizeof(inb_gatt_svc_desc_t));
     memcpy(p_svc->atts, &g_TppPrimaryAtts[0], 7*sizeof(inb_gatt_att_desc_t));
     ret = inb_gatt_add_svc(p_svc, &g_TppsPrimarySvc_hdl);
-    if(p_svc) free(p_svc);
-    if(ret)
-        return ret;
+    if(p_svc)
+        free(p_svc);
     
     return ret;
 }

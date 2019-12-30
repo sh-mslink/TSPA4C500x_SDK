@@ -43,8 +43,8 @@
 #define MSRCU_BLE_ADV_INTERVAL_MIN  (0x0020)//unit: 0.625ms, range: 20ms(0x0020)~10.24s(0x4000)
 #define MSRCU_BLE_ADV_INTERVAL_MAX  (0x0020)//unit: 0.625ms, range: 20ms(0x0020)~10.24s(0x4000)
 #define MSRCU_BLE_ADV_DURATION      (30000)//unit: 1ms
-#define MSRCU_BLE_CNT_INTERVAL_MIN  (0x0006)//unit: 1.25ms, range: 7.5ms(0x0006)~4000ms(0x0C80)
-#define MSRCU_BLE_CNT_INTERVAL_MAX  (0x0006)//unit: 1.25ms, range: 7.5ms(0x0006)~4000ms(0x0C80)
+#define MSRCU_BLE_CNT_INTERVAL_MIN  (0x0007)//unit: 1.25ms, range: 7.5ms(0x0006)~4000ms(0x0C80)
+#define MSRCU_BLE_CNT_INTERVAL_MAX  (0x0007)//unit: 1.25ms, range: 7.5ms(0x0006)~4000ms(0x0C80)
 #define MSRCU_BLE_CNT_LATENCY       (49)//0~499
 #define MSRCU_BLE_CNT_TIMEOUT       (250)//unit: 10ms, range: 10ms(0x000A)~32000ms(0x0C80)
 #define MSRCU_BLE_CNT_DURATION      (0)//unit: 1ms, 0 for non-stop

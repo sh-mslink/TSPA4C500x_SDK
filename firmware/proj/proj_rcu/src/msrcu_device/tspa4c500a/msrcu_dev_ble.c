@@ -105,7 +105,7 @@ static msrcuErr_t msrcu_dev_ble_update_connection_parameter(void)
         free(p_upd);
     
     if(err)
-        PRINTD(DBG_TRACE, "inb_conn_param_update error:0x%02X.\r\n", err);
+        MSPRINT("inb_conn_param_update error:0x%02X.\r\n", err);
     
     return ERR_NO_ERROR;
 }
@@ -203,6 +203,14 @@ static void msrcu_dev_ble_gap_evt(uint16_t eid, void *pv)
             }
             break;
         
+        case GAP_EVT_LE_PKT_SIZE_IND:
+            {
+                inb_evt_le_pkt_size_t *p = (inb_evt_le_pkt_size_t*)pv;
+                
+                MSPRINT("Peer max packet size, idx:%d, TX: %d Bytes %dms, RX: %d Bytes %dms.\r\n", 
+                        p->conidx, p->max_tx_octets, p->max_tx_time, p->max_rx_octets, p->max_rx_time);
+            }
+            break;
         
         default:
             break;
@@ -293,7 +301,7 @@ static void msrcu_dev_ble_hogp_evt(uint16_t eid, void *pv)
     }
 }
 
-void msrcu_dev_ble_evt_cb(inb_evt_t *evt, void *param)
+void msrcu_dev_ble_evt_cb(inb_evt_t *evt)
 {
     switch(evt->evt_id & 0xFF00)
     {
@@ -430,26 +438,20 @@ msrcuErr_t msrcu_dev_ble_hid_send(msrcuBleHidReport_t *param)
     if(!param)
         return ERR_VALID_INPUT;
     
-    inb_hogpd_report_info_t *report = malloc(sizeof(inb_hogpd_report_info_t) + param->length);
-    if(!report)
+    msg_hogpd_ntf_send_t *msg = malloc(sizeof(msg_hogpd_ntf_send_t) + param->length);
+    if(!msg)
         return ERR_NO_MEMORY;
     
-    report->hid_idx = param->conIndex;
-    report->length = param->length;
-    report->idx = param->instance;
-    report->type = INB_HOGPD_REPORT;
-    memcpy(report->value, param->data, param->length);
-    //MSPRINT("%d,%d,%d,%d, ", report->hid_idx, report->length, report->idx, report->type);
-    int err = inb_hogpd_report_upd_req(param->conIndex, report);
+    msg->msgId = MSG_HOGPD_NTF_SEND;
+    msg->conIdx = param->conIndex;
+    msg->report.hid_idx = param->conIndex;
+    msg->report.length = param->length;
+    msg->report.idx = param->instance;
+    msg->report.type = INB_HOGPD_REPORT;
+    memcpy(msg->report.value, param->data, param->length);
     
-    if(report)
-        free(report);
+    if(msg_put(msg))
+        return ERR_OS;
     
-    if(!err)
-        return ERR_NO_ERROR;
-    else
-    {
-        MSPRINT("hogpd send error: 0x%X\r\n", err);
-        return ERR_OTHERS;
-    }
+    return ERR_NO_ERROR;
 }

@@ -75,55 +75,55 @@ void ble_app_event_callback(inb_evt_t *evt)
     switch(evt->evt_id)
     {
         case GAP_EVT_ADV_REPORT:
-        {
-            inb_evt_adv_rpt_ind_t *p = (inb_evt_adv_rpt_ind_t *)evt->param;
-            
-//            PRINTD(DBG_TRACE, "Scanned device: %02x:%02x:%02x:%02x:%02x:%02x.\r\n",
-//                    p->trans_addr.addr.addr[0], p->trans_addr.addr.addr[1],
-//                    p->trans_addr.addr.addr[2], p->trans_addr.addr.addr[3],
-//                    p->trans_addr.addr.addr[4], p->trans_addr.addr.addr[5]);
-            
-            if(isTppsDevice(p->rssi, p->data, p->length))
             {
-                PRINTD(DBG_TRACE, "TPPS device found.\r\n");
+                inb_evt_adv_rpt_ind_t *p = (inb_evt_adv_rpt_ind_t *)evt->param;
                 
-                stop_scan();
-                start_connect(&p->trans_addr);
+//                PRINTD(DBG_TRACE, "Scanned device: %02x:%02x:%02x:%02x:%02x:%02x.\r\n",
+//                        p->trans_addr.addr.addr[0], p->trans_addr.addr.addr[1],
+//                        p->trans_addr.addr.addr[2], p->trans_addr.addr.addr[3],
+//                        p->trans_addr.addr.addr[4], p->trans_addr.addr.addr[5]);
+                
+                if(isTppsDevice(p->rssi, p->data, p->length))
+                {
+                    PRINTD(DBG_TRACE, "TPPS device found.\r\n");
+                    
+                    stop_scan();
+                    start_connect(&p->trans_addr);
+                }
             }
-        }
-        break;
+            break;
             
         case GAP_EVT_CONN_REQ:
-        {
-            inb_evt_conn_req_t *p = (inb_evt_conn_req_t *)evt->param;
-            
-            PRINTD(DBG_TRACE, "Connected, idx:%d, ", p->conidx);
-            PRINTD(DBG_TRACE, "addr type:%d, ", p->peer_addr_type);
-            PRINTD(DBG_TRACE, "addr:0x %02X %02X %02X %02X %02X %02X, ", 
-                    p->peer_addr.addr[0], p->peer_addr.addr[1], p->peer_addr.addr[2], 
-                    p->peer_addr.addr[3], p->peer_addr.addr[4], p->peer_addr.addr[5]);
-            PRINTD(DBG_TRACE, "interval:0x%X, ", p->con_interval);
-            PRINTD(DBG_TRACE, "latency:%d, ", p->con_latency);
-            PRINTD(DBG_TRACE, "timeout:%dms.\r\n", p->sup_to * 10);
-            
-            tppcIsConnected = true;
-            
-            discovery_service(p->conidx);
-        }
-        break;
+            {
+                inb_evt_conn_req_t *p = (inb_evt_conn_req_t *)evt->param;
+                
+                PRINTD(DBG_TRACE, "Connected, idx:%d, ", p->conidx);
+                PRINTD(DBG_TRACE, "addr type:%d, ", p->peer_addr_type);
+                PRINTD(DBG_TRACE, "addr:0x %02X %02X %02X %02X %02X %02X, ", 
+                        p->peer_addr.addr[0], p->peer_addr.addr[1], p->peer_addr.addr[2], 
+                        p->peer_addr.addr[3], p->peer_addr.addr[4], p->peer_addr.addr[5]);
+                PRINTD(DBG_TRACE, "interval:0x%X, ", p->con_interval);
+                PRINTD(DBG_TRACE, "latency:%d, ", p->con_latency);
+                PRINTD(DBG_TRACE, "timeout:%dms.\r\n", p->sup_to * 10);
+                
+                tppcIsConnected = true;
+                
+                discovery_service(p->conidx);
+            }
+            break;
         
         case GAP_EVT_DISCONNECT:
-        {
-            inb_evt_disc_ind_t *p = (inb_evt_disc_ind_t *)evt->param;
-            
-            PRINTD(DBG_TRACE, "Disconnected, idx:%d, reason:0x%02X.\r\n", p->conidx, p->reason);
-            
-            tppcIsConnected = false;
-            
-            if(start_scan())
-                return;
-        }
-        break;
+            {
+                inb_evt_disc_ind_t *p = (inb_evt_disc_ind_t *)evt->param;
+                
+                PRINTD(DBG_TRACE, "Disconnected, idx:%d, reason:0x%02X.\r\n", p->conidx, p->reason);
+                
+                tppcIsConnected = false;
+                
+                if(start_scan())
+                    return;
+            }
+            break;
         
         case GAP_EVT_LE_PKT_SIZE_IND:
             {
@@ -158,16 +158,16 @@ void ble_app_event_callback(inb_evt_t *evt)
         break;
         
         case GATT_EVT_NTF:
-        {
-            inb_evt_ntf_ind_t *p = (inb_evt_ntf_ind_t *)evt->param;
-            
-            tppc_receive_notify(p->conidx, p->value, p->length);
-            //tppc_send_write(p->conidx, tppServiceHandle, p->value, p->length);
-        }
+            {
+                inb_evt_ntf_ind_t *p = (inb_evt_ntf_ind_t *)evt->param;
+                
+                tppc_receive_notify(p->conidx, p->value, p->length);
+                //tppc_send_write(p->conidx, tppServiceHandle, p->value, p->length);
+            }
         break;
         
         default:
-        break;
+            break;
     }
 }
 

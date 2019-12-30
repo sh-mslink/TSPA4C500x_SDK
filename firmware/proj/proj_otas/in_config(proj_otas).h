@@ -3,7 +3,7 @@
  *
  * Auto Generated Project Configuration File
  *
- * @file IN_CONFIG(PROJ_TPPS).H
+ * @file IN_CONFIG(PROJ_OTAS).H
  *
  * @brief Project Configuration File
  *

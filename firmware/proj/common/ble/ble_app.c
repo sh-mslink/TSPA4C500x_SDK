@@ -18,6 +18,12 @@
 #ifdef CFG_PROJ_RCU
 #include "msrcu_app.h"
 #endif
+#ifdef MSAT
+#if (MSAT_DEV == MSAT_DEV_TSPA4C500X)
+#include "msat_app.h"
+#include "msat_dev_ble_evt.h"
+#endif
+#endif
 
 
 #if CFG_BLE_STK_MEM_USAGE_PRF_EN
@@ -26,7 +32,7 @@ osTimerDef(ble_pf_mem, ble_pf_mem_tmr_callback);
 #endif
 
 #ifdef CFG_PROJ_RCU
-extern void msrcu_dev_ble_evt_cb(inb_evt_t *evt, void *param);
+extern void msrcu_dev_ble_evt_cb(inb_evt_t *evt);
 #else
 extern void ble_app_event_callback(inb_evt_t *evt);
 #endif
@@ -383,6 +389,14 @@ static int init_prf(void)
         }
     }
 #endif
+#if CFG_FW_UPD_EN
+    res = in_ota_svc_add();
+    if(res)
+    {
+        PRINTD(DBG_ERR, "OTAS add failed: 0x%X.\r\n", res);
+        return res;
+    }
+#endif
 #if (CFG_PRF_TPPS_EN)
     res = tpps_add_svc();
     if(res)
@@ -400,14 +414,6 @@ static int init_prf(void)
         return res;
     }
 #endif
-#endif
-#if CFG_FW_UPD_EN
-    res = in_ota_svc_add();
-    if(res)
-    {
-        PRINTD(DBG_ERR, "OTAS add failed: 0x%X.\r\n", res);
-        return res;
-    }
 #endif
     
     return res;
@@ -453,7 +459,13 @@ void ble_event_callback(inb_evt_t *evt)
 #ifndef CFG_PROJ_RCU
     ble_app_event_callback(evt);
 #else
-    msrcu_dev_ble_evt_cb(evt, param);
+    msrcu_dev_ble_evt_cb(evt);
+#endif
+    
+#ifdef MSAT
+#if (MSAT_DEV == MSAT_DEV_TSPA4C500X)
+    msat_dev_ble_evt_cb(evt);
+#endif
 #endif
     
     if(param)

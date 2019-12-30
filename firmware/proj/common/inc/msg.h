@@ -14,8 +14,8 @@
 enum
 {
     MSG_START_CONNECT,
-#ifdef CFG_PROJ_RCU
-    MSG_MSRCU_MOTION_MOUSE_SEND,
+#if CFG_PRF_HOGPD_EN
+    MSG_HOGPD_NTF_SEND,
 #endif
 };
 
@@ -36,14 +36,14 @@ typedef struct
 }
 msg_start_connect_t;
 
-#ifdef CFG_PROJ_RCU
+#if CFG_PRF_HOGPD_EN
 typedef struct
 {
     int msgId;
-    msrcuMouseButton_t button;
-    msrcuMotionMouse_t mouse;
+    int conIdx;
+    inb_hogpd_report_info_t report;
 }
-msg_msrcu_motion_mouse_send_t;
+msg_hogpd_ntf_send_t;
 #endif
 
 

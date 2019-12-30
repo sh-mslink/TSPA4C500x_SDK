@@ -16,29 +16,21 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "in_arm.h"
 #include "in_debug.h"
 #include "inb_config.h"
+#include "inb_plt.h"
 #include "rf_int.h"
+#include "hal_global.h"
+#include "hal_flash.h"
 
-#include "spi_flash.h"
 #include "cmsis_os.h"
 
 #include "msg.h"
 #include "ble_app.h"
 #include "ble_evt.h"
-
-#include "hal_uart.h"
-#include "hal_gpio.h"
-#include "hal_power.h"
-#include "hal_ir.h"
-#include "hal_audio.h"
-#include "hal_adc.h"
-#include "hal_clk.h"
-#include "hal_keyboard.h"
-#include "hal_flash.h"
-#include "hal_global.h"
 
 #include "msrcu_app.h"
 
@@ -144,14 +136,17 @@ static int handle_main_msg(msg_t *msg)
 {
     switch(msg->msgId)
     {
-        case MSG_MSRCU_MOTION_MOUSE_SEND:
+#if CFG_PRF_HOGPD_EN
+        case MSG_HOGPD_NTF_SEND:
             {
-                msg_msrcu_motion_mouse_send_t *p = (msg_msrcu_motion_mouse_send_t *)msg;
-                if(!userMotionIsStop && BLE_STATE_READY == msrcu_app_ble_get_state())
-                    msrcu_app_motion_mouse_hid_send(p->button, &(p->mouse));
+                msg_hogpd_ntf_send_t *p = (msg_hogpd_ntf_send_t *)msg;
+                int err = inb_hogpd_report_upd_req(p->conIdx, &p->report);
+                if(err)
+                    MSPRINT("inb_hogpd_report_upd_req error: 0x%X\r\n", err);
             }
             break;
-        
+#endif
+            
         default:
             break;
     }
@@ -164,24 +159,23 @@ static void user_rcu_motion_timer_callback(void const *arg)
 {
     if(!userMotionIsStop && BLE_STATE_READY == msrcu_app_ble_get_state())
     {
-        msrcuMotionMouse_t mouse = {0};
-        if(!msrcu_app_motion_get_data(NULL, NULL, &mouse))
+        msrcuMotionMouse_t *mouse = malloc(sizeof(msrcuMotionMouse_t));
+        if(!mouse)
+        {
+            MSPRINT("%s no memory.\r\n", __func__);
+            return;
+        }
+        if(!msrcu_app_motion_get_data(NULL, NULL, mouse))
         {
             //MSPRINT("x %d,y %d\r\n", mouse->x, mouse->y);
-            if(mouse.x || mouse.y)//mouse move
-            {
-                msg_msrcu_motion_mouse_send_t *msg = malloc(sizeof(msg_msrcu_motion_mouse_send_t));
-                if(!msg)
-                    return;
-                msg->msgId = MSG_MSRCU_MOTION_MOUSE_SEND;
-                msg->button = userMouseButton;
-                msg->mouse.x = mouse.x;
-                msg->mouse.y = mouse.y;
-                msg_put(msg);
-            }
+            if(mouse->x || mouse->y)//mouse move
+                msrcu_app_motion_mouse_hid_send(userMouseButton, mouse);
         }
         else
             MSPRINT("Motion get data error.\r\n");
+        
+        if(mouse)
+            free(mouse);
     }
 }
 #endif
@@ -368,27 +362,37 @@ static void user_rcu_led_timer_callback(void const *arg)
     {
         userLedDuration = 0;
         osTimerStop(msrcuAppLedTimerId);
-        user_rcu_led_all_off();
-        userLedSt = LED_STATE_NULL;
+        user_rcu_led_set(LED_STATE_NULL);
     }
 }
 
 static msrcuErr_t user_rcu_led_set(msrcuLedSt newSt)
 {
-    //function check
-    if((newSt & LED_STATE_FUNCTION_MASK) == 0)
-        return ERR_VALID_INPUT;
+    if(newSt != LED_STATE_NULL)
+    {
+        //function check
+        if((newSt & LED_STATE_FUNCTION_MASK) == 0)
+            return ERR_VALID_INPUT;
     
-    //priority check
-    if((newSt & LED_STATE_PRIORITY_MASK) < (userLedSt & LED_STATE_PRIORITY_MASK))
-        return ERR_NOT_SUPPORT;
+        //priority check
+        if((newSt & LED_STATE_PRIORITY_MASK) < (userLedSt & LED_STATE_PRIORITY_MASK))
+            return ERR_NOT_SUPPORT;
+    }
     
     userLedDuration = 0;
     osTimerStop(msrcuAppLedTimerId);
     user_rcu_led_all_off();
     
+    //MSPRINT("LED set state: 0x%02X.\r\n", newSt);
+    
     switch(newSt)
     {
+        case LED_STATE_NULL:
+            {
+                user_rcu_led_all_off();
+            }
+            break;
+            
         case LED_STATE_KEY_PRESS:
             {
                 if(BLE_STATE_READY == msrcu_app_ble_get_state())
@@ -402,7 +406,6 @@ static msrcuErr_t user_rcu_led_set(msrcuLedSt newSt)
         case LED_STATE_KEY_RELEASE:
             {
                 osTimerStop(msrcuAppLedTimerId);
-                user_rcu_led_all_off();
                 newSt = LED_STATE_NULL;
             }
             break;
@@ -431,7 +434,6 @@ static msrcuErr_t user_rcu_led_set(msrcuLedSt newSt)
         
         case LED_STATE_FUNC_VOICE_STOP:
             {
-                msrcu_app_led_off(LED_G);
                 newSt = LED_STATE_NULL;
             }
             break;
@@ -444,7 +446,6 @@ static msrcuErr_t user_rcu_led_set(msrcuLedSt newSt)
         
         case LED_STATE_FUNC_MOTION_STOP:
             {
-                msrcu_app_led_off(LED_B);
                 newSt = LED_STATE_NULL;
             }
             break;
@@ -486,8 +487,17 @@ static msrcuErr_t user_rcu_led_set(msrcuLedSt newSt)
             return ERR_NOT_SUPPORT;
     }
     
-    userLedSt = newSt;
-    MSPRINT("LED set state: 0x%02X.\r\n", userLedSt);
+    
+    if(userLedSt != newSt)
+    {
+        userLedSt = newSt;
+        
+        if(userLedSt == LED_STATE_NULL)
+        {
+            user_rcu_led_all_off();
+            //MSPRINT("LED set state: 0x%02X.\r\n", userLedSt);
+        }
+    }
     
     return ERR_NO_ERROR;
 }
@@ -608,13 +618,13 @@ void user_rcu_voice_stop(void)
     if(!userVoiceIsStop)
     {
         if(!msrcu_app_voice_stop())
-        {
-            userVoiceIsStop = true;
             MSPRINT("Voice stop.\r\n");
-            user_rcu_led_set(LED_STATE_FUNC_VOICE_STOP);
-        }
         else
             MSPRINT("Voice stop error.\r\n");
+        
+        userVoiceIsStop = true;
+        user_rcu_led_set(LED_STATE_FUNC_VOICE_STOP);
+        
 #if MSRCU_MOTION_ENABLE
         if(userMotionIsPause)
         {
@@ -1298,7 +1308,8 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
             break;
     }
     
-    user_rcu_led_set(ledSt);
+    if(param->behavior != EVT_KEY_LONG_PRESS)
+        user_rcu_led_set(ledSt);
 }
 
 #if MSRCU_IR_LEARN_ENABLE
@@ -1445,6 +1456,7 @@ int main (void)//for test
     uint32_t magciWord = 0;
     uint8_t capOffset = 0x7;
     inb_addr_t mac = {.addr = CFG_BLE_PARAM_BD_ADDR};
+//    inb_addr_t mac = {.addr = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
     
 //    magciWord = hal_global_flash_magic_word_get();
 //    capOffset = hal_global_flash_cap_offset_get();
@@ -1458,7 +1470,7 @@ int main (void)//for test
     PRINTD(DBG_TRACE, "----------------\r\n");
     PRINTD(DBG_TRACE, "main start...\r\n");
     
-    ble_config(0);
+    ble_config();
     
     user_rcu_ble_adv_start();
     

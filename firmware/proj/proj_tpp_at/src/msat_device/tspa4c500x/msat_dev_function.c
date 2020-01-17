@@ -50,6 +50,9 @@ msatErr_t msat_dev_function_system_reset(void)
 
 msatErr_t msat_dev_function_ble_adv_start(uint16_t interval, uint8_t *data, uint16_t len)
 {
+    if(len < 3)
+        return ERR_VALID_INPUT;
+    
     int res = INB_ERR_NO_ERROR;
     inb_actv_create_t advCreate = {0};
     inb_actv_start_t advStart = {0};

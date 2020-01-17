@@ -33,13 +33,8 @@ typedef enum
     ERR_VALID_INPUT,                //The input parameter is valid.
     ERR_DEVICE,                     //MSRCU_DEV is error.
     ERR_DEVICE_DRIVER,              //Device driver error.
+    ERR_DEVICE_BLE,                 //Device BLE error.
     ERR_PERIPHERAL,                 //Peripheral error.
-    
-//    //BLE Error
-//    ERR_BLE_NOT_CONNECTED = 0x11,   //RCU is not connected with peer device.
-//    ERR_BLE_NOT_BONDED,             //RCU is not bonded with peer device.
-//    ERR_BLE_INFO_EXCH_NOT_FINISH,   //BLE profile information exchange is not finished.
-//    ERR_BLE_CNT_PARAM,              //Connection parameter is not satisfied.    
     
     ERR_OTHERS                      //Undefined error.
 }

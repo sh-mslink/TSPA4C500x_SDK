@@ -1,10 +1,8 @@
 #include <stdlib.h>
 
 #include ".\ble\inb_api.h"
-#include ".\ble\inb_gatt_evt.h"
-#include ".\ble\prf\inb_prf_bas.h"
-#include ".\ble\prf\inb_prf_dis.h"
-#include ".\ble\prf\inb_prf_hogp.h"
+#include "inb_config.h"
+#include "rf_int.h"
 #include "hal_global.h"
 #include "ble_app.h"
 #include "ble_evt.h"
@@ -15,26 +13,16 @@
 #endif
 #include "prf_tppc.h"
 #include "prf_tpps.h"
-#ifdef CFG_PROJ_RCU
+#ifdef MSRCU
 #include "msrcu_app.h"
 #endif
-#ifdef MSAT
-#if (MSAT_DEV == MSAT_DEV_TSPA4C500X)
-#include "msat_app.h"
-#include "msat_dev_ble_evt.h"
-#endif
-#endif
 
+
+void (*ble_app_evt_cb)(inb_evt_t *evt);
 
 #if CFG_BLE_STK_MEM_USAGE_PRF_EN
 static void ble_pf_mem_tmr_callback(void const *arg);
 osTimerDef(ble_pf_mem, ble_pf_mem_tmr_callback);
-#endif
-
-#ifdef CFG_PROJ_RCU
-extern void msrcu_dev_ble_evt_cb(inb_evt_t *evt);
-#else
-extern void ble_app_event_callback(inb_evt_t *evt);
 #endif
 
 static uint8_t ble_mem_env[CFG_BLE_STK_ENV_MEM_SIZE]__attribute__((aligned (4)));
@@ -357,7 +345,7 @@ static int init_prf(void)
             p_hogp_prf->check_enc_key_size = false;
             p_hogp_prf->sec_lvl = ATT_PERM_NO_AUTH;
             p_hogp_prf->hids_nb = 1;
-#ifndef CFG_PROJ_RCU
+#ifndef MSRCU
             p_hogp_prf->cfg[0].svc_features = INB_HOGPD_CFG_MOUSE | INB_HOGPD_CFG_PROTO_MODE
                     | INB_HOGPD_CFG_BOOT_MOUSE_WR | INB_HOGPD_CFG_REPORT_NTF_EN
                     | INB_HOGPD_CFG_BOOT_KB_WR | INB_HOGPD_CFG_KEYBOARD;
@@ -405,7 +393,7 @@ static int init_prf(void)
         return res;
     }
 #endif
-#ifdef CFG_PROJ_RCU
+#ifdef MSRCU
 #if MSRCU_BLE_VOICE_ATV_ENABLE
     res = atv_add_svc();
     if(res)
@@ -456,17 +444,7 @@ void ble_event_callback(inb_evt_t *evt)
     
     handle_default_ble_evt(evt, param);
     
-#ifndef CFG_PROJ_RCU
-    ble_app_event_callback(evt);
-#else
-    msrcu_dev_ble_evt_cb(evt);
-#endif
-    
-#ifdef MSAT
-#if (MSAT_DEV == MSAT_DEV_TSPA4C500X)
-    msat_dev_ble_evt_cb(evt);
-#endif
-#endif
+    ble_app_evt_cb(evt);
     
     if(param)
         free(param);
@@ -479,7 +457,6 @@ int ble_stack_init()
     if(!CFG_BLE_STK_MEM_EN)
         return INB_PLT_ERR_INVALID_CONFIG;
     
-    /// Stack
     inb_param_t b_cfg = {
         //.bd_addr = {CFG_BLE_PARAM_BD_ADDR},
         .sleep_algo_dur = CFG_BLE_PARAM_SLP_ALGO_DUR,
@@ -515,9 +492,21 @@ int ble_stack_init()
     return res;
 }
 
-int ble_config(void)
+int ble_config(bool isHciMode, void (*cb)(inb_evt_t *evt))
 {
     int res = INB_ERR_NO_ERROR;
+    
+    if(isHciMode)
+        hci_enable();
+    
+    if((res = ble_stack_init()) != INB_ERR_NO_ERROR)
+    {
+        PRINTD(DBG_ERR, "inb_init failed, 0x%02X\r\n", res);
+        return res;
+    }
+    
+    if(isHciMode)
+        return 0;
     
 #if CFG_BLE_STK_MEM_USAGE_PRF_EN
     osTimerId tim_id = osTimerCreate(osTimer(ble_pf_mem), osTimerPeriodic, NULL);
@@ -529,12 +518,6 @@ int ble_config(void)
     }
     osTimerStart(tim_id, 10000);
 #endif
-    
-    if((res = ble_stack_init()) != INB_ERR_NO_ERROR)
-    {
-        PRINTD(DBG_ERR, "inb_init failed, 0x%02X\r\n", res);
-        return res;
-    }
     
     if((res = inb_api_init(ble_event_callback)) != INB_ERR_NO_ERROR)
     {
@@ -594,5 +577,67 @@ int ble_config(void)
     }
 #endif
     
+    ble_app_evt_cb = cb;
+    
     return 0;
 }
+
+#if (CFG_PDT_HCI || CFG_PDT_TX)
+void ble_production_test(void)
+{
+    int port, pin, level;
+    
+#if CFG_PDT_HCI
+#if !CFG_HCI
+    #error "CFG_HCI is disabled."
+#else
+    port = CFG_PDT_HCI_PORT;
+    pin = CFG_PDT_HCI_PIN;
+    level = CFG_PDT_HCI_LEVEL;
+    
+    hal_gpio_pin_mux(port, pin, 0, 0);
+    hal_gpio_pad_oe_ie(port, pin, 0, 1);
+    if(level)
+        hal_gpio_pad_pd_pu(port, pin, 1, 0);
+    else
+        hal_gpio_pad_pd_pu(port, pin, 0, 1);
+    
+    if(level == hal_gpio_input(port, pin))
+    {
+        ble_config(true, NULL);
+        
+        while(level == hal_gpio_input(port, pin));//wait for HCI communication
+            
+        hal_global_sys_reset();
+    }
+#endif
+#endif
+    
+#if CFG_PDT_TX
+    port = CFG_PDT_TX_PORT;
+    pin = CFG_PDT_TX_PIN;
+    level = CFG_PDT_TX_LEVEL;
+    
+    hal_gpio_pin_mux(port, pin, 0, 0);
+    hal_gpio_pad_oe_ie(port, pin, 0, 1);
+    if(level)
+        hal_gpio_pad_pd_pu(port, pin, 1, 0);
+    else
+        hal_gpio_pad_pd_pu(port, pin, 0, 1);
+    
+    if(level == hal_gpio_input(port, pin))
+    {
+        ble_config(false, NULL);
+        
+        rf_em_init();
+        rf_int_prog_pll_trx_trig(0);
+        rf_int_rpl_mdm_init();
+        rf_int_tx_carrier_test(1, 19);//2440MHz
+        
+        while(level == hal_gpio_input(port, pin));//sending TX carrier continuously
+        
+        hal_global_sys_reset();
+    }
+#endif
+}
+#endif

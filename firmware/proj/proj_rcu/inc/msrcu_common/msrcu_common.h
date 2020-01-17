@@ -55,15 +55,17 @@ typedef uint8_t msrcuIrLrnIdx;
 typedef enum
 {
     POWER_STATE_NORMAL,
-    POWER_STATE_LOW, 
-    POWER_STATE_EMPTY,    
-}msrcuPowerSt;//Power state
+    POWER_STATE_LOW,
+    POWER_STATE_EMPTY,
+}
+msrcuPowerSt;//Power state
 
 typedef enum
 {
-    KEY_RELEASED, 
-    KEY_PRESSED,   
-}msrcuKeySt;//Key state
+    KEY_RELEASED,
+    KEY_PRESSED,
+}
+msrcuKeySt;//Key state
 
 typedef enum
 {
@@ -96,7 +98,8 @@ typedef enum
     LED_STATE_IR_LEARN_START,
     LED_STATE_IR_LEARN_SUCCESS,
     LED_STATE_IR_LEARN_FAIL,
-}msrcuLedSt;//LED state
+}
+msrcuLedSt;//LED state
 
 typedef enum
 {

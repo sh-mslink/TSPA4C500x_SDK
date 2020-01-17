@@ -33,6 +33,7 @@
 msatMode msat_fw_function_mode_get(void);
 msatErr_t msat_fw_function_ble_adv_onoff_set(uint8_t on);
 msatErr_t msat_fw_function_ble_adv_onoff_get(uint8_t *isOn);
+msatErr_t msat_fw_function_ble_con_state_get(uint8_t *isCon);
 msatErr_t msat_fw_function_ble_send_cfg_get(uint8_t *isCfg);
 static msatErr_t msat_fw_function_ble_send_data(uint8_t *data, uint16_t len);
 
@@ -240,6 +241,13 @@ msatErr_t msat_fw_function_ble_adv_onoff_set(uint8_t on)
     msatErr_t err = ERR_NO_ERROR;
     
     if(msat_fw_function_mode_get() != MSAT_MODE_PT)
+        return ERR_NOT_SUPPORT;
+    
+    uint8_t bleIsCon = 0;
+    err = msat_fw_function_ble_con_state_get(&bleIsCon);
+    if(err)
+        return err;
+    if(bleIsCon)
         return ERR_NOT_SUPPORT;
     
     uint8_t advIsOn = 0;

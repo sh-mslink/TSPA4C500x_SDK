@@ -436,11 +436,11 @@ static msatErr_t msat_fw_evt_command_in(msatCmdIdIn cmdIn, uint8_t *param, uint1
                     MSAT_OK;
                     
                     ///
-                    msatEvtBle_t cfgEvt = {.code = MSAT_EVT_BLE_SEND_CFG, .param.sendCfg.isEnabled = false,};
-                    msat_fw_evt_ble_cb(&cfgEvt);
-                    
                     msatEvtBle_t conEvt = {.code = MSAT_EVT_BLE_CON_STATE, .param.conState.isConnected = false,};
                     msat_fw_evt_ble_cb(&conEvt);
+                    
+                    msatEvtBle_t cfgEvt = {.code = MSAT_EVT_BLE_SEND_CFG, .param.sendCfg.isEnabled = false,};
+                    msat_fw_evt_ble_cb(&cfgEvt);
                     ///
                 }
                 else
@@ -458,13 +458,13 @@ static msatErr_t msat_fw_evt_command_in(msatCmdIdIn cmdIn, uint8_t *param, uint1
     
     if(!err)
     {
-        msatEvtCmdIn_t *evt = malloc(sizeof(msatEvtCmdIn_t) + paramLen);
+        msatEvtCmdIn_t *evt = malloc(sizeof(msatEvtCmdIn_t));
         if(!evt)
             return ERR_NO_MEMORY;
         
         evt->id = cmdIn;
         evt->len = paramLen;
-        memcpy(evt->param, param, paramLen);
+        evt->param = param;
         
         msat_fw_evt_cmd_in_app_cb(evt);
         
@@ -611,18 +611,18 @@ void msat_fw_evt_ble_cb(msatEvtBle_t *evt)
                 if(msat_fw_function_ble_con_state_set(setCon))
                     return;
                 
-                ///
-                if(setCon)
-                {
-                    uint8_t isOn = '0';
-                    if(msat_fw_evt_command_out(MSAT_CMD_ID_OUT_ADV_STATE, &isOn, 1))
-                        return;
-                }
-                ///
-                
                 setCon += '0';
                 if(msat_fw_evt_command_out(MSAT_CMD_ID_OUT_CON_STATE, &setCon, 1))
                     return;
+                
+                ///
+                if(setCon == '1')
+                {
+                    uint8_t setOn = '0';
+                    if(msat_fw_evt_command_out(MSAT_CMD_ID_OUT_ADV_STATE, &setOn, 1))
+                        return;
+                }
+                ///
             }
             break;
         

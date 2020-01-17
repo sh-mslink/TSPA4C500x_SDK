@@ -15,12 +15,22 @@
 #include "ble_app.h"
 #include "ble_evt.h"
 
+#include "evb_led.h"
+
+
+#define LED_REFRESH_TIME 500//ms
 
 #define TPPC_RSSI_THRESHOLD (-50)//(-127 ~ +20 dBm)
 
 
 static uint16_t tppServiceHandle = 0;
 static bool tppcIsConnected = false;
+static bool tppcNtfEnabled = false;
+
+//Timer for LED
+static void led_tmr_callback(void const *arg);
+static osTimerId ledTimerId;
+static osTimerDef(ledTimer, led_tmr_callback);
 
 
 static int handle_main_msg(msg_t *msg)
@@ -34,12 +44,26 @@ static int handle_main_msg(msg_t *msg)
     return 0;
 }
 
-bool isTppsDevice(int8_t rssi, uint8_t *advData, uint8_t advLen)
+static void led_tmr_callback(void const *arg)
+{
+    if(evb_led_on_number_get())
+        evb_led_all_set(LED_OFF);
+    else
+    {
+        if(tppcNtfEnabled)
+            evb_led_single_set(LED_G, LED_ON);
+        else if(tppcIsConnected)
+            evb_led_single_set(LED_B, LED_ON);
+        else
+            evb_led_single_set(LED_R, LED_ON);
+    }
+}
+
+static bool isTppsDevice(int8_t rssi, uint8_t *advData, uint8_t advLen)
 {
     if(rssi < TPPC_RSSI_THRESHOLD)
         return false;
     
-    uint8_t i = 0;
     uint8_t cmpData[] = 
     {
         0x0B,//AD Element Length
@@ -52,7 +76,7 @@ bool isTppsDevice(int8_t rssi, uint8_t *advData, uint8_t advLen)
     if(advLen < cmpLen)
         return false;
     
-    for(i = 0; i < advLen - cmpLen + 1; i++)
+    for(uint8_t i = 0; i < advLen - cmpLen + 1; i++)
     {
         if(!memcmp(advData + i, cmpData, cmpLen))
             return true;
@@ -61,7 +85,7 @@ bool isTppsDevice(int8_t rssi, uint8_t *advData, uint8_t advLen)
     return false;
 }
 
-void tppc_receive_notify(int conIdx, uint8_t *buffer , uint8_t len)
+static void tppc_receive_notify(int conIdx, uint8_t *buffer , uint8_t len)
 {
     PRINTD(DBG_TRACE, "TPPC receive, conidx:%d, length=%d, data: 0x", conIdx, len);
 //    for(int i = 0; i < len; i++)
@@ -70,7 +94,7 @@ void tppc_receive_notify(int conIdx, uint8_t *buffer , uint8_t len)
     PRINTD(DBG_TRACE, "\r\n");
 }
 
-void ble_app_event_callback(inb_evt_t *evt)
+static void ble_app_event_callback(inb_evt_t *evt)
 {
     switch(evt->evt_id)
     {
@@ -119,6 +143,7 @@ void ble_app_event_callback(inb_evt_t *evt)
                 PRINTD(DBG_TRACE, "Disconnected, idx:%d, reason:0x%02X.\r\n", p->conidx, p->reason);
                 
                 tppcIsConnected = false;
+                tppcNtfEnabled = false;
                 
                 if(start_scan())
                     return;
@@ -144,18 +169,20 @@ void ble_app_event_callback(inb_evt_t *evt)
             break;
         
         case GATT_EVT_DISC_SVC:
-        {
-            inb_evt_disc_svc_ind_t *p = (inb_evt_disc_svc_ind_t *)evt->param;
-            
-            if(!memcmp(p->uuid, &TPP_SERCICE_UUID, TPP_SERCICE_UUID_LEN))
             {
-                PRINTD(DBG_TRACE, "TPP service found!!!\r\n");
+                inb_evt_disc_svc_ind_t *p = (inb_evt_disc_svc_ind_t *)evt->param;
                 
-                tppServiceHandle = p->start_hdl + 1;
-                tppc_cfg_notify(p->conidx, tppServiceHandle, true);
+                if(!memcmp(p->uuid, &TPP_SERCICE_UUID, TPP_SERCICE_UUID_LEN))
+                {
+                    PRINTD(DBG_TRACE, "TPP service found!!!\r\n");
+                    
+                    tppServiceHandle = p->start_hdl + 1;
+                    tppc_cfg_notify(p->conidx, tppServiceHandle, true);
+                    
+                    tppcNtfEnabled = true;
+                }
             }
-        }
-        break;
+            break;
         
         case GATT_EVT_NTF:
             {
@@ -164,11 +191,21 @@ void ble_app_event_callback(inb_evt_t *evt)
                 tppc_receive_notify(p->conidx, p->value, p->length);
                 //tppc_send_write(p->conidx, tppServiceHandle, p->value, p->length);
             }
-        break;
+            break;
         
         default:
             break;
     }
+}
+
+static void board_init(void)
+{
+    evb_led_init();
+    
+    ledTimerId = osTimerCreate(osTimer(ledTimer), osTimerPeriodic, NULL);
+    if(ledTimerId == NULL)
+        PRINTD(DBG_TRACE, "Timer ledTimerId create failed.\r\n");
+    osTimerStart(ledTimerId, LED_REFRESH_TIME);
 }
 
 /*
@@ -177,35 +214,42 @@ void ble_app_event_callback(inb_evt_t *evt)
  *              main entry routine (OS is initialized 
  *              in there).
  */
-
 int main (void)
 {
-    //Initialize platform.
+    //Initialize platform
     hal_global_post_init();
     
+#if (CFG_PDT_HCI || CFG_PDT_TX)
+    //BLE production test
+    ble_production_test();
+#endif
+    
+    //Debug UART init
+    hal_global_debug_uart_init();
+    
+    //Main LOG
     PRINTD(DBG_TRACE, "----------------\r\n");
     PRINTD(DBG_TRACE, "main start...\r\n");
     PRINTD(DBG_TRACE, "Wafer Version: %02X\r\n", chip_get_id() & 0xff);
+    
+    //EVB init
+    board_init();
     
     //MessageQ for main thread.
     msg_init();
     
     //BLE init
-    ble_config();
+    ble_config(false, ble_app_event_callback);
     
     //Start scanning
-    if(start_scan())
-        return 0;
+    start_scan();
     
     //Wait for message
     while(1)
     {
         msg_t *msg;
-        
         msg = msg_get(osWaitForever);
-        
         handle_main_msg(msg);
-        
         if(msg)
             msg = msg_free(msg);
     }

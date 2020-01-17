@@ -28,6 +28,7 @@
 /* Function Declaration
  ****************************************************************************************
  */
+static msrcuErr_t msrcu_dev_ble_exchange_mtu(void);
 static msrcuErr_t msrcu_dev_ble_update_connection_parameter(void);
 
 #if (MSRCU_VOICE_ENABLE && MSRCU_BLE_VOICE_ATV_ENABLE)
@@ -42,6 +43,7 @@ static void (*msrcu_evt_ble_cb)(msrcuEvtBle_t *evt);
 
 static msrcuBleState_t bleSt = BLE_STATE_NULL;
 static int actAdvIdx = 0;
+static bool excMtuFlag = false;
 static bool conParamUpdFlag = false;
 
 /* Function Definition
@@ -61,6 +63,11 @@ static void msrcu_dev_ble_set_state(msrcuBleState_t state)
         
         if(msrcu_dev_ble_get_state() == BLE_STATE_READY)
         {
+            if(excMtuFlag)
+            {
+                msrcu_dev_ble_exchange_mtu();
+                excMtuFlag = false;
+            }
             if(conParamUpdFlag)
             {
                 msrcu_dev_ble_update_connection_parameter();
@@ -86,6 +93,20 @@ static void msrcu_dev_ble_set_state(msrcuBleState_t state)
     }
 }
 
+static msrcuErr_t msrcu_dev_ble_exchange_mtu(void)
+{
+    uint16_t mtu = 251;
+    
+    int err = inb_gatt_exc_mtu(BLE_CON_IDX, &mtu);
+    if(err)
+    {
+        MSPRINT("inb_gatt_exc_mtu error: 0x%X.\r\n", err);
+        return ERR_DEVICE_BLE;
+    }
+    
+    return ERR_NO_ERROR;
+}
+
 static msrcuErr_t msrcu_dev_ble_update_connection_parameter(void)
 {
     inb_conn_param_update_t *p_upd = (inb_conn_param_update_t *)malloc(sizeof(inb_conn_param_update_t));
@@ -105,7 +126,10 @@ static msrcuErr_t msrcu_dev_ble_update_connection_parameter(void)
         free(p_upd);
     
     if(err)
+    {
         MSPRINT("inb_conn_param_update error:0x%02X.\r\n", err);
+        return ERR_DEVICE_BLE;
+    }
     
     return ERR_NO_ERROR;
 }
@@ -153,6 +177,7 @@ static void msrcu_dev_ble_gap_evt(uint16_t eid, void *pv)
             {
                 msrcu_dev_ble_set_state(BLE_STATE_IDLE);
                 
+                excMtuFlag = false;
                 conParamUpdFlag = false;
                 
 #if (MSRCU_VOICE_ENABLE && MSRCU_BLE_VOICE_ATV_ENABLE)
@@ -209,6 +234,16 @@ static void msrcu_dev_ble_gap_evt(uint16_t eid, void *pv)
                 
                 MSPRINT("Peer max packet size, idx:%d, TX: %d Bytes %dms, RX: %d Bytes %dms.\r\n", 
                         p->conidx, p->max_tx_octets, p->max_tx_time, p->max_rx_octets, p->max_rx_time);
+                
+#if (MSRCU_VOICE_ENABLE && !MSRCU_BLE_VOICE_ATV_ENABLE && MSRCU_BLE_VOICE_SAMPLE_RATE == 16000)
+                if(p->max_rx_octets != 251)
+                {
+                    if(msrcu_dev_ble_get_state() == BLE_STATE_READY)
+                        msrcu_dev_ble_exchange_mtu();
+                    else
+                        excMtuFlag = true;//wait for BLE_STATE_READY
+                }
+#endif
             }
             break;
         
@@ -376,14 +411,14 @@ msrcuErr_t msrcu_dev_ble_adv_start(msrcuBleAdv_t* adv)
     inbAdv.adv_param.prim_cfg.phy = PHY_LE_1MBPS;
     
     if(inb_actv_create(&inbAdv, &actAdvIdx) != INB_ERR_NO_ERROR)
-        return ERR_OTHERS;
+        return ERR_DEVICE_BLE;
     
     if(adv->pduType != ADV_DIRECT_IND)
     {
         if(inb_actv_data(actAdvIdx, 0, adv->advData, adv->advDataLen) != INB_ERR_NO_ERROR)
-            return ERR_OTHERS;
+            return ERR_DEVICE_BLE;
         if(inb_actv_data(actAdvIdx, 1, adv->scanRspData, adv->scanRspDataLen) != INB_ERR_NO_ERROR)
-            return ERR_OTHERS;
+            return ERR_DEVICE_BLE;
     }
     
     inb_actv_start_t adv_start = {0};
@@ -391,7 +426,7 @@ msrcuErr_t msrcu_dev_ble_adv_start(msrcuBleAdv_t* adv)
     adv_start.u.adv_param.duration = 0;
     adv_start.u.adv_param.max_adv_evt = 0;
     if(inb_actv_start(actAdvIdx, &adv_start) != INB_ERR_NO_ERROR)
-        return ERR_OTHERS;
+        return ERR_DEVICE_BLE;
     
     msrcu_dev_ble_set_state(BLE_STATE_ADVERTISING);
     
@@ -401,7 +436,7 @@ msrcuErr_t msrcu_dev_ble_adv_start(msrcuBleAdv_t* adv)
 msrcuErr_t msrcu_dev_ble_adv_stop(void)
 {
     if(inb_actv_stop(actAdvIdx) != INB_ERR_NO_ERROR) 
-        return ERR_OTHERS;
+        return ERR_DEVICE_BLE;
     
     msrcu_dev_ble_set_state(BLE_STATE_IDLE);
     
@@ -411,7 +446,7 @@ msrcuErr_t msrcu_dev_ble_adv_stop(void)
 msrcuErr_t msrcu_dev_ble_disconnect(void)
 {
     if(inb_conn_disconnect(BLE_CON_IDX, BLE_ERROR_CON_TERM_BY_LOCAL_HOST))
-        return ERR_OTHERS;
+        return ERR_DEVICE_BLE;
     
     msrcu_dev_ble_set_state(BLE_STATE_IDLE);
     

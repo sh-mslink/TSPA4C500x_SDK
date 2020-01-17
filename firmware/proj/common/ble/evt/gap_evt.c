@@ -369,7 +369,7 @@ int handle_default_gap_evt(uint16_t eid, void *pv)
                             cfm.u.ltk.ediv = (uint16_t)rand();
                             
                             memcpy(&gBondData, &(cfm.u.ltk), sizeof(inb_ltk_t));
-#ifdef CFG_PROJ_RCU    
+#ifdef MSRCU
                             extern msrcuBleBondData_t msrcuBondData;
                             memcpy(msrcuBondData.ltk.key, cfm.u.ltk.ltk.key, BLE_KEY_LEN);
                             msrcuBondData.ediv = cfm.u.ltk.ediv; 

@@ -3,7 +3,7 @@
 
 #include ".\ble\inb_api.h"
 
-#ifdef CFG_PROJ_RCU
+#ifdef MSRCU
 #include "msrcu_common.h"
 #endif
 

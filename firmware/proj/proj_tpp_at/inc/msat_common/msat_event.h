@@ -38,8 +38,8 @@ msatEvtBleCode;
 typedef struct
 {
     msatCmdIdIn id;
-    uint8_t *param;
     uint16_t len;
+    uint8_t *param;
 }
 msatEvtCmdIn_t;
 

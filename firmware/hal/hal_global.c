@@ -39,7 +39,7 @@
 
 
 #define GLOBAL_FLASH_SECTOR_SIZE            (4096)
-#define GLOBAL_FLASH_SECTOR_ADDR            (0x37f000)
+#define GLOBAL_FLASH_SECTOR_ADDR            (0x37E000)
 
 #define GLOBAL_FLASH_ADDR_OFFSET_MAGIC_WORD (0x40)
 #define GLOBAL_FLASH_ADDR_MAGIC_WORD        (GLOBAL_FLASH_SECTOR_ADDR + GLOBAL_FLASH_ADDR_OFFSET_MAGIC_WORD)
@@ -314,10 +314,6 @@ void hal_global_post_init(void)
     
     /// Assign data ram access priority
     data_ram_access_prio(DATA_RAM_ACCESS_PRIO_3, DATA_RAM_ACCESS_PRIO_2, DATA_RAM_ACCESS_PRIO_1);
-    
-#if !CFG_HCI
-    hal_global_debug_uart_init();
-#endif
     
 #if CFG_PM_EN
     uint32_t dm_retn = 0;

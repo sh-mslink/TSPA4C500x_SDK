@@ -55,12 +55,12 @@ void msat_dev_ble_evt_cb(inb_evt_t *evt)
             {
                 inb_evt_disc_ind_t *p = (inb_evt_disc_ind_t *)evt->param;
                 
-                bleEvt.code = MSAT_EVT_BLE_SEND_CFG;
-                bleEvt.param.sendCfg.isEnabled = false;
-                msat_fw_evt_ble_cb(&bleEvt);
-                
                 bleEvt.code = MSAT_EVT_BLE_CON_STATE;
                 bleEvt.param.conState.isConnected = false;
+                msat_fw_evt_ble_cb(&bleEvt);
+                
+                bleEvt.code = MSAT_EVT_BLE_SEND_CFG;
+                bleEvt.param.sendCfg.isEnabled = false;
                 msat_fw_evt_ble_cb(&bleEvt);
             }
             break;

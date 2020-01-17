@@ -15,6 +15,18 @@
 #include "ble_app.h"
 #include "ble_evt.h"
 
+#include "evb_led.h"
+
+
+#define LED_REFRESH_TIME 500//ms
+
+
+static bool bleIsConnected = false;
+
+static void led_tmr_callback(void const *arg);
+static osTimerId ledTimerId;
+static osTimerDef(ledTimer, led_tmr_callback);
+
 
 static int handle_main_msg(msg_t *msg)
 {
@@ -25,6 +37,19 @@ static int handle_main_msg(msg_t *msg)
     }
     
     return 0;
+}
+
+static void led_tmr_callback(void const *arg)
+{
+    if(evb_led_on_number_get())
+        evb_led_all_set(LED_OFF);
+    else
+    {
+        if(bleIsConnected)
+            evb_led_single_set(LED_B, LED_ON);
+        else
+            evb_led_single_set(LED_R, LED_ON);
+    }
 }
 
 void ble_app_event_callback(inb_evt_t *evt)
@@ -43,6 +68,8 @@ void ble_app_event_callback(inb_evt_t *evt)
                 PRINTD(DBG_TRACE, "interval:0x%X, ", p->con_interval);
                 PRINTD(DBG_TRACE, "latency:%d, ", p->con_latency);
                 PRINTD(DBG_TRACE, "timeout:%dms.\r\n", p->sup_to * 10);
+                
+                bleIsConnected = true;
             }
             break;
         
@@ -51,6 +78,8 @@ void ble_app_event_callback(inb_evt_t *evt)
                 inb_evt_disc_ind_t *p = (inb_evt_disc_ind_t *)evt->param;
                 
                 PRINTD(DBG_TRACE, "Disconnected, idx:%d, reason:0x%02X.\r\n", p->conidx, p->reason);
+                
+                bleIsConnected = false;
                 
                 if(start_adv())
                     return;
@@ -80,6 +109,16 @@ void ble_app_event_callback(inb_evt_t *evt)
     }
 }
 
+static void board_init(void)
+{
+    evb_led_init();
+    
+    ledTimerId = osTimerCreate(osTimer(ledTimer), osTimerPeriodic, NULL);
+    if(ledTimerId == NULL)
+        PRINTD(DBG_TRACE, "Timer ledTimerId create failed.\r\n");
+    osTimerStart(ledTimerId, LED_REFRESH_TIME);
+}
+
 /*
  * main: This is actually main task. 
  *  Note: The _main_init in the RTX_CM_lib.h is 
@@ -88,32 +127,40 @@ void ble_app_event_callback(inb_evt_t *evt)
  */
 int main (void)
 {
-    //Initialize platform.
+    //Initialize platform
     hal_global_post_init();
     
+#if (CFG_PDT_HCI || CFG_PDT_TX)
+    //BLE production test
+    ble_production_test();
+#endif
+    
+    //Debug UART init
+    hal_global_debug_uart_init();
+    
+    //Main LOG
     PRINTD(DBG_TRACE, "----------------\r\n");
     PRINTD(DBG_TRACE, "main start...\r\n");
     PRINTD(DBG_TRACE, "Wafer Version: %02X\r\n", chip_get_id() & 0xff);
+    
+    //EVB init
+    board_init();
     
     //MessageQ for main thread.
     msg_init();
     
     //BLE init
-    ble_config();
+    ble_config(false, ble_app_event_callback);
     
     //Start advertisng
-    if(start_adv())
-        return 0;
+    start_adv();
     
     //Wait for message
     while(1)
     {
         msg_t *msg;
-        
         msg = msg_get(osWaitForever);
-        
         handle_main_msg(msg);
-        
         if(msg)
             msg = msg_free(msg);
     }

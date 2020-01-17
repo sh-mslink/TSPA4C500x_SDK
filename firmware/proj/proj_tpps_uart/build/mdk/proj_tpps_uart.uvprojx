@@ -335,7 +335,7 @@
               <MiscControls>--diag_suppress 3731 --bss_threshold=0</MiscControls>
               <Define>__CORTEX_M4F __FPU_PRESENT=1 __CMSIS_RTOS DBG_MSG</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\..\common\ARM\CMSIS\Include;..\..\..\common\inc;..\..\..\..\ble_if\inc;..\..\..\..\inc;..\..\..\..\inc\hal;..\..\..\..\spi_flash\inc;..\..\..\..\bootloader\inc;..\..\..\..\RF;..\..\..\..\thirdparty\rtx\src;..\..\..\..\thirdparty\rtx\inc;..\..\inc</IncludePath>
+              <IncludePath>..\..\..\common\ARM\CMSIS\Include;..\..\..\common\inc;..\..\..\..\ble_if\inc;..\..\..\..\inc;..\..\..\..\inc\hal;..\..\..\..\spi_flash\inc;..\..\..\..\bootloader\inc;..\..\..\..\RF;..\..\..\..\thirdparty\rtx\src;..\..\..\..\thirdparty\rtx\inc;..\..\inc;..\..\..\..\evb;..\..\..\..\evb\tspa4c500a_evb_bone</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -633,6 +633,26 @@
               <FileName>SEGGER_RTT_printf.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\thirdparty\segger\src\SEGGER_RTT_printf.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>evb</GroupName>
+          <Files>
+            <File>
+              <FileName>evb_led.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\evb\tspa4c500a_evb_bone\evb_led.c</FilePath>
+            </File>
+            <File>
+              <FileName>evb_led.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\..\..\..\evb\tspa4c500a_evb_bone\evb_led.h</FilePath>
+            </File>
+            <File>
+              <FileName>evb.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\..\..\..\evb\evb.h</FilePath>
             </File>
           </Files>
         </Group>

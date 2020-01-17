@@ -12,19 +12,26 @@
 #include "cmsis_os.h"
 
 #include "msg.h"
-#include "msg.h"
 #include "ble_app.h"
 #include "ble_evt.h"
 
+#include "evb_led.h"
+
+
+#define LED_REFRESH_TIME 500//ms
 
 #define TPP_PACK_LENGTH     (20)
 #define UART_RX_BUF_LENGTH  (1024)
 
 
-bool tppsIsConnected = false;
-bool tppsNtfEnabled = false;
+static bool tppsIsConnected = false;
+static bool tppsNtfEnabled = false;
 
-void *uartPtHdl;
+static void led_tmr_callback(void const *arg);
+static osTimerId ledTimerId;
+static osTimerDef(ledTimer, led_tmr_callback);
+
+static void *uartPtHdl;
 static uint8_t uartRxBuf[UART_RX_BUF_LENGTH] = {0};
 static osThreadDef_t uartRxDef;
 
@@ -40,7 +47,22 @@ static int handle_main_msg(msg_t *msg)
     return 0;
 }
 
-void tpps_receive_write(int conIdx, uint8_t *buffer, uint8_t len)
+static void led_tmr_callback(void const *arg)
+{
+    if(evb_led_on_number_get())
+        evb_led_all_set(LED_OFF);
+    else
+    {
+        if(tppsNtfEnabled)
+            evb_led_single_set(LED_G, LED_ON);
+        else if(tppsIsConnected)
+            evb_led_single_set(LED_B, LED_ON);
+        else
+            evb_led_single_set(LED_R, LED_ON);
+    }
+}
+
+static void tpps_receive_write(int conIdx, uint8_t *buffer, uint8_t len)
 {
     PRINTD(DBG_TRACE, "TPPS receive, conidx:%d, length=%d, data: 0x", conIdx, len);
 //    for(int i = 0; i < len; i++)
@@ -91,7 +113,7 @@ static void uart_receive_task(const void *arg)
     }
 }
 
-void ble_app_event_callback(inb_evt_t *evt)
+static void ble_app_event_callback(inb_evt_t *evt)
 {
     switch(evt->evt_id)
     {
@@ -173,6 +195,16 @@ void ble_app_event_callback(inb_evt_t *evt)
     }
 }
 
+static void board_init(void)
+{
+    evb_led_init();
+    
+    ledTimerId = osTimerCreate(osTimer(ledTimer), osTimerPeriodic, NULL);
+    if(ledTimerId == NULL)
+        PRINTD(DBG_TRACE, "Timer ledTimerId create failed.\r\n");
+    osTimerStart(ledTimerId, LED_REFRESH_TIME);
+}
+
 /*
  * main: This is actually main task. 
  *  Note: The _main_init in the RTX_CM_lib.h is 
@@ -181,12 +213,24 @@ void ble_app_event_callback(inb_evt_t *evt)
  */
 int main (void)
 {
-    //Initialize platform.
+    //Initialize platform
     hal_global_post_init();
     
+#if (CFG_PDT_HCI || CFG_PDT_TX)
+    //BLE production test
+    ble_production_test();
+#endif
+    
+    //Debug UART init
+    hal_global_debug_uart_init();
+    
+    //Main LOG
     PRINTD(DBG_TRACE, "----------------\r\n");
     PRINTD(DBG_TRACE, "main start...\r\n");
     PRINTD(DBG_TRACE, "Wafer Version: %02X\r\n", chip_get_id() & 0xff);
+    
+    //EVB init
+    board_init();
     
     //MessageQ for main thread.
     msg_init();
@@ -206,21 +250,17 @@ int main (void)
         PRINTD(DBG_TRACE, "UART receive thread create error.\r\n");
     
     //BLE init
-    ble_config();
+    ble_config(false, ble_app_event_callback);
     
     //Start advertisng
-    if(start_adv())
-        return 0;
+    start_adv();
     
     //Wait for message
     while(1)
     {
         msg_t *msg;
-        
         msg = msg_get(osWaitForever);
-        
         handle_main_msg(msg);
-        
         if(msg)
             msg = msg_free(msg);
     }

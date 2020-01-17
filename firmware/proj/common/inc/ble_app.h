@@ -33,6 +33,8 @@ int discovery_service(int conIdx);
 void ble_event_callback(inb_evt_t *evt);
 
 int ble_stack_init(void);
-int ble_config(void);
-
+int ble_config(bool isHciMode, void (*cb)(inb_evt_t *evt));
+#if (CFG_PDT_HCI || CFG_PDT_TX)
+void ble_production_test(void);
+#endif
 #endif

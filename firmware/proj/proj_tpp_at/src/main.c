@@ -16,7 +16,23 @@
 #include "ble_app.h"
 #include "ble_evt.h"
 
+#include "evb_led.h"
+
 #include "msat_app.h"
+#include "msat_dev_ble_evt.h"
+
+
+#define LED_REFRESH_TIME 500//ms
+
+
+static bool msatAdvIsOn = false;
+static bool msatBleIsCon = false;
+static bool msatSendIsCfg = false;
+static bool msatIsOta = false;
+
+static void led_tmr_callback(void const *arg);
+static osTimerId ledTimerId;
+static osTimerDef(ledTimer, led_tmr_callback);
 
 
 static int handle_main_msg(msg_t *msg)
@@ -30,7 +46,24 @@ static int handle_main_msg(msg_t *msg)
     return 0;
 }
 
-void ble_app_event_callback(inb_evt_t *evt)
+static void led_tmr_callback(void const *arg)
+{
+    if(evb_led_on_number_get())
+        evb_led_all_set(LED_OFF);
+    else
+    {
+        if(msatIsOta)
+            evb_led_all_set(LED_ON);
+        else if(msatSendIsCfg)
+            evb_led_single_set(LED_G, LED_ON);
+        else if(msatBleIsCon)
+            evb_led_single_set(LED_B, LED_ON);
+        else if(msatAdvIsOn)
+            evb_led_single_set(LED_R, LED_ON);
+    }
+}
+
+static void ble_app_event_callback(inb_evt_t *evt)
 {
     switch(evt->evt_id)
     {
@@ -78,6 +111,8 @@ void ble_app_event_callback(inb_evt_t *evt)
         default:
             break;
     }
+    
+    msat_dev_ble_evt_cb(evt);
 }
 
 static void msat_user_evt_ble_cb(msatEvtBle_t *evt)
@@ -87,12 +122,17 @@ static void msat_user_evt_ble_cb(msatEvtBle_t *evt)
         case MSAT_EVT_BLE_CON_STATE:
             {
                 PRINTD(DBG_TRACE, "MSAT_EVT_BLE_CON_STATE\r\n");
+                
+                msatBleIsCon = evt->param.conState.isConnected;
+                msatAdvIsOn = false;
             }
             break;
         
         case MSAT_EVT_BLE_SEND_CFG:
             {
                 PRINTD(DBG_TRACE, "MSAT_EVT_BLE_SEND_CFG\r\n");
+                
+                msatSendIsCfg = evt->param.sendCfg.isEnabled;
             }
             break;
         
@@ -139,6 +179,9 @@ static void msat_user_evt_cmd_in_cb(msatEvtCmdIn_t *evt)
         case MSAT_CMD_ID_IN_MODE:
             {
                 PRINTD(DBG_TRACE, "MSAT_CMD_ID_IN_MODE\r\n");
+                
+                if(evt->param[0] - '0' == MSAT_MODE_OTA)
+                    msatIsOta = true;
             }
             break;
         
@@ -157,6 +200,8 @@ static void msat_user_evt_cmd_in_cb(msatEvtCmdIn_t *evt)
         case MSAT_CMD_ID_IN_ADV_ONOFF:
             {
                 PRINTD(DBG_TRACE, "MSAT_CMD_ID_IN_ADV_ONOFF\r\n");
+                
+                msatAdvIsOn = evt->param[0] - '0';
             }
             break;
         
@@ -182,6 +227,16 @@ static void msat_user_evt_wakeup_cb(void)
     PRINTD(DBG_TRACE, "MSAT WAKEUP\r\n");
 }
 
+static void board_init(void)
+{
+    evb_led_init();
+    
+    ledTimerId = osTimerCreate(osTimer(ledTimer), osTimerPeriodic, NULL);
+    if(ledTimerId == NULL)
+        PRINTD(DBG_TRACE, "Timer ledTimerId create failed.\r\n");
+    osTimerStart(ledTimerId, LED_REFRESH_TIME);
+}
+
 /*
  * main: This is actually main task. 
  *  Note: The _main_init in the RTX_CM_lib.h is 
@@ -190,18 +245,30 @@ static void msat_user_evt_wakeup_cb(void)
  */
 int main (void)
 {
-    //Initialize platform.
+    //Initialize platform
     hal_global_post_init();
     
+#if (CFG_PDT_HCI || CFG_PDT_TX)
+    //BLE production test
+    ble_production_test();
+#endif
+    
+    //Debug UART init
+    hal_global_debug_uart_init();
+    
+    //Main LOG
     PRINTD(DBG_TRACE, "----------------\r\n");
     PRINTD(DBG_TRACE, "main start...\r\n");
     PRINTD(DBG_TRACE, "Wafer Version: %02X\r\n", chip_get_id() & 0xff);
+    
+    //EVB init
+    board_init();
     
     //MessageQ for main thread.
     msg_init();
     
     //BLE init
-    ble_config();
+    ble_config(false, ble_app_event_callback);
     
     //MSAT init
     static msatEvtCallback_t msatCb = 
@@ -225,11 +292,8 @@ int main (void)
     while(1)
     {
         msg_t *msg;
-        
         msg = msg_get(osWaitForever);
-        
         handle_main_msg(msg);
-        
         if(msg)
             msg = msg_free(msg);
     }

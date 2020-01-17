@@ -333,7 +333,7 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls>--diag_suppress 3731 --bss_threshold=0</MiscControls>
-              <Define>__CORTEX_M4F __FPU_PRESENT=1 __CMSIS_RTOS DBG_MSG CFG_PROJ_RCU</Define>
+              <Define>__CORTEX_M4F __FPU_PRESENT=1 __CMSIS_RTOS DBG_MSG MSRCU</Define>
               <Undefine></Undefine>
               <IncludePath>..\..\..\common\ARM\CMSIS\Include;..\..\..\common\inc;..\..\..\..\ble_if\inc;..\..\..\..\inc;..\..\..\..\inc\hal;..\..\..\..\spi_flash\inc;..\..\..\..\bootloader\inc;..\..\..\..\RF;..\..\..\..\thirdparty\rtx\src;..\..\..\..\thirdparty\rtx\inc;..\..\inc;..\..\inc\msrcu_app;..\..\inc\msrcu_firmware;..\..\inc\msrcu_device\tspa4c500a;..\..\inc\msrcu_peripheral\sensor;..\..\inc\msrcu_common;..\..\inc\msrcu_algorithm</IncludePath>
             </VariousControls>
@@ -418,6 +418,21 @@
               <FileName>rf.lib</FileName>
               <FileType>4</FileType>
               <FilePath>..\..\..\..\lib\rf.lib</FilePath>
+            </File>
+            <File>
+              <FileName>inb_prf_bas.lib</FileName>
+              <FileType>4</FileType>
+              <FilePath>..\..\..\..\lib\prf\inb_prf_bas.lib</FilePath>
+            </File>
+            <File>
+              <FileName>inb_prf_dis.lib</FileName>
+              <FileType>4</FileType>
+              <FilePath>..\..\..\..\lib\prf\inb_prf_dis.lib</FilePath>
+            </File>
+            <File>
+              <FileName>inb_prf_hog.lib</FileName>
+              <FileType>4</FileType>
+              <FilePath>..\..\..\..\lib\prf\inb_prf_hog.lib</FilePath>
             </File>
           </Files>
         </Group>
@@ -524,21 +539,6 @@
         <Group>
           <GroupName>profile</GroupName>
           <Files>
-            <File>
-              <FileName>inb_prf_bas.lib</FileName>
-              <FileType>4</FileType>
-              <FilePath>..\..\..\..\lib\prf\inb_prf_bas.lib</FilePath>
-            </File>
-            <File>
-              <FileName>inb_prf_dis.lib</FileName>
-              <FileType>4</FileType>
-              <FilePath>..\..\..\..\lib\prf\inb_prf_dis.lib</FilePath>
-            </File>
-            <File>
-              <FileName>inb_prf_hog.lib</FileName>
-              <FileType>4</FileType>
-              <FilePath>..\..\..\..\lib\prf\inb_prf_hog.lib</FilePath>
-            </File>
             <File>
               <FileName>prf_atv.c</FileName>
               <FileType>1</FileType>

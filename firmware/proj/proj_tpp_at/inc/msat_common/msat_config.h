@@ -33,7 +33,7 @@
 #define MSAT_UART_CHANNEL       (1)//UART channel ID for device, should match the device's configuration
 #define MSAT_UART_BAUDRATE      (115200)
 
-#define MSAT_WAKEUP_IN_PORT     (2)//GPIO port
+#define MSAT_WAKEUP_IN_PORT     (4)//GPIO port
 #define MSAT_WAKEUP_IN_PIN      (1)//GPIO pin
 #define MSAT_WAKEUP_IN_LEVEL    (0)//0 for low level wakeup, 1 for high level wakeup
 

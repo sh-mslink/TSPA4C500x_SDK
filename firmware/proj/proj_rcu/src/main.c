@@ -59,6 +59,8 @@
 /* Function Declaration
  ****************************************************************************************
  */
+extern void msrcu_dev_ble_evt_cb(inb_evt_t *evt);
+
 static void user_rcu_power_timer_callback(void const *arg);
 static void user_rcu_longpress_timer_callback(void const *arg);
 static void user_rcu_led_timer_callback(void const *arg);
@@ -737,10 +739,9 @@ static void user_rcu_ble_rf_test(void)
     if(testMode == hciMode)
     {
 #if CFG_HCI
-        hci_enable();
-        ble_stack_init();//wait for HCI communication
+        ble_config(true, NULL);//wait for HCI communication
 #else
-        #error "CFG_HCI is disabled." 
+        #error "CFG_HCI is disabled."
 #endif
     }
     else if(testMode == rfMode)
@@ -755,10 +756,10 @@ static void user_rcu_ble_rf_test(void)
             osTimerStart(msrcuAppRfTestTimerId, MSRCU_RF_TEST_DURATION);
         }
         
-        ble_config();
+        ble_config(false, NULL);
         
         rf_em_init();
-        rf_int_prog_pll_trx_trig(0); 
+        rf_int_prog_pll_trx_trig(0);
         rf_int_rpl_mdm_init();
         rf_int_tx_carrier_test(1, 19); //2440MHz
     }
@@ -1455,8 +1456,8 @@ int main (void)//for test
 #if GLOBAL_FLASH_WRITE
     uint32_t magciWord = 0;
     uint8_t capOffset = 0x7;
-    inb_addr_t mac = {.addr = CFG_BLE_PARAM_BD_ADDR};
-//    inb_addr_t mac = {.addr = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
+//    inb_addr_t mac = {.addr = CFG_BLE_PARAM_BD_ADDR};
+    inb_addr_t mac = {.addr = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
     
 //    magciWord = hal_global_flash_magic_word_get();
 //    capOffset = hal_global_flash_cap_offset_get();
@@ -1470,7 +1471,7 @@ int main (void)//for test
     PRINTD(DBG_TRACE, "----------------\r\n");
     PRINTD(DBG_TRACE, "main start...\r\n");
     
-    ble_config();
+    ble_config(false, NULL);
     
     user_rcu_ble_adv_start();
     
@@ -1482,15 +1483,21 @@ int main (void)//for test
 #else
 int main (void)
 {
-    //Initialize platform.
+    //Initialize platform
     hal_global_post_init();
     
-    //RF test mode for RCU production
+#if (CFG_PDT_HCI || CFG_PDT_TX)
+    //BLE production test
+    ble_production_test();
+#endif
+    
+    //User BLE production test
     user_rcu_ble_rf_test();
     
-    //Debug UART port init
+    //Debug UART init
     hal_global_debug_uart_init();
     
+    //Main LOG
     PRINTD(DBG_TRACE, "----------------\r\n");
     PRINTD(DBG_TRACE, "main start...\r\n");
     PRINTD(DBG_TRACE, "Wafer Version: %02X\r\n", chip_get_id() & 0xff);
@@ -1499,7 +1506,7 @@ int main (void)
     msg_init();
     
     //BLE init
-    ble_config();
+    ble_config(false, msrcu_dev_ble_evt_cb);
     
     //RCU init
     msrcuErr_t err = user_rcu_init(&userAppCb);
@@ -1515,11 +1522,8 @@ int main (void)
     while(1)
     {
         msg_t *msg;
-        
         msg = msg_get(osWaitForever);
-        
         handle_main_msg(msg);
-        
         if(msg)
             msg = msg_free(msg);
     }

@@ -87,7 +87,13 @@ static evbLed_t evbLed[LED_MAX] =
  */
 ledState evb_led_onoff_get(ledIndex idx)
 {
-    return evbLed[idx].onoff;
+    for(uint8_t i = 0; i < LED_MAX; i++)
+    {
+        if(idx == evbLed[i].idx)
+            return evbLed[idx].onoff;
+    }
+    
+    return LED_OFF;
 }
 
 uint8_t evb_led_on_number_get(void)
@@ -162,7 +168,6 @@ void evb_led_all_set(ledState onoff)
     for(uint8_t i = 0; i < LED_MAX; i++)
         evb_led_single_set((ledIndex)i, onoff);
 }
-
 
 void evb_led_init(void)
 {

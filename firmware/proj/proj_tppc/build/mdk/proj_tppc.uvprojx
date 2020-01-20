@@ -469,6 +469,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\..\hal\hal_spi_flash.c</FilePath>
             </File>
+            <File>
+              <FileName>hal_keyboard.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\hal\hal_keyboard.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -639,6 +644,16 @@
         <Group>
           <GroupName>evb</GroupName>
           <Files>
+            <File>
+              <FileName>evb_button.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\evb\tspa4c500a_evb_bone\evb_button.c</FilePath>
+            </File>
+            <File>
+              <FileName>evb_button.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\..\..\..\evb\tspa4c500a_evb_bone\evb_button.h</FilePath>
+            </File>
             <File>
               <FileName>evb_led.c</FileName>
               <FileType>1</FileType>

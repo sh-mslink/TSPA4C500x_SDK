@@ -15,13 +15,16 @@
 #include "ble_app.h"
 #include "ble_evt.h"
 
+#include "evb_button.h"
 #include "evb_led.h"
 
 
 #define LED_REFRESH_TIME 500//ms
 
 
-static bool tppsIsConnected = false;
+//BLE state flag
+static bool advIsOn = false;
+static bool bleIsConnected = false;
 static bool tppsNtfEnabled = false;
 
 //Timer for LED
@@ -46,6 +49,53 @@ static int handle_main_msg(msg_t *msg)
     return 0;
 }
 
+static void button_evt_callback(uint32_t *code, buttonState *state)
+{
+    switch(*state)
+    {
+        case BUTTON_PRESS:
+            PRINTD(DBG_TRACE, "Button %d press.\r\n", *code);
+            break;
+        case BUTTON_RELEASE:
+            PRINTD(DBG_TRACE, "Button %d release.\r\n", *code);
+            break;
+        case BUTTON_LONG_PRESS:
+            PRINTD(DBG_TRACE, "Button %d long press.\r\n", *code);
+            break;
+        default:
+            break;
+    }
+    
+    switch(*code)
+    {
+        case 8://Button 8
+            {
+                if(*state == BUTTON_RELEASE)
+                {
+                    if(!bleIsConnected)
+                    {
+                        if(advIsOn)
+                        {
+                            if(stop_adv())
+                                return;
+                            //GAP_EVT_ACTIVITY_STOP
+                        }
+                        else
+                        {
+                            if(start_adv())
+                                return;
+                            advIsOn = true;
+                        }
+                    }
+                }
+            }
+            break;
+            
+        default:
+            break;
+    }
+}
+
 static void led_tmr_callback(void const *arg)
 {
     if(evb_led_on_number_get())
@@ -54,9 +104,9 @@ static void led_tmr_callback(void const *arg)
     {
         if(tppsNtfEnabled)
             evb_led_single_set(LED_G, LED_ON);
-        else if(tppsIsConnected)
+        else if(bleIsConnected)
             evb_led_single_set(LED_B, LED_ON);
-        else
+        else if(advIsOn)
             evb_led_single_set(LED_R, LED_ON);
     }
 }
@@ -66,7 +116,7 @@ static void tpps_ntf_tmr_callback(void const *arg)
     static uint8_t testData[20] = {0};
     static uint8_t i = 0;
     
-    if(!tppsIsConnected || !tppsNtfEnabled)
+    if(!bleIsConnected || !tppsNtfEnabled)
     {
         osTimerStop(tppsNtfTimerId);
         return;
@@ -89,6 +139,12 @@ static void ble_app_event_callback(inb_evt_t *evt)
 {
     switch(evt->evt_id)
     {
+        case GAP_EVT_ACTIVITY_STOP:
+            {
+                advIsOn = false;
+            }
+            break;
+            
         case GAP_EVT_CONN_REQ:
             {
                 inb_evt_conn_req_t *p = (inb_evt_conn_req_t *)evt->param;
@@ -102,7 +158,7 @@ static void ble_app_event_callback(inb_evt_t *evt)
                 PRINTD(DBG_TRACE, "latency:%d, ", p->con_latency);
                 PRINTD(DBG_TRACE, "timeout:%dms.\r\n", p->sup_to * 10);
                 
-                tppsIsConnected = true;
+                bleIsConnected = true;
             }
             break;
         
@@ -112,13 +168,14 @@ static void ble_app_event_callback(inb_evt_t *evt)
                 
                 PRINTD(DBG_TRACE, "Disconnected, idx:%d, reason:0x%02X.\r\n", p->conidx, p->reason);
                 
-                tppsIsConnected = false;
+                bleIsConnected = false;
                 tppsNtfEnabled = false;
                 
                 osTimerStop(tppsNtfTimerId);
                 
                 if(start_adv())
                     return;
+                advIsOn = true;
             }
             break;
         
@@ -175,6 +232,7 @@ static void ble_app_event_callback(inb_evt_t *evt)
 
 static void board_init(void)
 {
+    evb_button_init(button_evt_callback);
     evb_led_init();
     
     ledTimerId = osTimerCreate(osTimer(ledTimer), osTimerPeriodic, NULL);
@@ -222,7 +280,9 @@ int main (void)
     ble_config(false, ble_app_event_callback);
     
     //Start advertisng
-    start_adv();
+    if(start_adv())
+        return 0;
+    advIsOn = true;
     
     //Wait for message
     while(1)

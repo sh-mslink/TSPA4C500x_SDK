@@ -579,6 +579,11 @@ int ble_config(bool isHciMode, void (*cb)(inb_evt_t *evt))
     
     ble_app_evt_cb = cb;
     
+    inb_addr_t mac = {0};
+    hal_global_flash_ble_mac_get(&mac);
+    PRINTD(DBG_ERR, "BLE MAC: 0x %02X %02X %02X %02X %02X %02X\r\n", 
+            mac.addr[0], mac.addr[1], mac.addr[2], mac.addr[3], mac.addr[4], mac.addr[5]);
+    
     return 0;
 }
 

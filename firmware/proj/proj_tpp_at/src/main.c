@@ -12,10 +12,10 @@
 #include "cmsis_os.h"
 
 #include "msg.h"
-#include "msg.h"
 #include "ble_app.h"
 #include "ble_evt.h"
 
+#include "evb_button.h"
 #include "evb_led.h"
 
 #include "msat_app.h"
@@ -25,6 +25,7 @@
 #define LED_REFRESH_TIME 500//ms
 
 
+//MSAT state flag
 static bool msatAdvIsOn = false;
 static bool msatBleIsCon = false;
 static bool msatSendIsCfg = false;
@@ -44,6 +45,39 @@ static int handle_main_msg(msg_t *msg)
     }
     
     return 0;
+}
+
+static void button_evt_callback(uint32_t *code, buttonState *state)
+{
+    switch(*state)
+    {
+        case BUTTON_PRESS:
+            PRINTD(DBG_TRACE, "Button %d press.\r\n", *code);
+            break;
+        case BUTTON_RELEASE:
+            PRINTD(DBG_TRACE, "Button %d release.\r\n", *code);
+            break;
+        case BUTTON_LONG_PRESS:
+            PRINTD(DBG_TRACE, "Button %d long press.\r\n", *code);
+            break;
+        default:
+            break;
+    }
+    
+    switch(*code)
+    {
+        case 8://Button 8
+            {
+                if(*state == BUTTON_RELEASE)
+                {
+                    ;
+                }
+            }
+            break;
+            
+        default:
+            break;
+    }
 }
 
 static void led_tmr_callback(void const *arg)
@@ -229,6 +263,7 @@ static void msat_user_evt_wakeup_cb(void)
 
 static void board_init(void)
 {
+    evb_button_init(button_evt_callback);
     evb_led_init();
     
     ledTimerId = osTimerCreate(osTimer(ledTimer), osTimerPeriodic, NULL);
@@ -264,7 +299,7 @@ int main (void)
     //EVB init
     board_init();
     
-    //MessageQ for main thread.
+    //MessageQ for main thread
     msg_init();
     
     //BLE init

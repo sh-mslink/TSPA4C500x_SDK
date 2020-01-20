@@ -46,7 +46,7 @@
 #define MOTION_TIMER_MS     (1000 / M_SAMPLE_FREQUENCY)
 #endif
 
-#define BOND_DATA_FLASH_OFFSET  (0x7E000)
+#define BOND_DATA_FLASH_OFFSET  (0x7D000)
 
 /* Enum Definition
  ****************************************************************************************

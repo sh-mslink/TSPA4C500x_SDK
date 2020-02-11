@@ -55,6 +55,14 @@ static __inline uint32_t fw_get_version(void)
 {
     return RD_WORD(0x3FFF8) ;
 }
+static __inline uint8_t wafer_get_version(void)
+{
+    uint32_t version = fw_get_version();
+    if(version == 0x602A0102)
+        return 2;
+    else
+        return 1;
+}
 static __inline uint32_t chip_sleep(void)
 {
     return (WR_WORD(GLOBAL_REG_SLEEP_CTRL, 1));

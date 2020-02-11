@@ -177,6 +177,7 @@ typedef struct
     uint16_t conInterval;
     uint16_t conLatency;
     uint16_t conTimeOut;
+    uint8_t clkAccuracy;
     uint8_t peerAddrType;
     bleAddr_t peerAddr;
 }

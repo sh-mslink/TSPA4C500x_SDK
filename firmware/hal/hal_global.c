@@ -284,10 +284,10 @@ void hal_global_pre_init(void)
     
     /// Smem
     hal_clk_smem_set(CFG_SMEM_CLK);
-#endif  // !CFG_FPGA
 
     /// **** Configure shared memory ****
     hal_smem_init();
+#endif  // !CFG_FPGA
 }
 
 void hal_global_debug_uart_init(void)

@@ -117,6 +117,7 @@ static void ble_app_event_callback(inb_evt_t *evt)
                 inb_evt_conn_req_t *p = (inb_evt_conn_req_t *)evt->param;
                 
                 PRINTD(DBG_TRACE, "Connected, idx:%d, ", p->conidx);
+                PRINTD(DBG_TRACE, "clk accuracy:%d, ", p->clk_accuracy);
                 PRINTD(DBG_TRACE, "addr type:%d, ", p->peer_addr_type);
                 PRINTD(DBG_TRACE, "addr:0x %02X %02X %02X %02X %02X %02X, ", 
                         p->peer_addr.addr[0], p->peer_addr.addr[1], p->peer_addr.addr[2], 
@@ -199,7 +200,7 @@ int main (void)
     //Main LOG
     PRINTD(DBG_TRACE, "----------------\r\n");
     PRINTD(DBG_TRACE, "main start...\r\n");
-    PRINTD(DBG_TRACE, "Wafer Version: %02X\r\n", chip_get_id() & 0xff);
+    PRINTD(DBG_TRACE, "Wafer Version: A%d\r\n", wafer_get_version());
     
     //EVB init
     board_init();

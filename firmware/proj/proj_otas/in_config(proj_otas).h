@@ -15,7 +15,7 @@
 #define IN_CONFIG_H
 
 /// @Misc::TSPA4C500X
-#define CFG_TSPA4C500X	1
+//#define CFG_TSPA4C500X_A1
 #define CFG_FPGA	0
 /// @Misc::PRODUCTION TEST
 #define CFG_PDT_HCI	1

@@ -166,6 +166,7 @@ static void msrcu_dev_ble_gap_evt(uint16_t eid, void *pv)
                 conInd->conInterval = p_para->con_interval;
                 conInd->conLatency = p_para->con_latency;
                 conInd->conTimeOut = p_para->sup_to;
+                conInd->clkAccuracy = p_para->clk_accuracy;
                 conInd->peerAddrType = p_para->peer_addr_type;
                 memcpy(conInd->peerAddr.addr, p_para->peer_addr.addr, BLE_BDADDR_LEN);
                 

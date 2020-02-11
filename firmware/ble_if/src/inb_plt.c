@@ -153,6 +153,7 @@ static int inb_uart_flow_off(void *hdl)
 #endif
 }
 
+#ifdef CFG_TSPA4C500X_A1
 static void inb_flash_read(uint32_t addr, uint32_t length, uint8_t *buffer)
 {
 	/// HW XIP will take care of it.
@@ -177,6 +178,7 @@ static void inb_flash_erase(uint32_t addr, uint32_t length)
 
 #endif
 }
+#endif
 
 // The mutex object needs to be able to nested...
 static void *inb_os_mutex_create(void)
@@ -604,7 +606,11 @@ static void inb_trace(uint32_t flag, char *fmt, ...)
 	return;
 }
 
+#ifdef CFG_TSPA4C500X_A1
 static void inb_power_register(uint32_t em_end, int (*pow_state)(void *arg, uint32_t *duration), void (*pow_down)(void *arg, uint32_t duration), void (*pow_up)(void * arg))
+#else
+static void inb_power_register(uint32_t em_end, int (*pow_state)(void *arg, uint32_t *duration), void (*pow_down)(void *arg, uint32_t duration), void (*pow_up)(void * arg), void* arg)
+#endif
 {
 #if CFG_PM_EN
 
@@ -616,7 +622,11 @@ static void inb_power_register(uint32_t em_end, int (*pow_state)(void *arg, uint
 		hal_smem_retn(1, ((CFG_SMEM_BLE>>16)&0xFFFF), em_end);
 	}
 
+#ifdef CFG_TSPA4C500X_A1
 	g_ble_pm.arg = NULL;
+#else
+	g_ble_pm.arg = arg;
+#endif
 	g_ble_pm.power_state = pow_state;
 	g_ble_pm.power_down = pow_down;
 	g_ble_pm.power_up = pow_up;
@@ -624,6 +634,7 @@ static void inb_power_register(uint32_t em_end, int (*pow_state)(void *arg, uint
 #endif
 }
 
+#ifdef CFG_TSPA4C500X_A1
 void *inb_mem_alloc(int size)
 {
 	return malloc(size);
@@ -654,6 +665,7 @@ int inb_get_conn_pool_size(void)	/// Not used
 {
 	return 0;
 }
+#endif
 
 void inb_platform_reset(uint32_t reson)
 {
@@ -681,9 +693,14 @@ const plat_fun_t plat_fun = {
 	inb_uart_read,
 	inb_uart_flow_on,
 	inb_uart_flow_off,
+#ifdef CFG_TSPA4C500X_A1
 	inb_flash_read,
 	inb_flash_write,
 	inb_flash_erase,
+#else
+	inb_uart_deinit,
+#endif
+
 	inb_os_mutex_create,	/// Not used
 	inb_os_mutex_delete,	/// Not used
 	inb_os_mutex_lock,		/// Not used
@@ -697,6 +714,13 @@ const plat_fun_t plat_fun = {
 	inb_os_queue_put,
 	inb_os_queue_get,
 
+#ifndef CFG_TSPA4C500X_A1
+	inb_os_semaphore_create,
+	inb_os_semaphore_delete,
+	inb_os_semaphore_wait,
+	inb_os_semaphore_release,
+#endif
+
 	inb_irq_disable,
 	inb_irq_enable,
 	inb_plt_init,
@@ -706,6 +730,7 @@ const plat_fun_t plat_fun = {
 	inb_trace,
 
 	inb_power_register,
+#ifdef CFG_TSPA4C500X_A1
 	inb_os_semaphore_create,
 	inb_os_semaphore_delete,
 	inb_os_semaphore_wait,
@@ -719,6 +744,13 @@ const plat_fun_t plat_fun = {
 	inb_get_conn_pool_size,
 
 	inb_uart_deinit,
+#endif
+
 	inb_platform_reset,
+
+#ifndef CFG_TSPA4C500X_A1
+	inb_chip_pn,
+#endif
+
 };
 

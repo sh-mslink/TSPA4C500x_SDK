@@ -906,8 +906,8 @@ static void user_rcu_ble_callback(msrcuEvtBle_t *evt)
         case EVT_BLE_CONNETED:
             {
                 msrcuBleConInd_t* conInd = &evt->param.conInd;
-                MSPRINT("Connected, idx:%d, interval=0x%X, latency=%d, timeout=%dms, addrType:%d, addr:%02X %02X %02X %02X %02X %02X.\r\n", 
-                        conInd->conIndex, conInd->conInterval, conInd->conLatency, conInd->conTimeOut * 10, conInd->peerAddrType,
+                MSPRINT("Connected, idx:%d, interval=0x%X, latency=%d, timeout=%dms, clkAccuracy=%d, addrType:%d, addr:%02X %02X %02X %02X %02X %02X.\r\n", 
+                        conInd->conIndex, conInd->conInterval, conInd->conLatency, conInd->conTimeOut * 10, conInd->clkAccuracy, conInd->peerAddrType,
                         conInd->peerAddr.addr[0], conInd->peerAddr.addr[1], conInd->peerAddr.addr[2],
                         conInd->peerAddr.addr[3], conInd->peerAddr.addr[4], conInd->peerAddr.addr[5]);
                 
@@ -1500,7 +1500,7 @@ int main (void)
     //Main LOG
     PRINTD(DBG_TRACE, "----------------\r\n");
     PRINTD(DBG_TRACE, "main start...\r\n");
-    PRINTD(DBG_TRACE, "Wafer Version: %02X\r\n", chip_get_id() & 0xff);
+    PRINTD(DBG_TRACE, "Wafer Version: A%d\r\n", wafer_get_version());
     
     //MessageQ for main thread.
     msg_init();

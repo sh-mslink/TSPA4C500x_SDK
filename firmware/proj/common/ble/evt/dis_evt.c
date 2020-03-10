@@ -37,11 +37,11 @@
 #define APP_DIS_HARD_REV_STR_LEN        (5)
 
 /// Firmware Revision
-#define APP_DIS_FIRM_REV_STR            ("2020.02.11")
+#define APP_DIS_FIRM_REV_STR            ("2020.03.10")
 #define APP_DIS_FIRM_REV_STR_LEN        (10)
 
 /// Software Revision String
-#define APP_DIS_SW_REV_STR              ("SDK_0.7.0")
+#define APP_DIS_SW_REV_STR              ("SDK_0.7.1")
 #define APP_DIS_SW_REV_STR_LEN          (9)
 
 /// System ID Value - LSB -> MSB

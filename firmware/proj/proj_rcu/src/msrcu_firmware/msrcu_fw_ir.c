@@ -47,10 +47,11 @@ msrcuErr_t msrcu_fw_ir_init(void (*cb)(msrcuEvtIr_t *evt))
     msrcuIrEnv_t ir = {0};
     
 #if MSRCU_IR_SEND_ENABLE
-    ir.necCarrierDutyRatio = MSRCU_IR_NEC_CARRIER_DUTY_RATIO;
+    ir.carrierDutyRatio = MSRCU_IR_SEND_CARRIER_DUTY_RATIO;
     ir.irSendPort = MSRCU_DEV_IR_SEND_GPIO_PORT;
     ir.irSendPin = MSRCU_DEV_IR_SEND_GPIO_PIN;
 #endif
+    
 #if MSRCU_IR_LEARN_ENABLE
     ir.irLearnPort = MSRCU_DEV_IR_LEARN_GPIO_PORT;
     ir.irLearnPin = MSRCU_DEV_IR_LEARN_GPIO_PIN;

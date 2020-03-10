@@ -124,6 +124,7 @@ osTimerDef(msrcuAppMotionTimer, user_rcu_motion_timer_callback);
 
 #if MSRCU_IR_SEND_ENABLE
 static bool userIrSendIsStop = true;
+static uint8_t userIrSendRc6TBit[MSRCU_IR_SEND_NB] = {0};
 static msrcuIrCode_t userIrCode;
 #endif
 
@@ -1033,13 +1034,21 @@ static void user_rcu_key_callback(msrcuEvtKey_t *param)
                     if(userIrSendIsStop)
                     {
                         //IR send start
-                        userIrCode.protocol = IR_PROT_NEC;
-                        userIrCode.param.necCode.address = MSRCU_IR_NEC_ADDRESS;
-                        userIrCode.param.necCode.cmd = msrcuKeycodeToIrCmd(param->code); 
+//                        userIrCode.protocol = IR_PROT_NEC;
+//                        userIrCode.param.necCode.addr = MSRCU_IR_SEND_NEC_ADDRESS;
+//                        userIrCode.param.necCode.cmd = msrcuKeycodeToIrCmd(param->code);
+                        userIrCode.protocol = IR_PROT_RC6;
+                        userIrCode.param.rc6Code.tBit = userIrSendRc6TBit[param->code - 1];
+                        userIrCode.param.rc6Code.addr = MSRCU_IR_SEND_RC6_ADDRESS;
+                        userIrCode.param.rc6Code.cmd = msrcuKeycodeToIrCmd(param->code, 0);
                         
                         if(!msrcu_app_ir_send_start(&userIrCode))
                         {
                             userIrSendIsStop = false;
+                            if(userIrSendRc6TBit[param->code - 1] == 0)
+                                userIrSendRc6TBit[param->code - 1] = 1;
+                            else
+                                userIrSendRc6TBit[param->code - 1] = 0;
                             MSPRINT("IR send start.\r\n");
                         }
                         else

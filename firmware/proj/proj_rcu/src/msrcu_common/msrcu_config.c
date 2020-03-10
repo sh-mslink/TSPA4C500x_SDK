@@ -77,7 +77,7 @@ hidKeycode_t msrcuKeycodeToHidKeycode(unsigned char keycode, unsigned char multi
 }
 
 #if MSRCU_IR_SEND_ENABLE
-irCmd_t msrcuKeycodeToIrCmd(unsigned char keycode)
+irCmd_t msrcuKeycodeToIrCmd(unsigned char keycode, unsigned char multiIdx)
 {
     switch(keycode)
     {
@@ -111,6 +111,8 @@ irCmd_t msrcuKeycodeToIrCmd(unsigned char keycode)
             return IR_CMD_BACK;
         case KEY_CODE_DOWN: 
             return IR_CMD_DOWN;
+        case KEY_CODE_USER: 
+            return IR_CMD_USER;
         default:
             return IR_CMD_NULL;
     }

@@ -131,6 +131,7 @@ typedef enum
     IR_PROT_NULL    = 0,
     IR_PROT_LEARN   = 1,//code from IR learn
     IR_PROT_NEC     = 2,//Extended NEC protocol
+    IR_PROT_RC6     = 3,//Philips RC-6 protocol
 }
 msrcuIrProt_t;//IR protocol
 
@@ -163,7 +164,7 @@ msrcuMotionMouse_t;
 typedef struct
 {
     uint8_t baseClock;//MHz
-    uint8_t necCarrierDutyRatio;
+    uint8_t carrierDutyRatio;
     uint8_t irSendPort;
     uint8_t irSendPin;
     uint8_t irLearnPort;
@@ -174,24 +175,33 @@ msrcuIrEnv_t;
 
 typedef struct
 {
-    msrcuIrLrnIdx index;
-}
-msrcuIrCodeLearn_t;
-
-typedef struct
-{
-    uint16_t address;
+    uint16_t addr;
     uint8_t cmd;
 }
 msrcuIrCodeNec_t;
 
 typedef struct
 {
+    uint8_t tBit;
+    uint8_t addr;
+    uint8_t cmd;
+}
+msrcuIrCodeRc6_t;
+
+typedef struct
+{
+    msrcuIrLrnIdx index;
+}
+msrcuIrCodeLearn_t;
+
+typedef struct
+{
     msrcuIrProt_t protocol;
     union
     {
-        msrcuIrCodeLearn_t learnCode;
         msrcuIrCodeNec_t necCode;
+        msrcuIrCodeRc6_t rc6Code;
+        msrcuIrCodeLearn_t learnCode;
     }
     param;
 }

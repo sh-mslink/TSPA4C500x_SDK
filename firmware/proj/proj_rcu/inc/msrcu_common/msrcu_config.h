@@ -98,9 +98,10 @@
 
 ///IR parameters
 #if (MSRCU_IR_SEND_ENABLE || MSRCU_IR_LEARN_ENABLE)
-    #define MSRCU_IR_CMD_NB             (3)//The number of ir send cmd
-    #define MSRCU_IR_NEC_CARRIER_DUTY_RATIO (25)//1~99, recommended 25~33
-    #define MSRCU_IR_NEC_ADDRESS        (0x08F7)//Extended NEC protocol address
+    #define MSRCU_IR_SEND_CARRIER_DUTY_RATIO    (25)//1~99, recommended 25~33
+    #define MSRCU_IR_SEND_NEC_ADDRESS   (0x08F7)//Extended NEC protocol address
+    #define MSRCU_IR_SEND_RC6_ADDRESS   (0x08)//Philips RC-6 protocol address
+    #define MSRCU_IR_SEND_NB            (15)//The number of ir send code could be stored
     #define MSRCU_IR_LEARN_NB           (4)//The number of ir learn code could be stored
 #endif
 
@@ -208,20 +209,21 @@ typedef enum
 typedef enum
 {
     IR_CMD_NULL     = 0x00,
-    IR_CMD_MOTION   = 0x11,
-    IR_CMD_POWER    = 0x22,
-    IR_CMD_VOLUP    = 0x33,
-    IR_CMD_VOLDOWN  = 0x44,
-    IR_CMD_VOICE    = 0x55,
+    IR_CMD_VOLDOWN  = 0x11,
+    IR_CMD_UP       = 0x22,
+    IR_CMD_LEFT     = 0x33,
+    IR_CMD_MOTION   = 0x44,
+    IR_CMD_DOWN     = 0x55,
     IR_CMD_RIGHT    = 0x66,
-    IR_CMD_LEFT     = 0x77,
-    IR_CMD_ENTER    = 0x88,
-    IR_CMD_MUTE     = 0x99,
-    IR_CMD_HOME     = 0xAA,
-    IR_CMD_UP       = 0xBB,
-    IR_CMD_MENU     = 0xCC,
-    IR_CMD_BACK     = 0xDD,
-    IR_CMD_DOWN     = 0xEE,
+    IR_CMD_MUTE     = 0x77,
+    IR_CMD_POWER    = 0x88,
+    IR_CMD_USER     = 0x99,
+    IR_CMD_ENTER    = 0xAA,
+    IR_CMD_BACK     = 0xBB,
+    IR_CMD_VOICE    = 0xCC,
+    IR_CMD_MENU     = 0xDD,
+    IR_CMD_HOME     = 0xEE,
+    IR_CMD_VOLUP    = 0xFF,
 }irCmd_t;
 #endif
 
@@ -247,6 +249,6 @@ extern msrcuEnv_t msrcuEnv;
  */
 hidKeycode_t msrcuKeycodeToHidKeycode(unsigned char keycode, unsigned char multiIdx);
 #if MSRCU_IR_SEND_ENABLE
-irCmd_t msrcuKeycodeToIrCmd(unsigned char keycode);
+irCmd_t msrcuKeycodeToIrCmd(unsigned char keycode, unsigned char multiIdx);
 #endif
 #endif
